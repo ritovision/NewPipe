@@ -12,6 +12,7 @@ import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -496,14 +497,37 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
     }
 
     private boolean isProtectedLibrary(final PlaylistMetadataEntry item) {
-        return LibraryBindingStore.LIBRARY_NAME.equals(item.getOrderingName())
-                || LibraryRepository.isLibrary(NewPipeDatabase.getInstance(requireContext()),
+        return (item.getOrderingName() != null && item.getOrderingName().trim()
+                .equalsIgnoreCase(LibraryBindingStore.LIBRARY_NAME))
+                || LibraryRepository.isBoundLibrary(NewPipeDatabase.getInstance(requireContext()),
                         item.getUid());
     }
 
     private void showLocalDialog(final PlaylistMetadataEntry selectedItem) {
         if (isProtectedLibrary(selectedItem)) {
-            return; // No rename/delete of the canonical Library.
+            // An imported or interrupted database can contain an unbound
+            // Library. Offer a non-destructive, explicit identity repair.
+            if (!LibraryRepository.isBoundLibrary(
+                    NewPipeDatabase.getInstance(requireContext()), selectedItem.getUid())) {
+                new AlertDialog.Builder(requireContext())
+                        .setTitle(R.string.rv_library_repair_title)
+                        .setMessage(R.string.rv_library_repair_message)
+                        .setPositiveButton(R.string.rv_library_repair_action, (dialog, ignored) ->
+                                disposables.add(LibraryRepository
+                                        .confirmRebind(requireContext(), selectedItem.getUid())
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribe(
+                                                () -> Toast.makeText(requireContext(),
+                                                        R.string.rv_library_repair_success,
+                                                        Toast.LENGTH_LONG).show(),
+                                                throwable -> showError(new ErrorInfo(throwable,
+                                                        UserAction.REQUESTED_BOOKMARK,
+                                                        "Repairing Library identity"))
+                                        )))
+                        .setNegativeButton(R.string.cancel, null)
+                        .show();
+            }
+            return; // Never offer ordinary rename/delete for Library.
         }
         final String rename = getString(R.string.rename);
         final String delete = getString(R.string.delete);

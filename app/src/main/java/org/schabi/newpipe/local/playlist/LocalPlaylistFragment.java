@@ -97,8 +97,9 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     private LocalPlaylistManager playlistManager;
 
     private boolean isProtectedLibrary() {
-        return LibraryBindingStore.LIBRARY_NAME.equals(name)
-                || (playlistId != null && LibraryRepository.isLibrary(
+        return (name != null && name.trim().equalsIgnoreCase(
+                LibraryBindingStore.LIBRARY_NAME))
+                || (playlistId != null && LibraryRepository.isBoundLibrary(
                         NewPipeDatabase.getInstance(requireContext()), playlistId));
     }
 

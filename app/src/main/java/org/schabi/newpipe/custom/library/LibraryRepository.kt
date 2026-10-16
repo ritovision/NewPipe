@@ -18,23 +18,21 @@ import org.schabi.newpipe.database.playlist.model.PlaylistEntity
 import org.schabi.newpipe.database.playlist.model.PlaylistStreamEntity
 
 /**
- * The ONLY owner of the special Library playlist.
+ * Canonical Library membership, not a general NewPipe plugin framework.
  *
- * All methods called from LocalPlaylistManager's mutation paths run inside its
- * existing Room transaction. This class owns no extractor, search, or player code.
- *
- * First milestone: safe adds, backfill, and protected reordering only.
- * Intentional remove-from-Library-everywhere is deliberately NOT enabled yet.
+ * Normal playlist mutations already execute within NewPipe's Room transactions.
+ * Hooks only ADD Library entries. Global remove-everywhere is intentionally
+ * unavailable until it has its own transaction and confirmation flow.
  */
 object LibraryRepository {
     private const val TAG = "RitoVisionLibrary"
+    private const val SMALL_INSERT_THRESHOLD = 32
 
     private data class Session(val db: AppDatabase, val id: Long)
 
     @Volatile
     private var session: Session? = null
 
-    /** Startup only. Do not block the main thread while Room opens the DB. */
     @JvmStatic
     fun start(context: Context) {
         val appContext = context.applicationContext
@@ -43,11 +41,11 @@ object LibraryRepository {
         }.subscribeOn(Schedulers.io()).subscribe(
             { Log.i(TAG, "Library initialized") },
             { error ->
-                Log.e(TAG, "Library unavailable; refusing unbound writes", error)
+                Log.e(TAG, "Library unavailable; use the Library playlist's repair action", error)
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(
                         appContext,
-                        "Library setup needs attention; automatic saving is unavailable.",
+                        "Library needs repair. Open Bookmarked Playlists and long-press Library.",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -56,25 +54,40 @@ object LibraryRepository {
     }
 
     /**
-     * Initializes and safely backfills existing playlists.
-     * Exposed to instrumented tests with a separate in-memory DB and sidecar.
+     * Initializes exactly once per database instance. Recreating an Activity
+     * must not clear a live Library session or rescan 20k entries.
+     *
+     * A mismatched/missing binding is never used to adopt a similarly named
+     * playlist automatically. If NO candidate exists, creating a NEW Library
+     * and backfilling is always additive and never destroys an existing list.
      */
     @Synchronized
     fun initialize(db: AppDatabase, store: LibraryBindingStore): Long {
-        // Never authorize a prior database's cached playlist identity.
-        session = null
-        val binding = store.read()
+        current(db)?.let { return it.id }
+
+        val binding = try {
+            store.read()
+        } catch (error: Exception) {
+            Log.w(TAG, "Cannot verify Library identity; refusing automatic adoption", error)
+            null
+        }
+        var reusedVerifiedBinding = false
         val id = db.runInTransaction(
             Callable {
-                if (binding == null) {
-                    // Name alone is not proof of identity: don't silently adopt one.
-                    val named = queryIds(
-                        db,
-                        "SELECT uid FROM playlists WHERE LOWER(TRIM(name)) = LOWER(?)",
-                        LibraryBindingStore.LIBRARY_NAME
-                    )
+                val named = queryIds(
+                    db,
+                    "SELECT uid FROM playlists WHERE LOWER(TRIM(name)) = LOWER(?)",
+                    LibraryBindingStore.LIBRARY_NAME
+                )
+                val boundName = binding?.let { readPlaylistName(db, it.playlistId) }
+                if (binding != null && boundName == binding.name) {
+                    reusedVerifiedBinding = true
+                    binding.playlistId
+                } else {
+                    // Creating a new playlist is safe; adopting one based on
+                    // its name or a stale integer ID is not.
                     check(named.isEmpty()) {
-                        "Unbound playlist named Library exists. Review its identity before enabling."
+                        "An unbound Library playlist already exists. User confirmation is required."
                     }
                     db.playlistDAO().insert(
                         PlaylistEntity(
@@ -84,61 +97,126 @@ object LibraryRepository {
                             displayIndex = -1
                         )
                     )
-                } else {
-                    check(readPlaylistName(db, binding.playlistId) == binding.name) {
-                        "Library binding does not match database; refusing to adopt a playlist"
-                    }
-                    binding.playlistId
                 }
             }
         )
 
-        if (binding == null) {
+        // The binding write follows playlist creation. A crash in between
+        // leaves an unbound playlist, requiring deliberate rebind instead of
+        // silently treating an arbitrary matching name as authoritative.
+        if (!reusedVerifiedBinding) {
             store.write(LibraryBindingStore.Binding(id, LibraryBindingStore.LIBRARY_NAME))
         }
 
-        // This transaction completes all backfill before the session becomes active.
-        db.runInTransaction { backfill(db, id) }
-        session = Session(db, id)
-
-        // Close the race between committing backfill and publishing the session:
-        // an ordinary write during that interval may have skipped its hook.
-        db.runInTransaction { backfill(db, id) }
+        // Publishing inside the write transaction closes the initialization
+        // race. A competing write either commits BEFORE this backfill or sees
+        // the published session AFTER it obtains the Room writer lock.
+        try {
+            db.runInTransaction {
+                backfill(db, id)
+                session = Session(db, id)
+            }
+        } catch (error: Throwable) {
+            session = null
+            throw error
+        }
         return id
     }
 
-    @JvmStatic
-    fun isLibrary(db: AppDatabase, playlistId: Long): Boolean = current(db)?.id == playlistId
+    /**
+     * Deliberate recovery only: the user selected this exact playlist in the
+     * UI and accepted that it will become the canonical Library. No deletions.
+     */
+    @Synchronized
+    fun rebindExisting(db: AppDatabase, store: LibraryBindingStore, playlistId: Long): Long {
+        val previous = current(db)
+        check(previous == null || previous.id == playlistId) {
+            "A different Library is already active"
+        }
+        val selectedName = readPlaylistName(db, playlistId)
+        check(
+            selectedName?.trim()?.equals(
+                LibraryBindingStore.LIBRARY_NAME,
+                ignoreCase = true
+            ) == true
+        ) {
+            "The selected playlist is not named Library"
+        }
+        // This user-approved identity recovery also normalizes casing so
+        // future exact binding checks remain reliable.
+        try {
+            db.runInTransaction {
+                if (selectedName != LibraryBindingStore.LIBRARY_NAME) {
+                    db.openHelper.writableDatabase.execSQL(
+                        "UPDATE playlists SET name = ? WHERE uid = ?",
+                        arrayOf<Any>(LibraryBindingStore.LIBRARY_NAME, playlistId)
+                    )
+                }
+                backfill(db, playlistId)
+                store.write(
+                    LibraryBindingStore.Binding(playlistId, LibraryBindingStore.LIBRARY_NAME)
+                )
+                session = Session(db, playlistId)
+            }
+        } catch (error: Throwable) {
+            session = null
+            throw error
+        }
+        return playlistId
+    }
 
-    /** Called *inside* the manager's transaction after an ordinary join insertion. */
     @JvmStatic
-    fun afterPlaylistInsert(db: AppDatabase, playlistId: Long, streamIds: List<Long>) {
-        val id = current(db)?.id ?: return
-        if (playlistId != id) {
-            insertMissing(db, id, streamIds)
+    fun confirmRebind(context: Context, playlistId: Long): Completable {
+        val appContext = context.applicationContext
+        return Completable.fromAction {
+            rebindExisting(
+                NewPipeDatabase.getInstance(appContext),
+                LibraryBindingStore(appContext),
+                playlistId
+            )
+        }.subscribeOn(Schedulers.io())
+    }
+
+    /** Cheap UI check; never runs Room queries on the main thread. */
+    @JvmStatic
+    fun isBoundLibrary(db: AppDatabase, playlistId: Long): Boolean = current(db)?.id == playlistId
+
+    /**
+     * Conservative protection while initialization is absent or pending.
+     * A name match may BLOCK deletion/rename, but never authorizes cascading
+     * deletion or adoption of a playlist as canonical Library.
+     * Call only on the manager's IO/Room transaction thread.
+     */
+    @JvmStatic
+    fun isLibrary(db: AppDatabase, playlistId: Long): Boolean {
+        val active = current(db)
+        return if (active != null) {
+            active.id == playlistId
+        } else {
+            readPlaylistName(db, playlistId)?.trim()
+                ?.equals(LibraryBindingStore.LIBRARY_NAME, ignoreCase = true) == true
         }
     }
 
-    /** Called inside the manager's transaction after an ordinary join replacement. */
     @JvmStatic
-    fun afterPlaylistUpdate(db: AppDatabase, playlistId: Long, streamIds: List<Long>) {
-        afterPlaylistInsert(db, playlistId, streamIds)
+    fun afterPlaylistInsert(db: AppDatabase, playlistId: Long, streamIds: List<Long>) {
+        val id = current(db)?.id ?: return
+        if (playlistId != id) insertMissing(db, id, streamIds)
     }
 
     /**
-     * Called in the append transaction when the selected target is Library.
-     * Unlike NewPipe's normal append, a repeated Library save is idempotent.
+     * The caller has verified this is the protected Library (or a conservative
+     * name match while the binding is unavailable). Never append duplicates.
      */
     @JvmStatic
     fun appendDirectly(db: AppDatabase, playlistId: Long, streamIds: List<Long>): List<Long> {
-        check(isLibrary(db, playlistId)) { "Library binding is not active" }
+        check(isLibrary(db, playlistId)) { "Not a protected Library playlist" }
         return insertMissing(db, playlistId, streamIds)
     }
 
     /**
-     * Called in updateJoin's transaction only for the canonical Library.
-     * Reordering cannot delete saved entries. Entries added since an editor
-     * loaded are retained at the end, not treated as global deletions.
+     * Library "updateJoin" is allowed to reorder, but never to discard
+     * Library-only entries. This also protects cold-start/stale-screen writes.
      */
     @JvmStatic
     fun rewriteLibraryWithoutRemoving(
@@ -146,9 +224,7 @@ object LibraryRepository {
         playlistId: Long,
         orderedFromEditor: List<Long>
     ): Boolean {
-        if (!isLibrary(db, playlistId)) {
-            return false
-        }
+        if (!isLibrary(db, playlistId)) return false
         val stored = orderedStreamIds(db, playlistId)
         val membership = stored.toHashSet()
         val safeOrder = LinkedHashSet<Long>()
@@ -156,7 +232,6 @@ object LibraryRepository {
             if (id in membership) safeOrder.add(id)
         }
         safeOrder.addAll(stored)
-
         db.playlistStreamDAO().deleteBatch(playlistId)
         db.playlistStreamDAO().insertAll(
             safeOrder.mapIndexed { index, streamUid ->
@@ -166,44 +241,43 @@ object LibraryRepository {
         return true
     }
 
-    /**
-     * Reserve this playlist from rename and delete even in manager code, not
-     * only in UI. Global removal will have its own explicit, tested API later.
-     */
+    /** Bookmark sorting may update Library metadata, never its name. */
     @JvmStatic
-    fun requireNotLibrary(db: AppDatabase, playlistId: Long) {
-        check(!isLibrary(db, playlistId)) {
-            "The canonical Library cannot be renamed or deleted"
+    fun requireUnchangedLibraryName(db: AppDatabase, playlistId: Long, proposedName: String?) {
+        if (isLibrary(db, playlistId)) {
+            check(proposedName == readPlaylistName(db, playlistId)) {
+                "The protected Library name cannot be changed"
+            }
         }
     }
 
-    /**
-     * Used by NewPipe's native ZIP restore path before replacing the database.
-     * Never use a cached id with a newly imported database.
-     */
     @JvmStatic
+    fun requireNotLibrary(db: AppDatabase, playlistId: Long) {
+        check(!isLibrary(db, playlistId)) {
+            "The protected Library cannot be renamed or deleted"
+        }
+    }
+
+    /** Called only by the ZIP restore path, after validating/staging the ZIP. */
+    @Synchronized
     fun suspendForRestore() {
         session = null
     }
 
-    /** Tests only; production code must never reset identity without restore. */
+    /** Test helper: emulate a process entry through RouterActivity. */
     fun forgetSessionForTest() {
         session = null
     }
 
-    /** Compute inside the enclosing transaction, not before it (append race). */
     @JvmStatic
-    fun nextJoinIndex(db: AppDatabase, playlistId: Long): Int {
-        val sql = """
-            SELECT COALESCE(MAX(join_index), -1) + 1
-            FROM playlist_stream_join WHERE playlist_id = ?
-        """.trimIndent()
-        return db.openHelper.writableDatabase.query(
-            SimpleSQLiteQuery(sql, arrayOf(playlistId))
-        ).use { cursor ->
-            check(cursor.moveToFirst())
-            cursor.getInt(0)
-        }
+    fun nextJoinIndex(db: AppDatabase, playlistId: Long): Int = db.openHelper.writableDatabase.query(
+        SimpleSQLiteQuery(
+            "SELECT COALESCE(MAX(join_index), -1) + 1 FROM playlist_stream_join WHERE playlist_id = ?",
+            arrayOf(playlistId)
+        )
+    ).use { cursor ->
+        check(cursor.moveToFirst())
+        cursor.getInt(0)
     }
 
     private fun current(db: AppDatabase): Session? = session?.takeIf { it.db === db }
@@ -228,9 +302,14 @@ object LibraryRepository {
         playlistId
     )
 
+    private fun libraryContains(db: AppDatabase, libraryId: Long, streamId: Long): Boolean = db.openHelper.writableDatabase.query(
+        SimpleSQLiteQuery(
+            "SELECT 1 FROM playlist_stream_join WHERE playlist_id = ? AND stream_id = ? LIMIT 1",
+            arrayOf(libraryId, streamId)
+        )
+    ).use { it.moveToFirst() }
+
     private fun backfill(db: AppDatabase, libraryId: Long) {
-        // Stable iteration order for the first encounter of a stream; preserve
-        // existing order, including all duplicates, in the ordinary playlists.
         val all = queryIds(
             db,
             """
@@ -250,11 +329,18 @@ object LibraryRepository {
         streamIds: List<Long>
     ): List<Long> {
         if (streamIds.isEmpty()) return emptyList()
-        val existing = orderedStreamIds(db, libraryId).toHashSet()
+        val existing = if (streamIds.size > SMALL_INSERT_THRESHOLD) {
+            orderedStreamIds(db, libraryId).toHashSet()
+        } else {
+            HashSet<Long>()
+        }
         var next = nextJoinIndex(db, libraryId)
         val inserts = ArrayList<PlaylistStreamEntity>()
         for (streamId in streamIds) {
-            if (existing.add(streamId)) {
+            val alreadySeen = streamId in existing ||
+                (streamIds.size <= SMALL_INSERT_THRESHOLD && libraryContains(db, libraryId, streamId))
+            if (!alreadySeen) {
+                existing.add(streamId)
                 inserts.add(PlaylistStreamEntity(libraryId, streamId, next++))
             }
         }

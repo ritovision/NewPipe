@@ -97,7 +97,6 @@ public class LocalPlaylistManager {
                     streamIds)) {
                 playlistStreamTable.deleteBatch(playlistId);
                 playlistStreamTable.insertAll(joinEntities);
-                LibraryRepository.afterPlaylistUpdate(database, playlistId, streamIds);
             }
         })).subscribeOn(Schedulers.io());
     }
@@ -114,6 +113,10 @@ public class LocalPlaylistManager {
                 playlistTable.deletePlaylist(uid);
             }
             for (final PlaylistEntity item : items) {
+                // Bookmark reordering may update Library metadata but cannot
+                // rename the protected canonical list.
+                LibraryRepository.requireUnchangedLibraryName(database,
+                        item.getUid(), item.getName());
                 playlistTable.upsertPlaylist(item);
             }
         })).subscribeOn(Schedulers.io());
@@ -148,7 +151,7 @@ public class LocalPlaylistManager {
         return Maybe.defer(() -> {
             LibraryRepository.requireNotLibrary(database, playlistId);
             return modifyPlaylist(playlistId, name, THUMBNAIL_ID_LEAVE_UNCHANGED, false);
-        });
+        }).subscribeOn(Schedulers.io());
     }
 
     public Maybe<Integer> changePlaylistThumbnail(final long playlistId,

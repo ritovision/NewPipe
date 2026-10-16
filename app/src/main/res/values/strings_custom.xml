@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rv_library_repair_title">Repair Library identity</string>
+    <string name="rv_library_repair_message">Use this existing playlist as the master Library? This will add missing saved videos from your other playlists. It will not delete any videos or playlists.</string>
+    <string name="rv_library_repair_action">Use as Library</string>
+    <string name="rv_library_repair_success">Library is ready. Existing playlists were preserved.</string>
+</resources>

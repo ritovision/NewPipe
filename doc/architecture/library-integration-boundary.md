@@ -87,3 +87,26 @@ No automatic F-Droid application updates or data migrations are performed as par
 **Known limitations:** The global remove-everywhere operation is intentionally absent. Bound-ID collision hardening, paired custom-backup restore roundtrips, startup migration failure recovery UI, concurrency stress, and emulator UI behavior at larger scale remain future gates. NewPipe's existing import tests are green, but that does not certify the new binding's full backup/restore lifecycle. Software-only `-gpu off` produced a transient emulator System UI ANR before recovering; it did not affect the targeted database tests.
 
 **Engineering decision:** Keep this milestone on `feature/library` for review; do not merge into `custom/dev` or install on the user's Pixel 7 yet.
+## Post-review hardening — 2026-10-15
+
+After Claude Opus Max reviewed commit `f245e5497`, the following changes were implemented on `feature/library` before preparing the physical-device build:
+
+| Review issue | Resolution in this revision | Remaining limitation |
+| --- | --- | --- |
+| Missing in-memory Library session allows destructive playlist rewrites or duplicates | Conservative name-based protection on the Room mutation path when unbound; no adoption/global deletion from name; repeat initialization retains valid session; single backfill publishes identity inside the write transaction | Cold-start behavior is covered by compiled Android regression tests but was intentionally not executed on an emulator at the user's request |
+| Unbound Library has no recovery path | Bookmarked Playlists long-press offers an explicit **Use as Library** repair action only when unbound; rebind preserves contents and backfills additively. Mismatched saved binding with no named Library automatically creates a new protected Library and retains all previous playlists | Library names remain special; a future dedicated recovery UI should address multiple same-named playlists |
+| Backup restore can remove binding before DB replacement | ZIP is read once and staged; SQLite header and Library binding validated before replacement; existing DB/binding/WAL siblings copied for exception rollback; binding is replaced only after DB move; temporary files cleaned | Multi-file restore is NOT crash-atomic. Process death during a swap can require explicit identity rebind; global remove-everywhere remains disabled |
+| Unnecessary repeated large backfills | Initialization returns immediately for an already active DB session; first run backfills only once; small additions use per-stream membership probes | Large-list performance under 20k+ streams is not yet benchmarked |
+| Obsolete add-on-update hook | Removed from ordinary `updateJoin`; only playlist append/create may auto-add to Library | Stale ordinary playlist edits remain an existing NewPipe behavior; direct global removal remains deferred |
+
+### Build/test release gate
+
+- `:app:testDebugUnitTest`: PASS — **163/163** JVM tests, including **8 new** `LibraryBackupRestoreTest` cases.
+- `:app:assembleDebug` and Android instrumentation-test APK compilation: required before physical-device installation.
+- Added further instrumentation regression cases for unbound/cold-start Library protection, additive backfill, duplicate handling, explicit rebind and metadata name protection. **No emulator tests run**, per user's explicit instruction.
+- Physical installation is authorized **only** to the verified Pixel 7 reached through Tailscale ADB. Never uninstall or clear data of the installed F-Droid app.
+- This is still the **add-only Library milestone**, not a complete global-removal feature or Tags system. The user will test actual playlist interactions manually.
+
+### Important risk boundary
+
+The saved playlist ID plus display name is not a cryptographically strong identity and cannot prove two separately imported databases correspond to the same Library. Until a stronger binding/migration scheme and cross-database journal are implemented and reviewed, do **not** expose cascading Library deletion or AI-controlled bulk deletion.

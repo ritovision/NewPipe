@@ -181,14 +181,11 @@ class LibraryRepositoryTest {
         val existing = createPlaylist("Workout", stream("https://example.org/a"))
         store.write(LibraryBindingStore.Binding(existing, LibraryBindingStore.LIBRARY_NAME))
 
-        try {
-            LibraryRepository.initialize(db, store)
-            fail("A mismatched binding must fail closed")
-        } catch (expected: IllegalStateException) {
-            assertTrue(expected.message!!.contains("does not match"))
-        }
+        val fresh = LibraryRepository.initialize(db, store)
+        assertTrue(fresh != existing)
         assertFalse(LibraryRepository.isLibrary(db, existing))
-        assertEquals(1, manager.playlists.blockingFirst().size)
+        assertEquals(2, manager.playlists.blockingFirst().size)
+        assertEquals(entries(existing), entries(fresh))
     }
 
     @Test
@@ -209,5 +206,101 @@ class LibraryRepositoryTest {
             assertTrue(expected.message!!.contains("Unbound playlist"))
         }
         assertEquals(1, manager.playlists.blockingFirst().size)
+    }
+
+    @Test
+    fun coldStartDirectSaveIsIdempotent() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/cold-save")
+        manager.appendToPlaylist(library, listOf(a)).test().await().assertComplete()
+
+        LibraryRepository.forgetSessionForTest()
+        manager.appendToPlaylist(library, listOf(a)).test().await().assertComplete()
+        manager.appendToPlaylist(library, listOf(a)).test().await().assertComplete()
+
+        assertEquals(listOf(uid(1, a.url)), entries(library))
+        assertEquals(library, LibraryRepository.initialize(db, store))
+    }
+
+    @Test
+    fun coldStartStaleLibraryUpdateNeverRemovesSavedOnlyStream() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/cold-a")
+        val b = stream("https://example.org/cold-b")
+        manager.appendToPlaylist(library, listOf(a, b)).test().await().assertComplete()
+
+        LibraryRepository.forgetSessionForTest()
+        manager.updateJoin(library, listOf(uid(1, a.url))).test().await().assertComplete()
+
+        assertEquals(listOf(uid(1, a.url), uid(1, b.url)), entries(library))
+    }
+
+    @Test
+    fun repeatedInitializationPreservesBoundProtection() {
+        val library = LibraryRepository.initialize(db, store)
+        manager.appendToPlaylist(library, listOf(stream("https://example.org/a")))
+            .test().await().assertComplete()
+
+        assertEquals(library, LibraryRepository.initialize(db, store))
+        manager.updateJoin(library, emptyList()).test().await().assertComplete()
+        assertEquals(1, entries(library).size)
+    }
+
+    @Test
+    fun duplicateRowsInOrdinaryPlaylistStillYieldOneLibraryRow() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/repeat")
+        val playlist = createPlaylist("Repeats", a, a)
+
+        assertEquals(2, entries(playlist).size)
+        assertEquals(listOf(uid(1, a.url)), entries(library))
+    }
+
+    @Test
+    fun explicitlyRebindingUnboundLibraryPreservesItsOnlyEntries() {
+        val a = stream("https://example.org/only-in-imported-library")
+        val library = createPlaylist("Library", a)
+        try {
+            LibraryRepository.initialize(db, store)
+            fail("Never auto-adopt an unbound Library")
+        } catch (expected: IllegalStateException) {
+            // Deliberate repair requires explicit user selection.
+        }
+
+        val rebound = LibraryRepository.rebindExisting(db, store, library)
+        assertEquals(library, rebound)
+        assertEquals(listOf(uid(1, a.url)), entries(library))
+        assertTrue(LibraryRepository.isBoundLibrary(db, library))
+    }
+
+    @Test
+    fun mismatchedBindingWithNoNamedCandidateCreatesNewLibraryWithoutDeletingOld() {
+        val a = stream("https://example.org/mismatch")
+        val old = createPlaylist("Workout", a)
+        store.write(LibraryBindingStore.Binding(old, LibraryBindingStore.LIBRARY_NAME))
+
+        val newLibrary = LibraryRepository.initialize(db, store)
+        assertTrue(newLibrary != old)
+        assertEquals(listOf(uid(1, a.url)), entries(newLibrary))
+        assertEquals(listOf(uid(1, a.url)), entries(old))
+    }
+
+    @Test
+    fun boundLibraryMetadataCannotBeRenamedByBookmarkUpsert() {
+        val library = LibraryRepository.initialize(db, store)
+        val metadata = manager.playlists.blockingFirst().single { it.uid == library }
+        val wrong = org.schabi.newpipe.database.playlist.PlaylistMetadataEntry(
+            uid = metadata.uid,
+            orderingName = "New name",
+            thumbnailUrl = metadata.thumbnailUrl,
+            displayIndex = metadata.displayIndex,
+            isThumbnailPermanent = metadata.isThumbnailPermanent,
+            thumbnailStreamId = metadata.thumbnailStreamId,
+            streamCount = metadata.streamCount
+        )
+
+        manager.updatePlaylists(listOf(wrong), emptyList()).test().await()
+            .assertError(IllegalStateException::class.java)
+        assertEquals("Library", manager.playlists.blockingFirst().single().orderingName)
     }
 }
