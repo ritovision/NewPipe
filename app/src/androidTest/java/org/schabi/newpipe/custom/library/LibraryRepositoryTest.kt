@@ -203,7 +203,7 @@ class LibraryRepositoryTest {
             LibraryRepository.initialize(db, store)
             fail("A playlist's display name does not establish identity")
         } catch (expected: IllegalStateException) {
-            assertTrue(expected.message!!.contains("Unbound playlist"))
+            assertTrue(expected.message!!.contains("unbound Library playlist"))
         }
         assertEquals(1, manager.playlists.blockingFirst().size)
     }

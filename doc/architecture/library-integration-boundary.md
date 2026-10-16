@@ -1,5 +1,51 @@
 # Library Integration Boundary — RitoVision NewPipe Fork
 
+**FINAL STATUS (2026-10-16): LIBRARY V1 COMPLETE.** Code milestone
+577bf2f77 is merged into custom/dev and installed on the user's separate
+custom NewPipe Android app. The user reports the feature looks good.
+The final independent Claude Opus Max review found **no Critical or High
+issues** and returned **PASS WITH NONBLOCKERS**.
+
+**Release verification:** JVM tests 163 passed, 0 failed; builds passed.
+The original 10 Android integration tests were executed successfully on
+a separate emulator during development. The 12 later Android instrumentation
+tests, including the five global-deletion cases, were compiled but deliberately
+not run at the user's request. The user tested the installed app personally.
+
+**Behavioral scope:** Saving to ordinary playlists auto-saves to Library;
+direct Library saves deduplicate; ordinary-playlist removal is local;
+Delete from Library removes every occurrence of that item across all
+local playlists in one Room transaction after confirmation. The master
+Library playlist itself remains present. Global removal is restricted to
+a verified Library ID; restoring an unmatched import requires repair.
+
+**Accepted nonblocking limitations for v1:**
+- An ordinary playlist also named "Library" is confused with the canonical
+  Library in some menus and can become awkward to rename or delete. The
+  database operation refuses a wrong-ID global deletion. Avoid naming a
+  separate ordinary playlist "Library" until a later UI cleanup.
+- If a SQLite COMMIT fails after the transient removed-item marker was added,
+  that marker might affect ordinary playlist edits until the process restarts.
+  This is a rare disk/I/O failure edge.
+- A playlist whose thumbnail was removed globally may show a placeholder
+  instead of automatically choosing the next video.
+- Failed global removals may show a full-screen error instead of a snackbar.
+- An explicit re-add can clear the deletion marker; stale in-memory screens
+  could then reintroduce the stream to that particular playlist. This does
+  not reintroduce a stream that has not been intentionally re-added.
+- Cross-database tag cleanup and multi-device sync tombstones belong to
+  their future Tags and Cloud Sync milestones.
+- The sidecar Library ID/name is not cryptographically tied to a database.
+  The current design fails closed on ambiguous restores and offers manual
+  repair, adequate for this personal fork.
+
+The independent review and these accepted issues are preserved in
+[Claude's final Library review](../reviews/library-final-claude-opus-max-2026-10-16.md).
+No further Library feature work is required before starting Tags.
+
+---
+
+
 ## Current milestone — interactive global Library removal (2026-10-16)
 
 **Status:** Library item deletion is enabled in this revision. The earlier
@@ -27,15 +73,17 @@ add-only descriptions below document the previous implementation and tests.
   Five additional Room instrumentation regression cases were compiled but
   **not run**, per the user's request to test the new behavior personally on
   the Pixel 7 rather than on an emulator. No physical device data was wiped.
-- **Integration boundary:** Upstream changes are still limited to
-  LocalPlaylistFragment (restore Delete action with confirmation) and
-  LocalPlaylistManager (filter stale reorder operations). Core SQL and
-  deletion/tombstone logic reside solely in our custom LibraryRepository.
+- **Integration boundary:** The incremental global-deletion change touched
+  LocalPlaylistFragment and LocalPlaylistManager. Across the complete Library
+  feature, five upstream-owned source files are patched: MainActivity,
+  BookmarkFragment, ImportExportManager, LocalPlaylistFragment and
+  LocalPlaylistManager. SQL and removal-marker logic live in our custom
+  LibraryRepository.
 
 ---
 
 
-**Status:** Feature-branch implementation, validation in progress
+**HISTORICAL STATUS:** Original add-only feature-branch notes, superseded by the final Library v1 section above.
 **Branch:** `feature/library` (base: `custom/dev`)
 **Product requirements:** [Library playlist system](../specs/library-playlist-system.md)
 **External review:** [Claude Opus xhigh](../reviews/library-tags-claude-opus-xhigh-2026-10-15.md) — unadjudicated; we use its risk observations but have not ratified its complete implementation.
@@ -68,7 +116,7 @@ The feature intentionally uses `:app`'s existing Room database and playlist enti
 | `local/bookmark/BookmarkFragment.java` | Hide Library rename/delete and prevent its ordinary deletion path | Ordinary playlists remain reorderable/deletable |
 | `settings/export/ImportExportManager.kt` | Export/import the sidecar binding with the original DB, and invalidate old binding before DB replacement | No rewrite of existing NewPipe export or settings formats |
 
-## Invariants at this milestone
+## Original add-only invariants (historical)
 
 1. Any stream added to an ordinary playlist is also inserted once into Library **within the same Room write transaction** after Library initialization.
 2. Existing ordinary playlists preserve their independent membership and order, including intentional duplicates.
@@ -80,7 +128,7 @@ The feature intentionally uses `:app`'s existing Room database and playlist enti
 8. The sidecar identity lives at `databases/ritovision-library.binding`. It is included in custom ZIP backups, removed when an imported stock backup lacks one, and never imported through NewPipe's default preferences. In an ambiguous restore containing an unbound playlist called Library, the app requires later deliberate repair instead of silently adopting it.
 9. No remote/cloud/multi-device write path is activated; eventual AI, Tags, pruning and sync will use the same Library repository.
 
-## Known unfinished pieces / blockers before declaring full feature complete
+## Original add-only backlog (historical, superseded where completed)
 
 - **Global remove everywhere**: Needs explicit affected-playlist preview/confirmation, a single atomic transaction, thumbnail handling, cross-database tag cleanup journal, and protections against stale UI/editor writes. Not in initial APK.
 - **Recovery UI**: An imported stock database with an existing unbound playlist named Library intentionally fails closed; provide a safe rebind/create-new workflow before broadly shipping this.
@@ -89,7 +137,7 @@ The feature intentionally uses `:app`'s existing Room database and playlist enti
 - **Cross-process sync**: Future cloud edits need tombstones, idempotency and conflict resolution and must not rely on observing missing entries.
 - **Static package identity**: The upstream debug build derives `applicationIdSuffix` from the Git branch name. Feature branches therefore produce different throwaway APK identities. After integration, build `custom/dev` to retain the tested `org.schabi.newpipe.debug.customdev` package. A dedicated immutable application ID and release signing key should be established before adopting the fork as the user's primary app.
 
-## Validation plan
+## Original validation plan (historical)
 
 - Run `:app:assembleDebug` and `:app:assembleDebugAndroidTest` on @NotCodex-2 (build-only).
 - Run focused `LibraryRepositoryTest` instrumented tests on a throwaway @NotCodex emulator, not a live user database. Explicitly test duplicate preservation, stale editor writes, direct Library saves, mismatch/restore rejection and idempotent backfill.

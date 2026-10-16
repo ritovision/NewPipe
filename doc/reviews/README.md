@@ -5,5 +5,7 @@ These documents preserve external model reviews for later adjudication. **Nothin
 - [Claude Opus xhigh — Library and Tagging Architecture (2026-10-15)](library-tags-claude-opus-xhigh-2026-10-15.md) — critique of Library writes/removals, cross-database tags, backup/restore, UI hooks, and upstream compatibility. Unadjudicated.
 - [Claude Opus max — Device-First AI Control and Executor (2026-10-15)](ai-control-claude-opus-max-2026-10-15.md) — direct source review of an Android command dispatcher, optional relay, pairing, security, foreground-service constraints, and MCP interface. Unadjudicated.
 
-Future external reviews belong in this directory, with model/effort, reviewed revision, permissions, source references, known uncertainties, and adjudication status.
 - [Claude Opus max — Library implementation review (2026-10-15)](library-implementation-claude-opus-max-2026-10-15.md) — independent review of commit `f245e5497`; PASS WITH CHANGES: initialization session gaps, recovery, restore atomicity, and performance. Unadjudicated.
+- [Claude Opus max — Final Library review (2026-10-16)](library-final-claude-opus-max-2026-10-16.md) — independent source review at commit 577bf2f77. PASS WITH NONBLOCKERS; closing test/documentation corrections made; remaining v1 limitations accepted. Library milestone complete.
+
+Future external reviews belong in this directory, with model/effort, reviewed revision, permissions, source references, known uncertainties, and adjudication status.

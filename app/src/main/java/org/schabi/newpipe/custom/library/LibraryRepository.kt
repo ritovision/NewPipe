@@ -21,8 +21,8 @@ import org.schabi.newpipe.database.playlist.model.PlaylistStreamEntity
  * Canonical Library membership, not a general NewPipe plugin framework.
  *
  * Normal playlist mutations already execute within NewPipe's Room transactions.
- * Hooks only ADD Library entries. Global remove-everywhere is intentionally
- * unavailable until it has its own transaction and confirmation flow.
+ * Ordinary playlist hooks only ADD Library entries. Intentional removal
+ * from Library uses its own transaction and UI confirmation.
  */
 object LibraryRepository {
     private const val TAG = "RitoVisionLibrary"

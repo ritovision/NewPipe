@@ -392,7 +392,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     @Override
     public boolean onOptionsItemSelected(final MenuItem item) {
         if (isProtectedLibrary() && item.getItemId() != R.id.menu_item_share_playlist) {
-            return true; // No destructive/bulk actions until explicit global removal is tested.
+            return true; // Block rename/bulk actions; individual Delete has its own confirmation.
         }
         if (item.getItemId() == R.id.menu_item_share_playlist) {
             createShareConfirmationDialog();

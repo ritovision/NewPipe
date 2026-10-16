@@ -18,8 +18,8 @@ import org.schabi.newpipe.streams.io.StoredFileHelper
  * NewPipe database. Copy old DB/binding/WAL companions for error rollback.
  *
  * This does not make two independent files crash-atomic. A crash during swap
- * can leave an unbound Library; the user must explicitly rebind it. Global
- * remove-everywhere therefore remains disabled in this milestone.
+ * can leave an unbound Library; the user must explicitly rebind it.
+ * Global removal requires a verified bound Library and refuses unbound IDs.
  */
 object LibraryBackupRestore {
     private const val MAX_BINDING_SIZE = 4096
