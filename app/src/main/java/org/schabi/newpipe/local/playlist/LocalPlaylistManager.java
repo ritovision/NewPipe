@@ -2,6 +2,7 @@ package org.schabi.newpipe.local.playlist;
 
 import androidx.annotation.Nullable;
 
+import org.schabi.newpipe.custom.library.LibraryRepository;
 import org.schabi.newpipe.database.AppDatabase;
 import org.schabi.newpipe.database.playlist.PlaylistDuplicatesEntry;
 import org.schabi.newpipe.database.playlist.PlaylistMetadataEntry;
@@ -58,13 +59,15 @@ public class LocalPlaylistManager {
 
     public Maybe<List<Long>> appendToPlaylist(final long playlistId,
                                               final List<StreamEntity> streams) {
-        return playlistStreamTable.getMaximumIndexOf(playlistId)
-                .firstElement()
-                .map(maxJoinIndex -> database.runInTransaction(() -> {
-                            final List<Long> streamIds = streamTable.upsertAll(streams);
-                            return insertJoinEntities(playlistId, streamIds, maxJoinIndex + 1);
-                        }
-                )).subscribeOn(Schedulers.io());
+        return Maybe.fromCallable(() -> database.runInTransaction(() -> {
+            final List<Long> streamIds = streamTable.upsertAll(streams);
+            if (LibraryRepository.isLibrary(database, playlistId)) {
+                return LibraryRepository.appendDirectly(database, playlistId, streamIds);
+            }
+            // Derive the next position *inside* the same transaction as insertion.
+            return insertJoinEntities(playlistId, streamIds,
+                    LibraryRepository.nextJoinIndex(database, playlistId));
+        })).subscribeOn(Schedulers.io());
     }
 
     private List<Long> insertJoinEntities(final long playlistId, final List<Long> streamIds,
@@ -76,7 +79,9 @@ public class LocalPlaylistManager {
             joinEntities.add(new PlaylistStreamEntity(playlistId, streamIds.get(index),
                     index + indexOffset));
         }
-        return playlistStreamTable.insertAll(joinEntities);
+        final List<Long> inserted = playlistStreamTable.insertAll(joinEntities);
+        LibraryRepository.afterPlaylistInsert(database, playlistId, streamIds);
+        return inserted;
     }
 
     public Completable updateJoin(final long playlistId, final List<Long> streamIds) {
@@ -86,8 +91,14 @@ public class LocalPlaylistManager {
         }
 
         return Completable.fromRunnable(() -> database.runInTransaction(() -> {
-            playlistStreamTable.deleteBatch(playlistId);
-            playlistStreamTable.insertAll(joinEntities);
+            // updateJoin also handles reorder, watched-removal and duplicate cleanup.
+            // Never infer a global Library deletion from a rewritten editor list.
+            if (!LibraryRepository.rewriteLibraryWithoutRemoving(database, playlistId,
+                    streamIds)) {
+                playlistStreamTable.deleteBatch(playlistId);
+                playlistStreamTable.insertAll(joinEntities);
+                LibraryRepository.afterPlaylistUpdate(database, playlistId, streamIds);
+            }
         })).subscribeOn(Schedulers.io());
     }
 
@@ -99,6 +110,7 @@ public class LocalPlaylistManager {
         }
         return Completable.fromRunnable(() -> database.runInTransaction(() -> {
             for (final Long uid : deletedItems) {
+                LibraryRepository.requireNotLibrary(database, uid);
                 playlistTable.deletePlaylist(uid);
             }
             for (final PlaylistEntity item : items) {
@@ -133,7 +145,10 @@ public class LocalPlaylistManager {
     }
 
     public Maybe<Integer> renamePlaylist(final long playlistId, final String name) {
-        return modifyPlaylist(playlistId, name, THUMBNAIL_ID_LEAVE_UNCHANGED, false);
+        return Maybe.defer(() -> {
+            LibraryRepository.requireNotLibrary(database, playlistId);
+            return modifyPlaylist(playlistId, name, THUMBNAIL_ID_LEAVE_UNCHANGED, false);
+        });
     }
 
     public Maybe<Integer> changePlaylistThumbnail(final long playlistId,

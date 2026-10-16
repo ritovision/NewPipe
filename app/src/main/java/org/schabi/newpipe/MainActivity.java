@@ -87,6 +87,7 @@ import org.schabi.newpipe.util.Constants;
 import org.schabi.newpipe.util.DeviceUtils;
 import org.schabi.newpipe.util.KioskTranslator;
 import org.schabi.newpipe.util.Localization;
+import org.schabi.newpipe.custom.library.LibraryRepository;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.PeertubeHelper;
 import org.schabi.newpipe.util.PermissionHelper;
@@ -172,6 +173,9 @@ public class MainActivity extends AppCompatActivity {
                 .getHeaderView(0));
         toolbarLayoutBinding = mainBinding.toolbarLayout;
         setContentView(mainBinding.getRoot());
+
+        // Our Library is initialized on an IO thread and backfills existing playlists.
+        LibraryRepository.start(getApplicationContext());
 
         if (getSupportFragmentManager().getBackStackEntryCount() == 0) {
             initFragments();

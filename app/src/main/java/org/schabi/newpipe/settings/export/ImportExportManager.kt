@@ -10,7 +10,9 @@ import java.io.IOException
 import java.io.ObjectOutputStream
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.createParentDirectories
-import kotlin.io.path.deleteIfExists
+import kotlin.io.path.exists
+import org.schabi.newpipe.custom.library.LibraryBackupRestore
+import org.schabi.newpipe.custom.library.LibraryBindingStore
 import org.schabi.newpipe.streams.io.SharpOutputStream
 import org.schabi.newpipe.streams.io.StoredFileHelper
 import org.schabi.newpipe.util.ZipHelper
@@ -32,6 +34,17 @@ class ImportExportManager(private val fileLocator: BackupFileLocator) {
             // add the database
             val name = BackupFileLocator.FILE_NAME_DB
             ZipHelper.addFileToZip(outZip, name, fileLocator.db)
+
+            // Pair our protected Library identity with precisely this NewPipe
+            // database. A stock backup omits the file, so restore fails closed.
+            val libraryBinding = LibraryBindingStore.pathForDatabase(fileLocator.db)
+            if (libraryBinding.exists()) {
+                ZipHelper.addFileToZip(
+                    outZip,
+                    LibraryBindingStore.FILE_NAME,
+                    libraryBinding
+                )
+            }
 
             // add the legacy vulnerable serialized preferences (will be removed in the future)
             ZipHelper.addFileToZip(
@@ -72,18 +85,7 @@ class ImportExportManager(private val fileLocator: BackupFileLocator) {
      * @param file the .zip file to extract the database from
      * @return true if the database was successfully extracted, false otherwise
      */
-    fun extractDb(file: StoredFileHelper): Boolean {
-        val name = BackupFileLocator.FILE_NAME_DB
-        val success = ZipHelper.extractFileFromZip(file, name, fileLocator.db)
-
-        if (success) {
-            fileLocator.dbJournal.deleteIfExists()
-            fileLocator.dbWal.deleteIfExists()
-            fileLocator.dbShm.deleteIfExists()
-        }
-
-        return success
-    }
+    fun extractDb(file: StoredFileHelper): Boolean = LibraryBackupRestore.extractDbAndBinding(file, fileLocator)
 
     @Deprecated(
         "Serializing preferences with Java's ObjectOutputStream is vulnerable to injections",

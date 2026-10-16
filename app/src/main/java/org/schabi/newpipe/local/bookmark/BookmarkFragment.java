@@ -26,6 +26,8 @@ import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.schabi.newpipe.NewPipeDatabase;
 import org.schabi.newpipe.R;
+import org.schabi.newpipe.custom.library.LibraryBindingStore;
+import org.schabi.newpipe.custom.library.LibraryRepository;
 import org.schabi.newpipe.database.AppDatabase;
 import org.schabi.newpipe.database.LocalItem;
 import org.schabi.newpipe.database.playlist.PlaylistLocalItem;
@@ -336,7 +338,8 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
     }
 
     private void deleteItem(final PlaylistLocalItem item) {
-        if (itemListAdapter == null) {
+        if (itemListAdapter == null || (item instanceof PlaylistMetadataEntry
+                && isProtectedLibrary((PlaylistMetadataEntry) item))) {
             return;
         }
         itemListAdapter.removeItem(item);
@@ -492,7 +495,16 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
         showDeleteDialog(item.getOrderingName(), item);
     }
 
+    private boolean isProtectedLibrary(final PlaylistMetadataEntry item) {
+        return LibraryBindingStore.LIBRARY_NAME.equals(item.getOrderingName())
+                || LibraryRepository.isLibrary(NewPipeDatabase.getInstance(requireContext()),
+                        item.getUid());
+    }
+
     private void showLocalDialog(final PlaylistMetadataEntry selectedItem) {
+        if (isProtectedLibrary(selectedItem)) {
+            return; // No rename/delete of the canonical Library.
+        }
         final String rename = getString(R.string.rename);
         final String delete = getString(R.string.delete);
         final String unsetThumbnail = getString(R.string.unset_playlist_thumbnail);
