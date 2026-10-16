@@ -24,7 +24,7 @@ function cookie(request:Request,name:string):string {
   return (request.headers.get('Cookie')??'').split(';').map(x=>x.trim()).find(x=>x.startsWith(name+'='))?.slice(name.length+1)??'';
 }
 function html(content:string,headers=new Headers(),status=200):Response {
-  headers.set('Content-Type','text/html; charset=utf-8');headers.set('Cache-Control','no-store');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');
+  headers.set('Content-Type','text/html; charset=utf-8');headers.set('Cache-Control','no-store');headers.set('Referrer-Policy','same-origin');headers.set('X-Content-Type-Options','nosniff');
   headers.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'");
   return new Response(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NewPipe AI Control</title><style>body{font:16px system-ui;max-width:660px;margin:48px auto;padding:0 20px;line-height:1.55}input,button{font:inherit;padding:10px;margin:6px 0;max-width:95%}input[type=password]{width:100%}button{cursor:pointer}code{overflow-wrap:anywhere}label{display:block}small{display:block}fieldset{margin:18px 0}</style>${content}</html>`,{status,headers});
 }

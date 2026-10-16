@@ -20,6 +20,27 @@ describe('private gateway boundaries',()=>{
   expect((await h.post('/admin/pairings',{}, {Origin:'https://evil.example',Authorization:'Bearer '+ownerKey})).status).toBe(403);
   expect((await h.get('/device/pair',{method:'POST',body:'x'.repeat(20000)})).status).toBe(413);
  });
+ test('Chrome-compatible owner form login keeps strict same-origin protection',async()=>{
+  // Referrer-Policy: no-referrer makes browsers send Origin: null for form POSTs.
+  // Keep the origin check instead of whitelisting null; use same-origin on HTML pages.
+  const page=await h.get('/setup');
+  expect(page.status).toBe(200);
+  expect(page.headers.get('referrer-policy')).toBe('same-origin');
+  const headers={'Content-Type':'application/x-www-form-urlencoded',Origin:origin};
+  const form=new URLSearchParams({owner_key:ownerKey}).toString();
+  const accepted=await h.get('/setup',{method:'POST',headers,body:form,redirect:'manual'});
+  expect(accepted.status).toBe(303);
+  expect(accepted.headers.get('set-cookie')).toContain('__Host-newpipe-admin=');
+  const cookie=accepted.headers.get('set-cookie')?.split(';')[0]??'';
+  const ownerPage=await h.get('/setup',{headers:{Cookie:cookie}});
+  expect(ownerPage.status).toBe(200);
+  expect(await ownerPage.text()).toContain('Create a five-minute pairing code');
+  for(const untrusted of ['null','https://evil.example']){
+   const denied=await h.get('/setup',{method:'POST',headers:{...headers,Origin:untrusted},body:form});
+   expect(denied.status).toBe(403);
+   expect(await denied.text()).toContain('INVALID_ORIGIN');
+  }
+ });
  test('discovery identifies the protected MCP resource',async()=>{
   const challenge=await h.post('/mcp',{jsonrpc:'2.0',id:1,method:'tools/list'},{Accept:'application/json, text/event-stream'});
   const metadata=challenge.headers.get('www-authenticate')?.match(/resource_metadata="([^"]+)"/)?.[1];expect(metadata).toBeTruthy();
