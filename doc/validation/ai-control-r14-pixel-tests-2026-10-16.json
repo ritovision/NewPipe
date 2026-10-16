@@ -1,0 +1,67 @@
+{
+  "android_runs": [
+    {
+      "description": "AI catalog/activation/migration/playback no-start",
+      "run_log_primary": "/home/ritorhymes/.cache/newpipe-ai-control/pixel-r12-safe-tests.log",
+      "sha256": "281ed87920ba896b85fd13c8f303443ef347e26a424dd73340d3d6c6fa8d3c61",
+      "tests_passed": 69
+    },
+    {
+      "description": "AI Control foreground service lifecycle",
+      "run_log_primary": "/home/ritorhymes/.cache/newpipe-ai-control/pixel-r12-lifecycle.log",
+      "sha256": "3beacc2a9d735d8b10d1f8f90dd24512484a7b7f10d77bf3623acca7d0aa4aa7",
+      "tests_passed": 1
+    },
+    {
+      "description": "Library Room regressions",
+      "run_log_primary": "/home/ritorhymes/.cache/newpipe-ai-control/pixel-r12-library-regression.log",
+      "sha256": "2050118888230735c1171a72afb7ee237276d85324502a4c9d858542918f5571",
+      "tests_passed": 35
+    },
+    {
+      "description": "public video extractor network smoke",
+      "run_log_primary": "/home/ritorhymes/.cache/newpipe-ai-control/pixel-r12-public-url-extraction.log",
+      "sha256": "c9354a4cfb19360575e4d9671eb898cda0e33d833354c4131c6a43517dd2413b",
+      "tests_passed": 1
+    },
+    {
+      "description": "playback queue creation and append dedup after correction",
+      "run_log_primary": "/home/ritorhymes/.cache/newpipe-ai-control/pixel-r14-playback-dispatch.log",
+      "sha256": "22022291234d358f13ce86cd966e2458bb0c18302f26139bb18d744eb2c42714",
+      "tests_passed": 1
+    },
+    {
+      "description": "legacy Room schema migrations",
+      "run_log_primary": "/home/ritorhymes/.cache/newpipe-ai-control/pixel-r14-legacy-migration.log",
+      "sha256": "be68457df8884e5d374a479305e13ff31e0217b7aff740946e388ffe1a5cac19",
+      "tests_passed": 3
+    }
+  ],
+  "android_tests_passed": 110,
+  "baseline_commit": "75c2676c6",
+  "branch": "feature/ai-control",
+  "cloudflare_auth_secrets": [
+    "OWNER_KEY_HASH",
+    "SESSION_SECRET"
+  ],
+  "cloudflare_health_http": 200,
+  "cloudflare_worker": "ritovision-newpipe-ai-control",
+  "date": "2026-10-16",
+  "device": "Pixel 7, Android SDK 37, physical, isolated QA install",
+  "final_android_log_primary": "/home/ritorhymes/.cache/newpipe-ai-control/pixel-r16-playback-dispatch.log",
+  "final_android_playback_test_passed": true,
+  "final_astra_review": "doc/reviews/ai-control-playback-queue-final-astra-2026-10-16.md",
+  "final_build_log_secondary": "/home/rito/.cache/newpipe-ai-control/integration-build-r16.log",
+  "final_playback_fix": "Accepted serialized clone and equivalent prior queue, including reinitialized disposed queue; actual active queue revision is returned.",
+  "initial_failed_run": "pixel-r12-playback-dispatch.log (PLAYER_DID_NOT_ACCEPT_QUEUE, corrected and rerun)",
+  "jvm_build_log_secondary": "/home/rito/.cache/newpipe-ai-control/integration-build-r14.log",
+  "jvm_tests_passed": 290,
+  "note": "110 total previously validated Android tests; final r16 playback test is one rerun among those 110, not an additional distinct case. No real media playback success asserted.",
+  "package_tested": "org.schabi.newpipe.debug.featureaicontrol",
+  "regression_fixed": "AiPlayerStartBridge verified the SerializedCache clone actually consumed by PlayerService, not the original queue, and returned its real queue revision.",
+  "remaining": "Live authorized phone-to-Cloudflare pairing/MCP test not executed. Bare Python urllib from secondary received Cloudflare edge 403 error code 1010; further owner-key API attempt was blocked by safety checks. No security override.",
+  "secondary_ui_emulator_used": false,
+  "test_package": "org.schabi.newpipe.debug.featureaicontrol.test",
+  "unauthenticated_mcp_http": 401,
+  "user_catalog_altered": false
+}

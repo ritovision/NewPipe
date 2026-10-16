@@ -36,3 +36,5 @@ Future external reviews belong in this directory, with model/effort, reviewed re
 - [Claude Opus Max — Android activation milestone](ai-control-claude-android-r1-2026-10-16.md) — important native security/lifecycle findings, author fixes recorded separately.
 - [Astra — gateway final targeted closure](ai-control-astra-gateway-r3-2026-10-16.md) — PASS for the three follow-up gateway fixes.
 - [Astra — native follow-up](ai-control-native-closure-r3-2026-10-16.md) — four follow-up issues corrected by the author; later verification remains distinct.
+
+- [Astra xhigh — playback queue serialization closure (2026-10-16)](ai-control-playback-queue-final-astra-2026-10-16.md) — PASS after two prior blocking rounds; nonblocking test coverage limitations documented.

@@ -18,8 +18,10 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.player.Player
 import org.schabi.newpipe.player.PlayerService
 import org.schabi.newpipe.player.PlayerType
+import org.schabi.newpipe.player.playqueue.PlayQueue
 import org.schabi.newpipe.player.playqueue.SinglePlayQueue
 import org.schabi.newpipe.util.NavigationHelper
+import org.schabi.newpipe.util.SerializedCache
 
 /**
  * Android can start a service asynchronously. Only a one-shot, in-process ticket reaches the
@@ -90,21 +92,44 @@ object AiPlayerStartBridge {
                 val intent = NavigationHelper.getPlayerIntent(service, PlayerService::class.java, operation.queue, org.schabi.newpipe.player.PlayerIntentType.AllOthers)
                     .putExtra(Player.PLAYER_TYPE, PlayerType.AUDIO)
                     .putExtra(Player.RESUME_PLAYBACK, false)
+                // NavigationHelper serializes/clones the supplied PlayQueue into SerializedCache.
+                // Player.handleIntent takes THAT clone, not operation.queue. Capture the exact
+                // staged instance without consuming it; otherwise comparing against the original
+                // spuriously reports failure and returns an unusable queue revision.
+                val cacheKey = intent.getStringExtra(Player.PLAY_QUEUE_KEY)
+                    ?: throw AiFailure("PLAY_QUEUE_SERIALIZATION_FAILED", AiOutcome.NOT_EXECUTED)
+                val stagedQueue = SerializedCache.getInstance().get(cacheKey, PlayQueue::class.java)
+                    ?: throw AiFailure("PLAY_QUEUE_SERIALIZATION_FAILED", AiOutcome.NOT_EXECUTED)
                 operation.call.checkActive()
                 operation.check()
                 // A merely bound service must first receive a genuine Android service start.
                 val previouslyHadPlayer = service.player != null
+                val previousQueue = service.player?.playQueue
+                val equivalentBefore = previousQueue?.equalStreamsAndIndex(stagedQueue) == true
                 try {
                     service.onStartCommand(intent, 0, startId)
                 } catch (_: Exception) {
                     if (!previouslyHadPlayer && service.player != null) service.destroyPlayerAndStopService()
                     throw AiFailure("PLAYER_START_FAILED", AiOutcome.OUTCOME_UNKNOWN)
                 }
-                if (service.player?.playQueue !== operation.queue) throw AiFailure("PLAYER_DID_NOT_ACCEPT_QUEUE", AiOutcome.OUTCOME_UNKNOWN)
+                val acceptedQueue = service.player?.playQueue
+                    ?: throw AiFailure("PLAYER_DID_NOT_ACCEPT_QUEUE", AiOutcome.OUTCOME_UNKNOWN)
+                // Player.handleIntent takes the clone. When streams/index already match, it
+                // deliberately retains the old queue; synchronous player callbacks may then
+                // change its contents. Verify equivalence BEFORE invoking NewPipe.
+                //
+                // A disposed queue can also be reinitialized by Player.initPlayback without
+                // clearing isDisposed; a live broadcast receiver is the relevant readiness test.
+                val reusedEquivalentQueue = acceptedQueue === previousQueue && equivalentBefore
+                val cacheConsumed = SerializedCache.getInstance().get(cacheKey, PlayQueue::class.java) == null
+                val queueReady = acceptedQueue.broadcastReceiver != null && service.player?.exoPlayerIsNull() == false
+                if (!cacheConsumed || !queueReady || (acceptedQueue !== stagedQueue && !reusedEquivalentQueue)) {
+                    throw AiFailure("PLAYER_DID_NOT_ACCEPT_QUEUE", AiOutcome.OUTCOME_UNKNOWN)
+                }
                 buildJsonObject {
                     put("playback_requested", true)
-                    put("queue_size", operation.queue.size())
-                    put("queue_revision", operation.queue.stateRevisionToken)
+                    put("queue_size", acceptedQueue.size())
+                    put("queue_revision", acceptedQueue.stateRevisionToken)
                 }
             }
         }
