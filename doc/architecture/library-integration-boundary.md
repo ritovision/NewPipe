@@ -1,5 +1,40 @@
 # Library Integration Boundary — RitoVision NewPipe Fork
 
+## Current milestone — interactive global Library removal (2026-10-16)
+
+**Status:** Library item deletion is enabled in this revision. The earlier
+add-only descriptions below document the previous implementation and tests.
+
+- **Delete from an ordinary playlist:** removes only that playlist membership.
+- **Long-press an item inside Library → Delete → Remove everywhere:** removes
+  every occurrence of the item's database stream identity from **all local
+  playlists**, including Library, in one Room transaction.
+- When a deleted stream was used as a playlist thumbnail, that thumbnail
+  reference is reset. Stream history and subscriptions are not deleted.
+- Global deletion is authorized against a **verified bound Library**, never a
+  playlist chosen just because its display name matches.
+- The session tracks recently deleted IDs so stale, in-process ordinary
+  playlist editors cannot quietly restore a globally removed item through a
+  delayed reorder/save. An explicit new Add to playlist can save it again.
+- Repeated global removal is idempotent. Duplicate occurrences in normal
+  playlists are removed together.
+- The special Library *playlist object* is still retained, so its membership
+  and organization rules remain usable. Global removal of individual entries
+  is now available; arbitrary deleting/renaming of the master playlist,
+  Remove Watched and automatic bulk pruning are distinct operations.
+- **Validation gate:** successful Gradle assembleDebug,
+  assembleDebugAndroidTest, code style checks and 163 existing JVM tests.
+  Five additional Room instrumentation regression cases were compiled but
+  **not run**, per the user's request to test the new behavior personally on
+  the Pixel 7 rather than on an emulator. No physical device data was wiped.
+- **Integration boundary:** Upstream changes are still limited to
+  LocalPlaylistFragment (restore Delete action with confirmation) and
+  LocalPlaylistManager (filter stale reorder operations). Core SQL and
+  deletion/tombstone logic reside solely in our custom LibraryRepository.
+
+---
+
+
 **Status:** Feature-branch implementation, validation in progress
 **Branch:** `feature/library` (base: `custom/dev`)
 **Product requirements:** [Library playlist system](../specs/library-playlist-system.md)

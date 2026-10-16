@@ -85,16 +85,20 @@ public class LocalPlaylistManager {
     }
 
     public Completable updateJoin(final long playlistId, final List<Long> streamIds) {
-        final List<PlaylistStreamEntity> joinEntities = new ArrayList<>(streamIds.size());
-        for (int i = 0; i < streamIds.size(); i++) {
-            joinEntities.add(new PlaylistStreamEntity(playlistId, streamIds.get(i), i));
-        }
-
         return Completable.fromRunnable(() -> database.runInTransaction(() -> {
             // updateJoin also handles reorder, watched-removal and duplicate cleanup.
             // Never infer a global Library deletion from a rewritten editor list.
             if (!LibraryRepository.rewriteLibraryWithoutRemoving(database, playlistId,
                     streamIds)) {
+                // A stale ordinary-playlist editor cannot resurrect a stream
+                // explicitly removed from Library and every playlist.
+                final List<Long> safeIds = LibraryRepository.filterStaleOrdinaryUpdate(
+                        database, playlistId, streamIds);
+                final List<PlaylistStreamEntity> joinEntities =
+                        new ArrayList<>(safeIds.size());
+                for (int i = 0; i < safeIds.size(); i++) {
+                    joinEntities.add(new PlaylistStreamEntity(playlistId, safeIds.get(i), i));
+                }
                 playlistStreamTable.deleteBatch(playlistId);
                 playlistStreamTable.insertAll(joinEntities);
             }

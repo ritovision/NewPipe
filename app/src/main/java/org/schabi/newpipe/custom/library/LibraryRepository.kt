@@ -28,7 +28,13 @@ object LibraryRepository {
     private const val TAG = "RitoVisionLibrary"
     private const val SMALL_INSERT_THRESHOLD = 32
 
-    private data class Session(val db: AppDatabase, val id: Long)
+    private data class Session(
+        val db: AppDatabase,
+        val id: Long,
+        // Suppress saves from stale in-memory ordinary playlist editors after
+        // an explicit global Library removal. A fresh explicit add clears it.
+        val recentlyRemoved: MutableSet<Long> = HashSet()
+    )
 
     @Volatile
     private var session: Session? = null
@@ -200,8 +206,13 @@ object LibraryRepository {
 
     @JvmStatic
     fun afterPlaylistInsert(db: AppDatabase, playlistId: Long, streamIds: List<Long>) {
-        val id = current(db)?.id ?: return
-        if (playlistId != id) insertMissing(db, id, streamIds)
+        val active = current(db) ?: return
+        if (playlistId != active.id) {
+            insertMissing(db, active.id, streamIds)
+        }
+        // A normal create/append is a deliberate user save, not a stale editor
+        // rewrite; it may legitimately restore a globally removed stream.
+        active.recentlyRemoved.removeAll(streamIds.toSet())
     }
 
     /**
@@ -211,7 +222,9 @@ object LibraryRepository {
     @JvmStatic
     fun appendDirectly(db: AppDatabase, playlistId: Long, streamIds: List<Long>): List<Long> {
         check(isLibrary(db, playlistId)) { "Not a protected Library playlist" }
-        return insertMissing(db, playlistId, streamIds)
+        val inserted = insertMissing(db, playlistId, streamIds)
+        current(db)?.recentlyRemoved?.removeAll(streamIds.toSet())
+        return inserted
     }
 
     /**
@@ -239,6 +252,84 @@ object LibraryRepository {
             }
         )
         return true
+    }
+
+    /**
+     * Restore the intended Library semantics with a dedicated delete rather
+     * than misinterpreting an upstream updateJoin as global deletion.
+     *
+     * Must be called for a VERIFIED bound Library, never for a name-only
+     * fallback. The single transaction deletes ALL occurrences, including
+     * duplicate stream rows in ordinary playlists.
+     */
+    fun removeEverywhere(db: AppDatabase, playlistId: Long, streamId: Long): Boolean {
+        require(streamId > 0) { "Invalid stream ID" }
+        val active = current(db)
+            ?: error("Library is not initialized; repair it before deleting")
+        check(active.id == playlistId) {
+            "Global removal must target the verified Library"
+        }
+        return db.runInTransaction(
+            Callable {
+                if (!libraryContains(db, playlistId, streamId)) {
+                    false // Retried removal: already absent, with no side effects.
+                } else {
+                    active.recentlyRemoved.add(streamId)
+                    try {
+                        val sql = db.openHelper.writableDatabase
+                        sql.execSQL(
+                            "DELETE FROM playlist_stream_join WHERE stream_id = ?",
+                            arrayOf<Any>(streamId)
+                        )
+                        sql.execSQL(
+                            "UPDATE playlists SET thumbnail_stream_id = ?, " +
+                                "is_thumbnail_permanent = 0 WHERE thumbnail_stream_id = ?",
+                            arrayOf<Any>(PlaylistEntity.DEFAULT_THUMBNAIL_ID, streamId)
+                        )
+                        true
+                    } catch (error: Throwable) {
+                        // The DB transaction rolls back; remove the tombstone too.
+                        active.recentlyRemoved.remove(streamId)
+                        throw error
+                    }
+                }
+            }
+        )
+    }
+
+    /**
+     * Used by the local Library screen. The user chose the explicit Delete
+     * action and confirmed that it applies to all local playlists.
+     */
+    @JvmStatic
+    fun removeEverywhere(context: Context, playlistId: Long, streamId: Long): Completable {
+        val appContext = context.applicationContext
+        return Completable.fromAction {
+            val db = NewPipeDatabase.getInstance(appContext)
+            val verifiedId = initialize(db, LibraryBindingStore(appContext))
+            check(verifiedId == playlistId) {
+                "Library identity changed; removal was not performed"
+            }
+            removeEverywhere(db, playlistId, streamId)
+        }.subscribeOn(Schedulers.io())
+    }
+
+    /**
+     * Ordinary edit/reorder UIs can retain stale lists after a Library-wide
+     * delete. Never let that old list resurrect a globally removed item.
+     * Called inside the same Room transaction as updateJoin.
+     */
+    @JvmStatic
+    fun filterStaleOrdinaryUpdate(
+        db: AppDatabase,
+        playlistId: Long,
+        proposedIds: List<Long>
+    ): List<Long> {
+        val active = current(db) ?: return proposedIds
+        if (playlistId == active.id || active.recentlyRemoved.isEmpty()) {
+            return proposedIds
+        }
+        return proposedIds.filterNot { it in active.recentlyRemoved }
     }
 
     /** Bookmark sorting may update Library metadata, never its name. */

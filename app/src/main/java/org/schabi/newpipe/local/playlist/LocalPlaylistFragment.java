@@ -593,7 +593,41 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     }
 
     private void deleteItem(final PlaylistStreamEntry item) {
-        if (itemListAdapter == null || isProtectedLibrary()) {
+        if (itemListAdapter == null) {
+            return;
+        }
+        if (isProtectedLibrary()) {
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.rv_library_remove_title)
+                    .setMessage(R.string.rv_library_remove_message)
+                    .setPositiveButton(R.string.rv_library_remove_action, (dialog, which) -> {
+                        if (playlistId == null || disposables == null) {
+                            return;
+                        }
+                        disposables.add(LibraryRepository
+                                .removeEverywhere(requireContext(), playlistId, item.getStreamId())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(
+                                        () -> {
+                                            // The Room observer also receives the change.
+                                            // Update this screen immediately even if a
+                                            // previously modified editor list was stale.
+                                            if (itemListAdapter != null) {
+                                                itemListAdapter.removeItem(item);
+                                                setStreamCountAndOverallDuration(
+                                                        itemListAdapter.getItemsList());
+                                                if (itemListAdapter.getItemsList().isEmpty()) {
+                                                    showEmptyState();
+                                                }
+                                            }
+                                        },
+                                        throwable -> showError(new ErrorInfo(throwable,
+                                                UserAction.REQUESTED_BOOKMARK,
+                                                "Removing stream from Library everywhere"))
+                                ));
+                    })
+                    .setNegativeButton(R.string.cancel, null)
+                    .show();
             return;
         }
 
@@ -730,11 +764,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             final InfoItemDialog.Builder dialogBuilder =
                     new InfoItemDialog.Builder(getActivity(), context, this, infoItem);
 
-            // Library membership is never deleted by an ordinary playlist edit.
+            // Library deletion uses the explicit remove-everywhere transaction,
+            // while ordinary playlists retain their existing local-only delete.
             dialogBuilder.addEntry(StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL);
-            if (!isProtectedLibrary()) {
-                dialogBuilder.addEntry(StreamDialogDefaultEntry.DELETE);
-            }
+            dialogBuilder.addEntry(StreamDialogDefaultEntry.DELETE);
 
             // set custom actions
             // all entries modified below have already been added within the builder

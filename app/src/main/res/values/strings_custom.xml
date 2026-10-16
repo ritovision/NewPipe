@@ -4,4 +4,7 @@
     <string name="rv_library_repair_message">Use this existing playlist as the master Library? This will add missing saved videos from your other playlists. It will not delete any videos or playlists.</string>
     <string name="rv_library_repair_action">Use as Library</string>
     <string name="rv_library_repair_success">Library is ready. Existing playlists were preserved.</string>
+    <string name="rv_library_remove_title">Remove from Library</string>
+    <string name="rv_library_remove_message">Remove this video from Library and every local playlist? This cannot be undone.</string>
+    <string name="rv_library_remove_action">Remove everywhere</string>
 </resources>

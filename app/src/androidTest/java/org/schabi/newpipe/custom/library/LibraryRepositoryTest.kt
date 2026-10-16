@@ -303,4 +303,104 @@ class LibraryRepositoryTest {
             .assertError(IllegalStateException::class.java)
         assertEquals("Library", manager.playlists.blockingFirst().single().orderingName)
     }
+
+    @Test
+    fun deletingFromLibraryRemovesEveryOccurrenceFromAllPlaylists() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/global-a")
+        val b = stream("https://example.org/keep-b")
+        val favorites = createPlaylist("Favorites", a, a, b)
+        val workout = createPlaylist("Workout", b, a)
+        val deletedId = uid(1, a.url)
+        val keptId = uid(1, b.url)
+
+        assertEquals(2, entries(library).size)
+        assertEquals(3, entries(favorites).size)
+        assertEquals(deletedId, manager.getPlaylistThumbnailStreamId(favorites))
+
+        assertTrue(LibraryRepository.removeEverywhere(db, library, deletedId))
+
+        assertEquals(listOf(keptId), entries(library))
+        assertEquals(listOf(keptId), entries(favorites))
+        assertEquals(listOf(keptId), entries(workout))
+        assertEquals(
+            org.schabi.newpipe.database.playlist.model.PlaylistEntity.DEFAULT_THUMBNAIL_ID,
+            manager.getPlaylistThumbnailStreamId(favorites)
+        )
+        // Removal from playlists must not erase history, subscription or the
+        // stream row itself. NewPipe may independently garbage-collect orphans.
+        assertEquals(deletedId, uid(1, a.url))
+    }
+
+    @Test
+    fun deletingLibraryOnlyEntryDoesNotDeleteAnyOtherStream() {
+        val library = LibraryRepository.initialize(db, store)
+        val savedOnly = stream("https://example.org/library-only")
+        val other = stream("https://example.org/elsewhere")
+        manager.appendToPlaylist(library, listOf(savedOnly)).test().await().assertComplete()
+        val favorites = createPlaylist("Favorites", other)
+
+        assertTrue(LibraryRepository.removeEverywhere(db, library, uid(1, savedOnly.url)))
+        assertEquals(listOf(uid(1, other.url)), entries(library))
+        assertEquals(listOf(uid(1, other.url)), entries(favorites))
+    }
+
+    @Test
+    fun staleOrdinaryPlaylistEditorCannotResurrectGloballyDeletedEntry() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/stale-a")
+        val b = stream("https://example.org/stale-b")
+        val ordinary = createPlaylist("Favorites", a, b)
+        val oldEditorList = entries(ordinary)
+
+        assertTrue(LibraryRepository.removeEverywhere(db, library, uid(1, a.url)))
+        // Simulate an ordinary playlist editor loaded before global removal.
+        manager.updateJoin(ordinary, oldEditorList).test().await().assertComplete()
+
+        assertEquals(listOf(uid(1, b.url)), entries(ordinary))
+        assertEquals(listOf(uid(1, b.url)), entries(library))
+
+        LibraryRepository.forgetSessionForTest()
+        LibraryRepository.initialize(db, store)
+        assertEquals(listOf(uid(1, b.url)), entries(library))
+    }
+
+    @Test
+    fun explicitNewSaveAfterGlobalDeleteAddsItemBackAgain() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/save-again")
+        val favorites = createPlaylist("Favorites", a)
+        val id = uid(1, a.url)
+        assertTrue(LibraryRepository.removeEverywhere(db, library, id))
+        assertTrue(entries(library).isEmpty())
+        assertTrue(entries(favorites).isEmpty())
+
+        manager.appendToPlaylist(favorites, listOf(a)).test().await().assertComplete()
+
+        assertEquals(listOf(id), entries(library))
+        assertEquals(listOf(id), entries(favorites))
+        manager.updateJoin(favorites, listOf(id)).test().await().assertComplete()
+        assertEquals(listOf(id), entries(favorites))
+    }
+
+    @Test
+    fun globalDeletionIsIdempotentAndRequiresCorrectLibraryIdentity() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/id-check")
+        val favorites = createPlaylist("Favorites", a)
+        val id = uid(1, a.url)
+
+        try {
+            LibraryRepository.removeEverywhere(db, favorites, id)
+            fail("Cannot globally delete using an ordinary playlist ID")
+        } catch (expected: IllegalStateException) {
+            assertEquals(listOf(id), entries(library))
+            assertEquals(listOf(id), entries(favorites))
+        }
+
+        assertTrue(LibraryRepository.removeEverywhere(db, library, id))
+        assertFalse(LibraryRepository.removeEverywhere(db, library, id))
+        assertTrue(entries(library).isEmpty())
+        assertTrue(entries(favorites).isEmpty())
+    }
 }
