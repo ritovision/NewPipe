@@ -138,3 +138,30 @@ SQL-level evidence, not Android Room/Coil/Fragment runtime evidence.
 The original narrow stale-editor interaction after an intentional re-add, future
 cloud/tag coordination and existing native restore crash-consistency limitations
 are unchanged; they were not among these six follow-up findings.
+
+
+### First follow-up review adjudication
+
+Both reviewers confirmed the artwork, live-menu, dialog-routing, transaction
+identity-check and picker changes. Both identified a test-only blocking Room read
+and a remaining stale Boolean decision in Remove Watched. Astra held release for
+these; Claude rated them nonblocking. We accepted both findings rather than
+shipping with them:
+
+- Resolve IDs before the rollback test's writer transaction, and use a synchronous
+  same-connection SQL read for its inner assertion. Room Flowable queries are not
+  redirected by the Rx trampoline test rule.
+- Every Remove Watched operation now asks the writer transaction to reevaluate
+  its current automatic thumbnail. The refresh is conditional on that thumbnail
+  no longer belonging to the surviving rows, so a still-valid automatic image or
+  currently pinned image remains unchanged. No snapshot Boolean decides whether
+  to run the check.
+- Only a typed ambiguous-identity exception opens Repair. I/O/read failures stay
+  errors, not invitations to adopt another playlist. Startup reporting and repair
+  error feedback distinguish those cases.
+- Added three more Android regression cases: the formerly-false decision race,
+  an unreadable binding path, and preserving a surviving automatic thumbnail.
+  LibraryRepositoryTest now contains 35 cases; compiled-only remains the rule.
+
+No additional upstream file or schema/dependency change was needed for these
+corrections. The first-round raw reports remain available under doc/reviews.

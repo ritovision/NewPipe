@@ -31,6 +31,11 @@ object LibraryRepository {
     private const val TAG = "RitoVisionLibrary"
     private const val SMALL_INSERT_THRESHOLD = 32
 
+    /** Only an ambiguous identity, not an I/O failure, may offer user adoption. */
+    class IdentityRepairRequiredException : IllegalStateException(
+        "An unbound Library playlist already exists. User confirmation is required."
+    )
+
     private data class Session(val db: AppDatabase, val id: Long)
 
     @Volatile
@@ -59,11 +64,15 @@ object LibraryRepository {
         }.subscribeOn(Schedulers.io()).subscribe(
             { Log.i(TAG, "Library initialized") },
             { error ->
-                Log.e(TAG, "Library unavailable; use the Library playlist's repair action", error)
+                Log.e(TAG, "Library initialization failed", error)
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(
                         appContext,
-                        "Library needs repair. Open Bookmarked Playlists and long-press Library.",
+                        if (error is IdentityRepairRequiredException) {
+                            "Library needs repair. Open Bookmarked Playlists and long-press Library."
+                        } else {
+                            "Library is temporarily unavailable. Try reopening the app."
+                        },
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -86,6 +95,9 @@ object LibraryRepository {
         val binding = try {
             store.read()
         } catch (error: Exception) {
+            // Invalid identity content is recoverable; an unreadable file is
+            // not proof that the identity is missing. Propagate I/O failures.
+            if (error !is IllegalStateException && error !is IllegalArgumentException) throw error
             Log.w(TAG, "Cannot verify Library identity; refusing automatic adoption", error)
             null
         }
@@ -104,9 +116,7 @@ object LibraryRepository {
                 } else {
                     // Creating a new playlist is safe; adopting one based on
                     // its name or a stale integer ID is not.
-                    check(named.isEmpty()) {
-                        "An unbound Library playlist already exists. User confirmation is required."
-                    }
+                    if (named.isNotEmpty()) throw IdentityRepairRequiredException()
                     db.playlistDAO().insert(
                         PlaylistEntity(
                             name = LibraryBindingStore.LIBRARY_NAME,
@@ -382,6 +392,11 @@ object LibraryRepository {
                 WHERE j.playlist_id = playlists.uid ORDER BY j.join_index LIMIT 1
             ), -1)
             WHERE uid = ? AND is_thumbnail_permanent = 0
+                AND NOT EXISTS (
+                    SELECT 1 FROM playlist_stream_join current_join
+                    WHERE current_join.playlist_id = playlists.uid
+                        AND current_join.stream_id = playlists.thumbnail_stream_id
+                )
             """.trimIndent(),
             arrayOf<Any>(playlistId)
         )

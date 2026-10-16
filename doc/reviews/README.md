@@ -12,3 +12,7 @@ These documents preserve external model reviews for later adjudication. **Nothin
 - [GPT-6 Astra Extra High — Library polish review (2026-10-16)](library-polish-gpt6-astra-xhigh-2026-10-16.md) — independent read-only review of f98fa3092: PASS WITH NONBLOCKERS, two Low findings.
 
 Future external reviews belong in this directory, with model/effort, reviewed revision, permissions, source references, known uncertainties, and adjudication status.
+
+- [Claude Opus Max — Library polish follow-ups, round 1](library-polish-followups-round1-claude-2026-10-16.md) — source review of 6af54b825: PASS WITH NONBLOCKERS; follow-up findings corrected, final verification pending.
+
+- [GPT-6 Astra Extra High — Library polish follow-ups, round 1](library-polish-followups-round1-astra-2026-10-16.md) — source review of 6af54b825: BLOCK; follow-up findings corrected, final verification pending.

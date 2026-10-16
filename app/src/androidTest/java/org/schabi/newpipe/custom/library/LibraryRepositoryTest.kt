@@ -4,6 +4,7 @@
 package org.schabi.newpipe.custom.library
 
 import android.content.Context
+import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.test.core.app.ApplicationProvider
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
@@ -208,6 +209,7 @@ class LibraryRepositoryTest {
             LibraryRepository.initialize(db, store)
             fail("A playlist's display name does not establish identity")
         } catch (expected: IllegalStateException) {
+            assertTrue(expected is LibraryRepository.IdentityRepairRequiredException)
             assertTrue(expected.message!!.contains("unbound Library playlist"))
         }
         assertEquals(1, manager.playlists.blockingFirst().size)
@@ -510,10 +512,20 @@ class LibraryRepositoryTest {
         val a = stream("https://example.org/rollback-thumb-a")
         val b = stream("https://example.org/rollback-thumb-b")
         val playlist = createPlaylist("Thumbnail rollback", a, b)
+        val bId = uid(1, b.url) // Never block on a Room Flowable while owning its writer.
         try {
             db.runInTransaction {
-                manager.updateJoin(playlist, listOf(uid(1, b.url)), true).blockingAwait()
-                assertEquals(uid(1, b.url), manager.getPlaylistThumbnailStreamId(playlist))
+                manager.updateJoin(playlist, listOf(bId), true).blockingAwait()
+                val thumbnail = db.openHelper.writableDatabase.query(
+                    SimpleSQLiteQuery(
+                        "SELECT thumbnail_stream_id FROM playlists WHERE uid = ?",
+                        arrayOf(playlist)
+                    )
+                ).use { cursor ->
+                    check(cursor.moveToFirst())
+                    cursor.getLong(0)
+                }
+                assertEquals(bId, thumbnail)
                 error("Injected failure before COMMIT")
             }
             fail("Expected rollback")
@@ -599,5 +611,55 @@ class LibraryRepositoryTest {
             workers.shutdownNow()
             assertTrue(workers.awaitTermination(5, TimeUnit.SECONDS))
         }
+    }
+
+    @Test
+    fun watchedRemovalRefreshesEvenIfOriginalThumbnailWasNotWatched() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/false-flag-a")
+        val b = stream("https://example.org/false-flag-b")
+        val c = stream("https://example.org/false-flag-c")
+        val playlist = createPlaylist("Originally unchanged thumbnail", a, b, c)
+        // B is watched, A is the thumbnail. Snapshot would previously say
+        // thumbnailVideoRemoved=false and retain [A,C].
+        val capturedSurvivors = listOf(uid(1, a.url), uid(1, c.url))
+        LibraryRepository.removeEverywhere(db, library, uid(1, a.url))
+        assertEquals(uid(1, b.url), manager.getPlaylistThumbnailStreamId(playlist))
+        // Remove Watched now always asks the transaction to evaluate current
+        // automatic artwork, rather than forwarding that stale false flag.
+        manager.updateJoin(playlist, capturedSurvivors, true).test().await().assertComplete()
+        assertEquals(listOf(uid(1, c.url)), entries(playlist))
+        assertEquals(uid(1, c.url), manager.getPlaylistThumbnailStreamId(playlist))
+    }
+
+    @Test
+    fun unreadableBindingDoesNotOfferIdentityAdoption() {
+        val a = stream("https://example.org/unreadable-binding")
+        val candidate = createPlaylist("Library", a)
+        // A directory at the binding path makes FileInputStream fail. This
+        // is an I/O error, not evidence of an absent/unbound identity file.
+        java.nio.file.Files.createDirectory(LibraryBindingStore.pathForDatabase(bindingDbPath))
+        try {
+            LibraryRepository.initialize(db, store)
+            fail("Unreadable binding must not be treated as missing identity")
+        } catch (expected: java.io.IOException) {
+            assertFalse(LibraryRepository.isBoundLibrary(db, candidate))
+            assertEquals(listOf(uid(1, a.url)), entries(candidate))
+        }
+    }
+
+    @Test
+    fun watchedRemovalRetainsASurvivingAutomaticThumbnail() {
+        LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/surviving-auto-a")
+        val b = stream("https://example.org/surviving-auto-b")
+        val c = stream("https://example.org/surviving-auto-c")
+        val playlist = createPlaylist("Existing automatic thumbnail", a, b, c)
+        manager.changePlaylistThumbnail(playlist, uid(1, c.url), false)
+            .test().await().assertComplete()
+        manager.updateJoin(playlist, listOf(uid(1, b.url), uid(1, c.url)), true)
+            .test().await().assertComplete()
+        assertEquals(uid(1, c.url), manager.getPlaylistThumbnailStreamId(playlist))
+        assertFalse(manager.getIsPlaylistThumbnailPermanent(playlist))
     }
 }

@@ -29,6 +29,7 @@ import org.reactivestreams.Subscription;
 import org.schabi.newpipe.NewPipeDatabase;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.custom.library.LibraryRepository;
+import org.schabi.newpipe.custom.library.LibraryRepository.IdentityRepairRequiredException;
 import org.schabi.newpipe.database.AppDatabase;
 import org.schabi.newpipe.database.LocalItem;
 import org.schabi.newpipe.database.playlist.PlaylistLocalItem;
@@ -509,8 +510,13 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
                 // before deciding whether this is the canonical or an ordinary list.
                 disposables.add(LibraryRepository.ensureInitialized(requireContext())
                         .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(() -> showLocalDialog(selectedItem),
-                                error -> showLibraryRepairDialog(selectedItem)));
+                        .subscribe(() -> showLocalDialog(selectedItem), error -> {
+                            if (error instanceof IdentityRepairRequiredException) {
+                                showLibraryRepairDialog(selectedItem);
+                            } else {
+                                showUiErrorSnackbar(this, "Loading Library identity", error);
+                            }
+                        }));
             }
             return; // Never offer ordinary rename/delete for Library.
         }

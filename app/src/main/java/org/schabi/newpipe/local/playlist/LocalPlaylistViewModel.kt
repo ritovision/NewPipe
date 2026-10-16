@@ -6,7 +6,6 @@
 package org.schabi.newpipe.local.playlist
 
 import android.app.Application
-import android.util.Pair
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -51,8 +50,6 @@ class LocalPlaylistViewModel(application: Application) : AndroidViewModel(applic
             .firstElement()
             .zipWith(historyIdsMaybe) { playlist, historyStreamIds ->
                 val itemsToKeep = mutableListOf<PlaylistStreamEntry>()
-                val isThumbnailPermanent = playlistManager.getIsPlaylistThumbnailPermanent(playlistId)
-                var thumbnailVideoRemoved = false
 
                 val streamStates = recordManager.loadLocalStreamStateBatch(playlist).blockingGet()
 
@@ -66,27 +63,22 @@ class LocalPlaylistViewModel(application: Application) : AndroidViewModel(applic
                         (!removePartiallyWatched && !streamStateEntity.isFinished(duration))
                     ) {
                         itemsToKeep.add(playlistItem)
-                    } else if (!isThumbnailPermanent && !thumbnailVideoRemoved &&
-                        playlistManager.getPlaylistThumbnailStreamId(playlistId) ==
-                        playlistItem.streamEntity.uid
-                    ) {
-                        thumbnailVideoRemoved = true
                     }
                 }
 
-                Pair(itemsToKeep, thumbnailVideoRemoved)
+                itemsToKeep
             }
 
         val disposable = streamsMaybe
             .subscribeOn(Schedulers.io())
-            .flatMapCompletable { flow ->
-                val itemsToKeep = flow.first
-                val thumbnailVideoRemoved = flow.second
+            .flatMapCompletable { itemsToKeep ->
                 val streamIds = itemsToKeep.map { it.streamId }
 
-                // Membership filtering and replacement artwork use the same
-                // transaction, not this potentially stale itemsToKeep snapshot.
-                playlistManager.updateJoin(playlistId, streamIds, thumbnailVideoRemoved)
+                // Always reevaluate the automatic thumbnail at write time.
+                // A concurrent global delete may have changed the thumbnail
+                // even when the original one was not watched. The transaction
+                // preserves any thumbnail that is currently pinned.
+                playlistManager.updateJoin(playlistId, streamIds, true)
             }
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
