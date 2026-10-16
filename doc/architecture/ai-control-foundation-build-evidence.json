@@ -1,0 +1,31 @@
+{
+  "jvm": {
+    "tests": 237,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "artifacts": [
+    {
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "sha256": "a86269abe97806f9b8de4d2f33c4dda14261aa0fecfd5a94cb80a368673cc7ac",
+      "bytes": 40843062,
+      "package": "package: name='org.schabi.newpipe.debug.featureaicontrol' versionCode='1015' versionName='0.29.1' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'",
+      "signature": "V2 Signer: certificate SHA-256 digest: 994ecd499bb2ae7e738f5992a47a3375b33f0e78a48e9462b9479c2e80b3ef7f"
+    },
+    {
+      "path": "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk",
+      "sha256": "4f3a107994138fdb7cfaff1b2473b6427324ede863696eb081f4d835135c8f5c",
+      "bytes": 2358742,
+      "package": "package: name='org.schabi.newpipe.debug.featureaicontrol.test' versionCode='' versionName='' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'",
+      "signature": "V2 Signer: certificate SHA-256 digest: 994ecd499bb2ae7e738f5992a47a3375b33f0e78a48e9462b9479c2e80b3ef7f"
+    }
+  ],
+  "limitations": "Physical Pixel 7 / SDK37, separate QA package and synthetic Room/backup fixtures. No emulators. Original packages unchanged. No real catalog deletion, UI lifecycle stress, cloud, pairing, background-service or playback validation.",
+  "android_test_cases_compiled": 54,
+  "android_ai_cases_executed": 54,
+  "android_library_regressions_executed": 35,
+  "android_legacy_migration_regressions_executed": 3,
+  "android_total_executed": 92,
+  "android_failures": 0
+}

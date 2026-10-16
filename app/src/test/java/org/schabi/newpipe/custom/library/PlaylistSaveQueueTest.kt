@@ -26,6 +26,7 @@ class PlaylistSaveQueueTest {
         val tasks = ManualExecutor()
         var stored = listOf(1L, 2L, 3L)
         val writes = mutableListOf<List<Long>>()
+        var callbacks = 0
         lateinit var queue: PlaylistSaveQueue
         queue = PlaylistSaveQueue(tasks) { expected, desired ->
             assertEquals(stored, expected)
@@ -37,11 +38,12 @@ class PlaylistSaveQueueTest {
             }
             stored
         }
-        queue.setListener { error("Detached UI must not own the save chain") }
+        queue.setListener { callbacks++ }
         queue.submit(stored, listOf(2, 3))
         tasks.runAll()
         assertEquals(listOf(listOf(2L, 3L), listOf(3L)), writes)
         assertEquals(listOf(3L), stored)
+        assertEquals(0, callbacks)
     }
 
     @Test
@@ -232,5 +234,79 @@ class PlaylistSaveQueueTest {
         queue.submit(listOf(9), emptyList())
         tasks.runAll()
         assertEquals(2, calls)
+    }
+
+    @Test
+    fun recreatedViewWaitsForRetainedDeletionBeforeAcceptingAnEditableSnapshot() {
+        val tasks = ManualExecutor()
+        var stored = listOf(1L, 2L, 3L)
+        var displayed: List<Long>? = null
+        val queue = PlaylistSaveQueue(tasks) { expected, desired ->
+            assertEquals(stored, expected)
+            desired.toList().also { stored = it }
+        }
+        queue.submit(stored, listOf(2, 3))
+        queue.setListener(null)
+        queue.whenIdle { displayed = stored.toList() }
+        assertEquals(null, displayed)
+        tasks.runAll()
+        assertEquals(listOf(2L, 3L), displayed)
+        // The recreated editor now removes 3 from the correct committed baseline.
+        queue.acceptLoadedBaseline(checkNotNull(displayed))
+        queue.submit(checkNotNull(displayed), listOf(2))
+        tasks.runAll()
+        assertEquals(listOf(2L), stored)
+    }
+
+    @Test
+    fun idleObserverWaitsThroughAllCoalescedSavesRatherThanOnlyTheFirst() {
+        val tasks = ManualExecutor()
+        val events = mutableListOf<String>()
+        lateinit var queue: PlaylistSaveQueue
+        queue = PlaylistSaveQueue(tasks) { _, desired ->
+            events.add("commit:$desired")
+            if (desired.size == 2) {
+                queue.whenIdle { events.add("load") }
+                queue.submit(listOf(1, 2, 3), listOf(3))
+            }
+            desired
+        }
+        queue.submit(listOf(1, 2, 3), listOf(2, 3))
+        tasks.runAll()
+        assertEquals(listOf("commit:[2, 3]", "commit:[3]", "load"), events)
+    }
+
+    @Test
+    fun aRecreatedViewCanReloadAfterARetainedSaveConflicts() {
+        val tasks = ManualExecutor()
+        var loaded = false
+        val queue = PlaylistSaveQueue(tasks) { _, _ -> throw PlaylistEditConflictException() }
+        queue.submit(listOf(1), emptyList())
+        queue.whenIdle { loaded = true }
+        assertFalse(loaded)
+        tasks.runAll()
+        assertTrue(loaded)
+    }
+
+    @Test
+    fun onlyTheNewestWaitingViewReceivesTheIdleNotification() {
+        val tasks = ManualExecutor()
+        val events = mutableListOf<String>()
+        val queue = PlaylistSaveQueue(tasks) { _, desired -> desired }
+        queue.submit(listOf(1), emptyList())
+        queue.whenIdle { events.add("old view") }
+        queue.whenIdle { events.add("current view") }
+        tasks.runAll()
+        assertEquals(listOf("current view"), events)
+    }
+
+    @Test
+    fun idleViewLoadingDoesNotStartAnyBackgroundWork() {
+        val tasks = ManualExecutor()
+        val queue = PlaylistSaveQueue(tasks) { _, desired -> desired }
+        var loaded = false
+        queue.whenIdle { loaded = true }
+        assertTrue(loaded)
+        assertTrue(tasks.work.isEmpty())
     }
 }

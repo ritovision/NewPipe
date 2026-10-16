@@ -1,7 +1,6 @@
 package org.schabi.newpipe.local.dialog;
 
-import static org.schabi.newpipe.database.playlist.model.PlaylistEntity.DEFAULT_THUMBNAIL_ID;
-
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -85,7 +84,12 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
         playlistDisposables.add(playlistManager
                 .getPlaylistDuplicates(getStreamEntities().get(0).getUrl())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(this::onPlaylistsReceived));
+                .subscribe(this::onPlaylistsReceived, error -> {
+                    if (getContext() != null) {
+                        Toast.makeText(getContext(), R.string.rv_playlist_save_failed,
+                                Toast.LENGTH_LONG).show();
+                    }
+                }));
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -154,23 +158,16 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
             toastText = getString(R.string.playlist_add_stream_success);
         }
 
-        final Toast successToast = Toast.makeText(getContext(), toastText, Toast.LENGTH_SHORT);
-
-        playlistDisposables.add(manager.appendToPlaylist(playlist.getUid(), streams)
+        final Context appContext = requireContext().getApplicationContext();
+        final Toast successToast = Toast.makeText(appContext, toastText, Toast.LENGTH_SHORT);
+        final Toast errorToast = Toast.makeText(appContext, R.string.rv_playlist_save_failed,
+                Toast.LENGTH_LONG);
+        // Selection submits a mutation, and the dialog then dismisses. Its view-scoped
+        // subscriptions must not cancel that submitted write before it acquires the DB lock.
+        // Only app-context toasts are captured; the manager refreshes the thumbnail atomically.
+        manager.appendToPlaylist(playlist.getUid(), streams)
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(ignored -> {
-                    successToast.show();
-
-                    if (playlist.getThumbnailStreamId() != null
-                            && playlist.getThumbnailStreamId() == DEFAULT_THUMBNAIL_ID
-                    ) {
-                        playlistDisposables.add(manager
-                                .changePlaylistThumbnail(playlist.getUid(), streams.get(0).getUid(),
-                                        false)
-                                .observeOn(AndroidSchedulers.mainThread())
-                                .subscribe(ignore -> successToast.show()));
-                    }
-                }));
+                .subscribe(ignored -> successToast.show(), error -> errorToast.show());
 
         requireDialog().dismiss();
     }

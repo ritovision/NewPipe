@@ -30,6 +30,7 @@ class PlaylistSaveQueue(private val executor: Executor, private val writer: Writ
     private var listener: Listener? = null
     private var lastResult: Result? = null
     private var reload: Runnable? = null
+    private var idleObserver: Runnable? = null
 
     /** Called only when the UI accepts a fresh unmodified database snapshot. */
     fun acceptLoadedBaseline(values: List<Long>) {
@@ -72,7 +73,22 @@ class PlaylistSaveQueue(private val executor: Executor, private val writer: Writ
                 listener
             }
             target?.let { notifySafely(it, result) }
+            takeIdleObserver()?.run()
         }
+    }
+
+    /** A recreated view must wait for retained edits before exposing an editable DB snapshot. */
+    fun whenIdle(action: Runnable) {
+        val immediate = synchronized(lock) {
+            if (running) {
+                // Only the latest view/load is relevant; older callbacks carry stale generations.
+                idleObserver = action
+                false
+            } else {
+                true
+            }
+        }
+        if (immediate) action.run()
     }
 
     /** Explicit user discard waits for an already-started database operation; never cancels it. */
@@ -113,6 +129,7 @@ class PlaylistSaveQueue(private val executor: Executor, private val writer: Writ
             }
             if (snapshot == null) {
                 afterReload?.run()
+                takeIdleObserver()?.run()
                 return
             }
             val result = try {
@@ -136,9 +153,16 @@ class PlaylistSaveQueue(private val executor: Executor, private val writer: Writ
                         false
                     }
                 }
-                if (!restartForReload) return
+                if (!restartForReload) {
+                    takeIdleObserver()?.run()
+                    return
+                }
             }
         }
+    }
+
+    private fun takeIdleObserver(): Runnable? = synchronized(lock) {
+        if (running) null else idleObserver.also { idleObserver = null }
     }
 
     private fun notifySafely(target: Listener, result: Result) {

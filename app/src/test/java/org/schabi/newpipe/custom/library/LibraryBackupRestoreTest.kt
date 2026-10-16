@@ -4,6 +4,8 @@
 package org.schabi.newpipe.custom.library
 
 import android.content.SharedPreferences
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -22,6 +24,7 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito
 import org.mockito.Mockito.`when`
+import org.schabi.newpipe.custom.aicontrol.AiDatabaseMigration
 import org.schabi.newpipe.settings.export.BackupFileLocator
 import org.schabi.newpipe.settings.export.ImportExportManager
 import org.schabi.newpipe.streams.io.StoredFileHelper
@@ -210,5 +213,27 @@ class LibraryBackupRestoreTest {
             assertArrayEquals(binding, zip.getInputStream(entry).use { it.readAllBytes() })
         }
         assertNoStagingFiles()
+    }
+
+    @Test
+    fun futureSchemaBackupIsRejectedBeforeAnyInstalledFilesChange() {
+        val future = validDb.copyOf()
+        ByteBuffer.wrap(future).order(ByteOrder.BIG_ENDIAN).putInt(60, AiDatabaseMigration.VERSION + 1)
+        val oldBinding = "playlist_id=44\nname=Library\n".toByteArray()
+        Files.write(bindingFile, oldBinding)
+        rejectsBeforeWrite(BackupFileLocator.FILE_NAME_DB to future)
+        assertArrayEquals(oldBinding, Files.readAllBytes(bindingFile))
+    }
+
+    @Test
+    fun truncatedButMagicMatchingBackupIsRejectedBeforeSwap() = rejectsBeforeWrite(
+        BackupFileLocator.FILE_NAME_DB to validDb.copyOfRange(0, 20)
+    )
+
+    @Test
+    fun negativeSchemaVersionIsRejectedBeforeSwap() {
+        val invalid = validDb.copyOf()
+        ByteBuffer.wrap(invalid).order(ByteOrder.BIG_ENDIAN).putInt(60, -1)
+        rejectsBeforeWrite(BackupFileLocator.FILE_NAME_DB to invalid)
     }
 }

@@ -305,8 +305,12 @@ internal object AiProtocol {
         }
     }
 
-    fun checkDeadline(request: AiRequest, nowMs: Long) {
+    fun checkIssueTime(request: AiRequest, nowMs: Long) {
         if (request.issuedAtMs > nowMs && request.issuedAtMs - nowMs > CLOCK_SKEW_MS) throw AiFailure("CLOCK_SKEW", AiOutcome.NOT_EXECUTED)
+    }
+
+    fun checkDeadline(request: AiRequest, nowMs: Long) {
+        checkIssueTime(request, nowMs)
         if (request.expiresAtMs <= nowMs) throw AiFailure("EXPIRED", AiOutcome.NOT_EXECUTED)
     }
 
@@ -325,8 +329,9 @@ internal object AiProtocol {
 
         is AiCatalogCommand.Receipt -> emptySet()
 
-        // The original operation's scopes are checked at lookup.
-        else -> setOf(AiScope.LIBRARY_READ)
+        // Enumerate reads: a future new command must explicitly choose its scope.
+        AiCatalogCommand.Status, is AiCatalogCommand.ListPlaylists, is AiCatalogCommand.ListItems,
+        is AiCatalogCommand.Search, is AiCatalogCommand.GetStream, is AiCatalogCommand.PreviewRemoval -> setOf(AiScope.LIBRARY_READ)
     }
 
     fun isMutation(command: AiCatalogCommand): Boolean = when (command) {
@@ -334,7 +339,9 @@ internal object AiProtocol {
         is AiCatalogCommand.Save, is AiCatalogCommand.Add, is AiCatalogCommand.Remove, is AiCatalogCommand.Reorder,
         is AiCatalogCommand.Move, is AiCatalogCommand.RemoveLibrary -> true
 
-        else -> false
+        AiCatalogCommand.Status, is AiCatalogCommand.ListPlaylists, is AiCatalogCommand.ListItems,
+        is AiCatalogCommand.Search, is AiCatalogCommand.GetStream, is AiCatalogCommand.PreviewRemoval,
+        is AiCatalogCommand.Receipt -> false
     }
 
     fun fingerprint(request: AiRequest): String = digest(json.encodeToString(request))

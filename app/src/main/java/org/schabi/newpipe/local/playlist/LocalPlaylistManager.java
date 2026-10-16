@@ -63,13 +63,16 @@ public class LocalPlaylistManager {
     public Maybe<List<Long>> appendToPlaylist(final long playlistId,
                                               final List<StreamEntity> streams) {
         return Maybe.fromCallable(() -> database.runInTransaction(() -> {
+            PlaylistEditGuard.requireExisting(database, playlistId);
             final List<Long> streamIds = streamTable.upsertAll(streams);
             if (LibraryRepository.isLibrary(database, playlistId)) {
                 return LibraryRepository.appendDirectly(database, playlistId, streamIds);
             }
             // Derive the next position *inside* the same transaction as insertion.
-            return insertJoinEntities(playlistId, streamIds,
+            final List<Long> inserted = insertJoinEntities(playlistId, streamIds,
                     LibraryRepository.nextJoinIndex(database, playlistId));
+            LibraryRepository.refreshAutomaticThumbnail(database, playlistId);
+            return inserted;
         })).subscribeOn(Schedulers.io());
     }
 
@@ -208,6 +211,21 @@ public class LocalPlaylistManager {
                                                   final long thumbnailStreamId,
                                                   final boolean isPermanent) {
         return modifyPlaylist(playlistId, null, thumbnailStreamId, isPermanent);
+    }
+
+    public Maybe<Integer> unsetPlaylistThumbnail(final long playlistId) {
+        return Maybe.fromCallable(() -> database.runInTransaction(() -> {
+            // Select from current membership while holding the writer lock, not a stale UI row.
+            try (SupportSQLiteStatement statement = database.getOpenHelper()
+                    .getWritableDatabase().compileStatement(
+                            "UPDATE playlists SET is_thumbnail_permanent = 0, "
+                                    + "thumbnail_stream_id = COALESCE((SELECT stream_id "
+                                    + "FROM playlist_stream_join WHERE playlist_id = playlists.uid "
+                                    + "ORDER BY join_index LIMIT 1), -1) WHERE uid = ?")) {
+                statement.bindLong(1, playlistId);
+                return statement.executeUpdateDelete();
+            }
+        })).subscribeOn(Schedulers.io());
     }
 
     public long getPlaylistThumbnailStreamId(final long playlistId) {

@@ -1,0 +1,34 @@
+{
+  "device_model": "Pixel 7",
+  "android_sdk": 37,
+  "physical_serial_verified_against_authorized_pixel": true,
+  "qa_package": "org.schabi.newpipe.debug.featureaicontrol",
+  "original_package_metadata_unchanged": {
+    "org.schabi.newpipe": true,
+    "org.schabi.newpipe.debug.customdev": true
+  },
+  "runs": [
+    {
+      "log": "pixel-foundation-tests.log",
+      "passed": {
+        "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest": 53,
+        "org.schabi.newpipe.custom.aicontrol.AiDatabaseMigrationTest": 1,
+        "org.schabi.newpipe.custom.library.LibraryRepositoryTest": 35
+      },
+      "tests": 89,
+      "failures": 0,
+      "sha256": "472107762504dcb9defe89261aa4c40d19a8e090f03f4231c738704b5b0421a7"
+    },
+    {
+      "log": "pixel-legacy-migration-tests.log",
+      "passed": {
+        "org.schabi.newpipe.database.DatabaseMigrationTest": 3
+      },
+      "tests": 3,
+      "failures": 0,
+      "sha256": "8ed50fe40778ca07b285366b5756f6211a15b96e10e37bd4f051845b5ca88e9d"
+    }
+  ],
+  "total_passed": 92,
+  "limitations": "Synthetic isolated Room databases and test fixtures. No real catalog deletion, no UI lifecycle stress or remote/cloud/playback tests."
+}

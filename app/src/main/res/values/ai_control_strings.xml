@@ -2,4 +2,5 @@
 <resources>
     <string name="rv_playlist_edit_conflict">This playlist changed elsewhere. Reloading discards your unsaved edits.</string>
     <string name="rv_playlist_reload">Reload</string>
+    <string name="rv_playlist_save_failed">Could not update this playlist. It may have changed elsewhere.</string>
 </resources>

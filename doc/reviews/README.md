@@ -20,3 +20,13 @@ Future external reviews belong in this directory, with model/effort, reviewed re
 
 - [Final GPT-6 Astra xhigh follow-up verification](library-polish-final-followups-astra-2026-10-16.md) — PASS on 4881fc69c; all requested fixes cleared.
 - [Final Claude Opus Max attempt](library-polish-final-claude-attempt-2026-10-16.md) — not completed: session limit, no final verdict.
+
+
+## AI Control local foundation (2026-10-16)
+
+- [Astra xhigh round 1](ai-control-foundation-astra-round1-2026-10-16.md) — BLOCK; six findings, subsequently fixed and independently closed.
+- [Astra xhigh round 2](ai-control-foundation-astra-round2-2026-10-16.md) — BLOCK; original findings closed, two new UI issues and one test barrier correction.
+- [Astra xhigh round 3](ai-control-foundation-astra-round3-2026-10-16.md) — PASS; all three round-two corrections verified in source.
+- [Claude Opus Max milestone review](ai-control-foundation-claude-2026-10-16.md) — PASS WITH NONBLOCKERS for the inspected local foundation; author corrected additional findings afterward.
+- [Final Astra xhigh verification](ai-control-foundation-astra-final-2026-10-16.md) — PASS WITH NONBLOCKERS for the Claude-driven corrections; limited backup preflight claim clarified.
+- [Author adjudication](ai-control-foundation-adjudication-2026-10-16.md) — accepted fixes, explicit limitations and remaining activation gates. Reviewers did not write code or execute tests.

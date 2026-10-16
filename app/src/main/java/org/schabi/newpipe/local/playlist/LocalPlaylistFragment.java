@@ -118,6 +118,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     private List<Long> loadedStreamIds = new ArrayList<>();
     private PlaylistSaveQueue playlistSaveQueue;
     private long playlistSaveListenerGeneration;
+    private long playlistLoadGeneration;
     private final Handler playlistSaveHandler = new Handler(Looper.getMainLooper());
 
     /**
@@ -170,6 +171,9 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     @Override
     public void onViewCreated(@NonNull final View view, @Nullable final Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        if (isLoadingComplete != null) {
+            isLoadingComplete.set(false);
+        }
         attachPlaylistSaveListener();
         // Separate from load disposables: refreshing playlist rows must not
         // unsubscribe the menu from late startup/rebind identity changes.
@@ -278,22 +282,36 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     @Override
     public void startLoading(final boolean forceLoad) {
         super.startLoading(forceLoad);
-
         if (disposables != null) {
             disposables.clear();
         }
-
-        if (debounceSaver != null) {
-            disposables.add(debounceSaver.getDebouncedSaver());
-            debounceSaver.setNoChangesToSave();
+        if (databaseSubscription != null) {
+            databaseSubscription.cancel();
+            databaseSubscription = null;
         }
-
         isLoadingComplete.set(false);
-
-        playlistManager.getPlaylistStreams(playlistId)
-                .onBackpressureLatest()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(getPlaylistObserver());
+        final long generation = ++playlistLoadGeneration;
+        final Runnable load = () -> playlistSaveHandler.post(() -> {
+            if (generation != playlistLoadGeneration || getView() == null
+                    || playlistManager == null || disposables == null) {
+                return;
+            }
+            if (debounceSaver != null) {
+                disposables.add(debounceSaver.getDebouncedSaver());
+                debounceSaver.setNoChangesToSave();
+            }
+            playlistManager.getPlaylistStreams(playlistId)
+                    .onBackpressureLatest()
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(getPlaylistObserver());
+        });
+        if (playlistSaveQueue == null) {
+            load.run();
+        } else {
+            // A retained save may belong to the previous view. Never expose its stale
+            // predecessor as a new editable baseline and overwrite the retained intent.
+            playlistSaveQueue.whenIdle(load);
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -337,6 +355,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     public void onDestroyView() {
         // Capture the newest edit even if an earlier save is still executing.
         saveImmediate();
+        if (isLoadingComplete != null) {
+            isLoadingComplete.set(false);
+        }
+        playlistLoadGeneration++;
         playlistSaveListenerGeneration++;
         if (playlistSaveQueue != null) {
             playlistSaveQueue.setListener(null);
@@ -622,7 +644,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     }
 
     private void deleteItem(final PlaylistStreamEntry item) {
-        if (itemListAdapter == null || playlistId == null) {
+        if (itemListAdapter == null || playlistId == null || isLoadingComplete == null
+                || !isLoadingComplete.get()) {
             return;
         }
         if (isProtectedLibrary() && !LibraryRepository.isBoundLibrary(
@@ -649,16 +672,12 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribe(
                                         () -> {
-                                            // The Room observer also receives the change.
-                                            // Update this screen immediately even if a
-                                            // previously modified editor list was stale.
-                                            if (itemListAdapter != null) {
-                                                itemListAdapter.removeItem(item);
-                                                setStreamCountAndOverallDuration(
-                                                        itemListAdapter.getItemsList());
-                                                if (itemListAdapter.getItemsList().isEmpty()) {
-                                                    showEmptyState();
-                                                }
+                                            // This explicit global mutation invalidated the
+                                            // editor baseline. Wait for any started save, then
+                                            // reload committed membership rather than submitting
+                                            // another snapshot based on the removed item.
+                                            if (getView() != null) {
+                                                reloadAfterDiscardingEdits();
                                             }
                                         },
                                         throwable -> showUiErrorSnackbar(this,
@@ -728,6 +747,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     }
 
     private void reloadAfterDiscardingEdits() {
+        playlistLoadGeneration++;
         final long generation = ++playlistSaveListenerGeneration;
         if (playlistSaveQueue != null) {
             playlistSaveQueue.setListener(null);
@@ -798,7 +818,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                                   @NonNull final RecyclerView.ViewHolder source,
                                   @NonNull final RecyclerView.ViewHolder target) {
                 if (source.getItemViewType() != target.getItemViewType()
-                        || itemListAdapter == null) {
+                        || itemListAdapter == null || isLoadingComplete == null
+                        || !isLoadingComplete.get()) {
                     return false;
                 }
 

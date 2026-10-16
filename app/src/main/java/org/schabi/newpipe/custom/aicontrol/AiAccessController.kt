@@ -12,6 +12,8 @@ import kotlin.concurrent.write
  * Local permission ceiling, disabled by default. No remote JSON command can change this state.
  * Configure only from the eventual local consent/no-backup policy store. Authentication belongs
  * to the transport; a claimed client_id in an envelope is NOT sufficient to open a session.
+ * Lock order is authorization gate, then Room. Enable/disable must never be called inside a
+ * database transaction or on the UI thread: they may wait for an already-authorized operation.
  */
 internal class AiAccessController {
     private val lock = ReentrantReadWriteLock(true)

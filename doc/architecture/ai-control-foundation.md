@@ -1,5 +1,13 @@
 # AI Control — local catalog foundation
 
+**CURRENT CHECKPOINT:** Local catalog foundation implemented and reviewed. Latest code passes **237 JVM tests and 92 tests on the physical Pixel 7**, all with zero failures. The 92 device tests comprise 54 new AI/migration cases, 35 existing Library cases and 3 legacy migration cases. Application/test APKs compile and signatures are verified. Read-only Claude/Astra reviews and author adjudication are in `doc/reviews/ai-control-foundation-*`.
+
+**NOT A COMPLETE AI CONTROL RELEASE:** No main-menu AI page, background service, persisted pairing/Keystore grants, restore-session/epoch wiring, playback adapter, new URL extraction or Cloudflare/OAuth/WSS gateway is active or implemented yet. The command engine currently operates only through controlled local tests.
+
+**PHONE SAFETY:** Only `org.schabi.newpipe.debug.featureaicontrol` and its `.test` package were installed. The original custom and F-Droid package paths/versions/install timestamps were verified unchanged. All destructive tests used synthetic data; no real catalog data was deleted. No emulator or secondary-machine UI was used.
+
+Historical milestones and earlier compiled-only statuses below are retained as an audit trail; this current summary supersedes them.
+
 Date: 2026-10-16
 Branch/worktree: `feature/ai-control`, `/home/rito/techstuff/ritoverse/newpipe-ai-control`
 Base: completed Library `b9a8f28d3`. This isolated worktree leaves the shared `custom/dev` and the separate tagging work untouched.
@@ -69,3 +77,25 @@ The NotCodex-2 connector began returning gateway errors after the first successf
 After the review fixes and the additional queue-reload recovery check, the headless build passed with **229 JVM tests, 0 failures/errors/skips** (176 baseline + 53 new). Application and Android-test APKs compiled; all **44 new AI Android cases remain compiled-only**. Checkstyle and Ktlint passed. Host SQLite checks confirmed the 12 pre-existing physical table schemas are unchanged by the migration, exercised the source-extracted search SQL against 20,000 synthetic rows with bounded results, and verified rollback when receipt insertion aborts. These SQLite checks are not Android/Room runtime evidence or a phone performance benchmark.
 
 QA application identity is `org.schabi.newpipe.debug.featureaicontrol`; its test APK targets that exact package. Both signatures were verified before any potential transfer/install. No physical installation has happened. The main code checkpoint may be committed before reviewer follow-up results; a commit is not release approval or evidence that the remaining AI Control phases exist.
+
+
+### Second Astra follow-up — current uncommitted correction
+
+The second Astra review closed all six original findings but found a retained-save/view-recreation interleaving, unhandled expected errors in existing thumbnail callers, and a test barrier positioned before authorization. Its full response is recorded in `doc/reviews/ai-control-foundation-astra-round2-2026-10-16.md`. The author accepted all three and implemented:
+
+- A recreated/reloading playlist view now waits for retained submitted edits to drain before reading and presenting a new editable database snapshot. Loading generations invalidate old reads/callbacks; delete/drag mutations are blocked while loading. The queue's new idle observer does not discard saved intent and has dedicated deterministic tests for the reported `[A,B,C]` recreation case.
+- Automatic thumbnail selection for Unset is performed inside the writer transaction. Ordinary append refreshes automatic thumbnails in the append transaction. The Add To dialog no longer runs a stale second thumbnail write or cancels the user's submitted append when automatically dismissed. Relevant read/write error subscriptions are explicit, so expected conflicts cannot hit the application's uncaught Rx handler.
+- Cancellation/deadline tests synchronize at a second clock read after successful authorization while another writer is held. Their names describe post-authorization rejection, not a claim that operating-system scheduling necessarily paused at an exact lock instruction.
+
+This adds two upstream integration files, `BookmarkFragment.java` and `PlaylistAppendDialog.java`, for the identified thumbnail callers. The new code is still a local foundation, with no network entry point. The previous 229-test result does not validate these subsequent corrections; updated build results and verification must be recorded separately.
+
+
+## Final executed validation — 2026-10-16
+
+- **Host:** 237 JVM tests, zero failures/errors/skips; Checkstyle and Ktlint pass; application and instrumentation APKs build successfully. 61 host tests were added relative to the 176-test completed Library baseline.
+- **Physical Pixel 7, Android SDK37:** 89 combined AI/Library tests PASS, followed by all 3 existing legacy migration tests PASS. These execute Room transactions, receipt-insert and batch-delete rollback failures, concurrent duplicate commands, direct deletion/re-add/retry invariants, post-authorization cancellation/deadlines, saved-only reads, source/reference validation, schema migration, and Library regressions on synthetic data.
+- **Reviewer outcome:** Claude Opus Max PASS WITH NONBLOCKERS for its inspected foundation. Author corrected actionable feedback. Astra's UI correction check passed, and its final Claude-fix check passed with the narrow backup-preflight precision note documented, not silently ignored.
+- **Proof:** `ai-control-foundation-build-evidence.json`, `ai-control-foundation-pixel-evidence.json`, and the two full instrumentation logs under `doc/validation/`.
+- **Not claimed:** real user-data mutation tests, actual Fragment lifecycle/gesture stress, older Android-device validation, complete corruption-safe native restore, full network/security deployment, or finished AI Control product.
+
+The phone was initially offline, then reachable but unapproved, and finally authorized on the primary host's existing Linux ADB identity. The authorized hardware serial was verified before installation. The separate QA package is retained for continuing development; it is not an update to the user's main custom app.

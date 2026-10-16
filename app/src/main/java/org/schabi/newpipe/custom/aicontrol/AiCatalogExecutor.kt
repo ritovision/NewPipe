@@ -25,13 +25,15 @@ internal class AiCatalogExecutor(
             val parsed = AiProtocol.decodeEnvelope(rawJson)
             request = parsed
             AiProtocol.validateShape(parsed)
-            AiProtocol.checkDeadline(parsed, clock())
+            val mutation = AiProtocol.isMutation(parsed.command)
+            checkAdmissionTime(parsed, mutation, clock())
             access.withAuthorization(parsed, session) { lease ->
+                checkAdmissionTime(parsed, mutation, clock())
                 db.runInTransaction(
                     Callable {
                         // Room can wait for other writers. Never rely on a check made before that wait.
                         lease.checkActive()
-                        AiProtocol.checkDeadline(parsed, clock())
+                        checkAdmissionTime(parsed, mutation, clock())
                         val dao = db.aiCommandReceiptDao()
                         val command = parsed.command
                         if (command is AiCatalogCommand.Receipt) {
@@ -55,7 +57,6 @@ internal class AiCatalogExecutor(
                             )
                         }
 
-                        val mutation = AiProtocol.isMutation(command)
                         val fingerprint = AiProtocol.fingerprint(parsed)
                         if (mutation) {
                             val previous = dao.find(parsed.deviceId, parsed.catalogEpoch, parsed.clientId, parsed.requestId)
@@ -63,10 +64,16 @@ internal class AiCatalogExecutor(
                                 if (previous.fingerprint != fingerprint) throw AiFailure("REQUEST_ID_REUSED")
                                 lease.requireScopes(scopes(previous.requiredScopes))
                                 lease.checkActive()
-                                AiProtocol.checkDeadline(parsed, clock())
+                                // Expiry forbids NEW execution, not acknowledging an existing commit.
                                 return@Callable decodeReceipt(previous).copy(replayed = true)
                             }
-                            dao.deleteExpired(clock())
+                            val checkedAt = clock()
+                            if (parsed.expiresAtMs <= checkedAt && checkedAt - parsed.issuedAtMs >= AiProtocol.RECEIPT_TTL_MS) {
+                                // Missing history outside the retention window is not proof of no effect.
+                                throw AiFailure("EXPIRED_RESULT_NOT_RETAINED", AiOutcome.OUTCOME_UNKNOWN)
+                            }
+                            AiProtocol.checkDeadline(parsed, checkedAt)
+                            dao.deleteExpired(checkedAt)
                             if (dao.count() >= MAX_RECEIPTS) throw AiFailure("RECEIPT_CAPACITY", AiOutcome.NOT_EXECUTED)
                         }
 
@@ -103,6 +110,10 @@ internal class AiCatalogExecutor(
             // No raw exception message, request payload or database contents cross the bridge.
             AiResult(request?.requestId.orEmpty(), request?.deviceId.orEmpty(), AiOutcome.OUTCOME_UNKNOWN, "STORAGE_OR_EXECUTION_FAILURE")
         }
+    }
+
+    private fun checkAdmissionTime(request: AiRequest, mutation: Boolean, nowMs: Long) {
+        if (mutation) AiProtocol.checkIssueTime(request, nowMs) else AiProtocol.checkDeadline(request, nowMs)
     }
 
     private fun decodeReceipt(receipt: AiCommandReceipt): AiResult {

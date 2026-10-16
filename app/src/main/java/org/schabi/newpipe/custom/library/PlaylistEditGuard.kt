@@ -20,6 +20,15 @@ object PlaylistEditGuard {
     }
 
     @JvmStatic
+    fun requireExisting(db: AppDatabase, playlistId: Long) {
+        check(db.inTransaction()) { "Playlist validation requires the writer transaction" }
+        val exists = db.openHelper.writableDatabase.query(
+            SimpleSQLiteQuery("SELECT 1 FROM playlists WHERE uid = ?", arrayOf(playlistId))
+        ).use { it.moveToFirst() }
+        if (!exists) throw PlaylistEditConflictException()
+    }
+
+    @JvmStatic
     fun readCurrentIds(db: AppDatabase, playlistId: Long): List<Long> = db.openHelper.writableDatabase.query(
         SimpleSQLiteQuery("SELECT stream_id FROM playlist_stream_join WHERE playlist_id = ? ORDER BY join_index", arrayOf(playlistId))
     ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) } }

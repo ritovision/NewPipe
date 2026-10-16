@@ -3,12 +3,15 @@
  */
 package org.schabi.newpipe.custom.library
 
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.util.Properties
 import java.util.zip.ZipInputStream
 import kotlin.io.path.deleteIfExists
+import org.schabi.newpipe.custom.aicontrol.AiDatabaseMigration
 import org.schabi.newpipe.settings.export.BackupFileLocator
 import org.schabi.newpipe.streams.io.SharpInputStream
 import org.schabi.newpipe.streams.io.StoredFileHelper
@@ -78,7 +81,7 @@ object LibraryBackupRestore {
             }
 
             if (!foundDb) return false
-            check(hasSQLiteHeader(tempDb)) { "Invalid backup: bad SQLite database header" }
+            requireSupportedDatabase(tempDb)
             if (foundBinding) validateBinding(tempBinding)
 
             val binding = LibraryBindingStore.pathForDatabase(locator.db)
@@ -135,8 +138,17 @@ object LibraryBackupRestore {
         }
     }
 
-    private fun hasSQLiteHeader(path: Path): Boolean = Files.newInputStream(path).use { input ->
-        input.readNBytes(SQLITE_MAGIC.size).contentEquals(SQLITE_MAGIC)
+    private fun requireSupportedDatabase(path: Path) {
+        val header = Files.newInputStream(path).use { it.readNBytes(64) }
+        check(header.size == 64 && header.copyOfRange(0, SQLITE_MAGIC.size).contentEquals(SQLITE_MAGIC)) {
+            "Invalid backup: bad or truncated SQLite database header"
+        }
+        // SQLite file header: the application user_version is big-endian at bytes 60..63.
+        // Reject a future schema BEFORE replacing the live files, not at the next app restart.
+        val schemaVersion = ByteBuffer.wrap(header).order(ByteOrder.BIG_ENDIAN).getInt(60)
+        check(schemaVersion in 0..AiDatabaseMigration.VERSION) {
+            "This backup requires a newer version of the app"
+        }
     }
 
     private fun validateBinding(path: Path) {

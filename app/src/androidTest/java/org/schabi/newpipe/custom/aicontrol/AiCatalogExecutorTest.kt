@@ -11,7 +11,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonArray
@@ -146,11 +146,13 @@ class AiCatalogExecutorTest {
     }
 
     @Test
-    fun expiredCommandIsNotReexecutedButReceiptCanStillBeRead() {
+    fun expiredCommittedCommandReturnsItsReceiptWithoutReexecution() {
         val original = request(AiCatalogCommand.CreatePlaylist("Once"))
         run(original)
         now += 31_000
-        assertEquals("EXPIRED", run(original).code)
+        val retry = run(original)
+        assertEquals(AiOutcome.COMMITTED, retry.outcome)
+        assertTrue(retry.replayed)
         assertEquals(AiOutcome.COMPLETED, run(AiCatalogCommand.Receipt(original.requestId)).outcome)
         assertEquals(2, manager.playlists.blockingFirst().size)
     }
@@ -507,25 +509,25 @@ class AiCatalogExecutorTest {
     }
 
     @Test
-    fun expiredCommandWaitingForTheWriterLockDoesNotExecute() {
-        checkRejectedAfterWriterWait(expire = true)
+    fun expiredAuthorizedCommandCannotCommit() {
+        checkRejectedAfterAuthorizationWithWriterHeld(expire = true)
     }
 
     @Test
-    fun disconnectedCommandWaitingForTheWriterLockDoesNotExecute() {
-        checkRejectedAfterWriterWait(expire = false)
+    fun disconnectedAuthorizedCommandCannotCommit() {
+        checkRejectedAfterAuthorizationWithWriterHeld(expire = false)
     }
 
-    private fun checkRejectedAfterWriterWait(expire: Boolean) {
+    private fun checkRejectedAfterAuthorizationWithWriterHeld(expire: Boolean) {
         val writers = Executors.newFixedThreadPool(2)
         val locked = CountDownLatch(1)
         val release = CountDownLatch(1)
-        val initialCheck = CountDownLatch(1)
-        val firstClockCall = AtomicBoolean(true)
+        val authorizedCheck = CountDownLatch(1)
+        val clockCalls = AtomicInteger(0)
         val time = AtomicLong(now)
         val isolated = AiCatalogExecutor(db, access, AiCatalogStore(db, AiServiceNames { "service-$it" })) {
             val captured = time.get()
-            if (firstClockCall.getAndSet(false)) initialCheck.countDown()
+            if (clockCalls.incrementAndGet() == 2) authorizedCheck.countDown()
             captured
         }
         val command = request(AiCatalogCommand.CreatePlaylist("Must not execute"))
@@ -538,7 +540,7 @@ class AiCatalogExecutorTest {
             }
             assertTrue(locked.await(5, TimeUnit.SECONDS))
             val caller = writers.submit(Callable { isolated.execute(AiProtocol.json.encodeToString(command), session) })
-            assertTrue(initialCheck.await(5, TimeUnit.SECONDS))
+            assertTrue(authorizedCheck.await(5, TimeUnit.SECONDS))
             if (expire) time.set(command.expiresAtMs + 1) else session.disconnect()
             release.countDown()
             lockOwner.get(10, TimeUnit.SECONDS)
@@ -577,5 +579,114 @@ class AiCatalogExecutorTest {
         } finally {
             callers.shutdownNow()
         }
+    }
+
+    @Test
+    fun automaticThumbnailIsChosenFromSurvivorsInsideTheUnsetTransaction() {
+        val a = stream("previous-thumb")
+        val b = stream("survivor")
+        val id = create("Thumbnail", a, b)
+        manager.changePlaylistThumbnail(id, a.streamId, true).test().await().assertComplete()
+        run(AiCatalogCommand.RemoveLibrary(listOf(a)))
+        manager.unsetPlaylistThumbnail(id).test().await().assertComplete()
+        assertEquals(b.streamId, manager.getPlaylistThumbnailStreamId(id))
+        assertFalse(manager.getIsPlaylistThumbnailPermanent(id))
+    }
+
+    @Test
+    fun ordinaryUiAppendRefreshesAnEmptyThumbnailInItsOwnTransaction() {
+        val a = stream("first-thumbnail")
+        val id = create("Empty")
+        val stored = db.streamDAO().getStream(0, a.url).blockingFirst().single()
+        manager.appendToPlaylist(id, listOf(stored)).test().await().assertComplete()
+        assertEquals(a.streamId, manager.getPlaylistThumbnailStreamId(id))
+        assertEquals(listOf(a.streamId), entries(id))
+    }
+
+    @Test
+    fun ordinaryUiAppendPreservesASavedPinnedThumbnail() {
+        val a = stream("pinned-ui")
+        val b = stream("second-ui")
+        val id = create("Pinned UI", a)
+        manager.changePlaylistThumbnail(id, a.streamId, true).test().await().assertComplete()
+        val stored = db.streamDAO().getStream(0, b.url).blockingFirst().single()
+        manager.appendToPlaylist(id, listOf(stored)).test().await().assertComplete()
+        assertEquals(a.streamId, manager.getPlaylistThumbnailStreamId(id))
+        assertTrue(manager.getIsPlaylistThumbnailPermanent(id))
+    }
+
+    @Test
+    fun expiredNeverCommittedCommandCannotStartANewMutation() {
+        val original = request(AiCatalogCommand.CreatePlaylist("Expired before dispatch"))
+        now += 31_000
+        assertEquals(AiOutcome.NOT_EXECUTED, run(original).outcome)
+        assertEquals(1, manager.playlists.blockingFirst().size)
+        assertEquals(0, db.aiCommandReceiptDao().count())
+    }
+
+    @Test
+    fun oldExpiredRequestWithoutRetainedEvidenceDoesNotClaimItNeverCommitted() {
+        val original = request(AiCatalogCommand.CreatePlaylist("Once"))
+        run(original)
+        now += AiProtocol.RECEIPT_TTL_MS + 1
+        db.aiCommandReceiptDao().deleteExpired(now)
+        val result = run(original)
+        assertEquals(AiOutcome.OUTCOME_UNKNOWN, result.outcome)
+        assertEquals("EXPIRED_RESULT_NOT_RETAINED", result.code)
+        assertEquals(2, manager.playlists.blockingFirst().size)
+    }
+
+    @Test
+    fun expiredRetryStillCannotChangeTheOriginalMutationPayload() {
+        val original = request(AiCatalogCommand.CreatePlaylist("Once"))
+        run(original)
+        now += 31_000
+        assertEquals("REQUEST_ID_REUSED", run(original.copy(command = AiCatalogCommand.CreatePlaylist("Twice"))).code)
+        assertEquals(2, manager.playlists.blockingFirst().size)
+    }
+
+    @Test
+    fun readOnlyToolsCannotDistinguishHiddenRowsFromMissingOrMismatchedReferences() {
+        val hidden = stream("hidden-history", saved = false)
+        val probes = listOf(hidden, hidden.copy(url = "https://example.org/not-the-same"), hidden.copy(streamId = 99999))
+        access.enableFromLocalConsent(device, epoch, mapOf(client to setOf(AiScope.LIBRARY_READ)))
+        session = access.openAuthenticatedSession(client)
+        for (probe in probes) {
+            assertEquals("NOT_FOUND", run(AiCatalogCommand.GetStream(probe)).code)
+            assertEquals("NOT_FOUND", run(AiCatalogCommand.PreviewRemoval(listOf(probe))).code)
+        }
+        assertEquals(0, db.aiCommandReceiptDao().count())
+        assertTrue(entries(library).isEmpty())
+    }
+
+    @Test
+    fun aMixedPreviewDoesNotReturnPartialPrivateRowInformation() {
+        val visible = stream("saved")
+        val hidden = stream("hidden", saved = false)
+        val result = run(AiCatalogCommand.PreviewRemoval(listOf(visible, hidden)))
+        assertEquals("NOT_FOUND", result.code)
+        assertTrue(result.data.isEmpty())
+        assertEquals(listOf(visible.streamId), entries(library))
+    }
+
+    @Test
+    fun anExplicitlySavedItemBecomesAvailableToSavedOnlyReadTools() {
+        val a = stream("not-saved-yet", saved = false)
+        assertEquals("NOT_FOUND", run(AiCatalogCommand.GetStream(a)).code)
+        run(AiCatalogCommand.Save(listOf(a)))
+        assertEquals(AiOutcome.COMPLETED, run(AiCatalogCommand.GetStream(a)).outcome)
+        assertEquals(AiOutcome.COMPLETED, run(AiCatalogCommand.PreviewRemoval(listOf(a))).outcome)
+    }
+
+    @Test
+    fun appendIntoADeletedPlaylistFailsBeforeWritingStreamMetadata() {
+        val a = stream("retained-title")
+        val id = create("Will disappear")
+        val proposed = db.streamDAO().getStream(0, a.url).blockingFirst().single().copy(title = "Must not overwrite")
+        run(AiCatalogCommand.DeletePlaylist(id))
+        manager.appendToPlaylist(id, listOf(proposed)).test().await()
+            .assertError(PlaylistEditConflictException::class.java)
+        assertEquals("retained-title", db.streamDAO().getStream(0, a.url).blockingFirst().single().title)
+        assertEquals(listOf(a.streamId), entries(library))
     }
 }

@@ -539,12 +539,13 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
             } else if (items.get(index).equals(delete)) {
                 showDeleteDialog(selectedItem.getOrderingName(), selectedItem);
             } else if (isThumbnailPermanent && items.get(index).equals(unsetThumbnail)) {
-                final long thumbnailStreamId = localPlaylistManager
-                        .getAutomaticPlaylistThumbnailStreamId(selectedItem.getUid());
-                localPlaylistManager
-                        .changePlaylistThumbnail(selectedItem.getUid(), thumbnailStreamId, false)
+                localPlaylistManager.unsetPlaylistThumbnail(selectedItem.getUid())
                         .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe();
+                        .subscribe(ignored -> { }, error -> {
+                            if (getView() != null) {
+                                showUiErrorSnackbar(this, "Updating playlist thumbnail", error);
+                            }
+                        });
             }
         };
 

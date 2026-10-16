@@ -48,8 +48,7 @@ internal class AiCatalogStore(
             is AiCatalogCommand.Search -> search(command, library)
 
             is AiCatalogCommand.GetStream -> {
-                val id = resolve(listOf(command.item)).single()
-                if (!contains(library, id)) throw AiFailure("NOT_SAVED")
+                val id = resolveSaved(listOf(command.item), library).single()
                 query("SELECT s.*, -1 AS join_index FROM streams s WHERE uid = ?", id).use {
                     if (!it.moveToFirst()) throw AiFailure("NOT_FOUND")
                     streamJson(it)
@@ -132,7 +131,7 @@ internal class AiCatalogStore(
             }
 
             is AiCatalogCommand.PreviewRemoval -> {
-                val ids = resolve(command.items).distinct()
+                val ids = resolveSaved(command.items, library).distinct()
                 buildJsonObject {
                     put(
                         "items",
@@ -177,6 +176,17 @@ internal class AiCatalogStore(
         if (id == library) throw AiFailure("PROTECTED_LIBRARY")
         if (scalar("SELECT COUNT(*) FROM playlists WHERE uid = ?", id) != 1L) throw AiFailure("PLAYLIST_NOT_FOUND")
         if (expectedRevision != null && revision(id) != expectedRevision) throw AiFailure("CONFLICT")
+    }
+
+    /** Read-only tools must not distinguish hidden history/feed rows from absent rows. */
+    private fun resolveSaved(refs: List<AiStreamRef>, library: Long): List<Long> {
+        if (refs.any { !contains(library, it.streamId) }) throw AiFailure("NOT_FOUND")
+        return try {
+            resolve(refs)
+        } catch (error: AiFailure) {
+            if (error.code in setOf("STREAM_NOT_FOUND", "STREAM_IDENTITY_MISMATCH", "UNSUPPORTED_SERVICE")) throw AiFailure("NOT_FOUND")
+            throw error
+        }
     }
 
     private fun resolve(refs: List<AiStreamRef>): List<Long> {
