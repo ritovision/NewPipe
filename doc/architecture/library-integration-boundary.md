@@ -1,5 +1,12 @@
 # Library Integration Boundary — RitoVision NewPipe Fork
 
+**Current polish follow-up:** See [Library polish](library-polish.md) for the
+latest fixes, eight-file upstream boundary, 176 JVM checks and final review gate.
+Runtime revision 4881fc69c resolves the six reported polish findings. Astra's
+final re-review passed; Claude's final retry was blocked by its session allowance.
+Historical v1 notes below are retained as an audit trail, not current open issues.
+
+
 **FINAL STATUS (2026-10-16): LIBRARY V1 COMPLETE.** Code milestone
 577bf2f77 is merged into custom/dev and installed on the user's separate
 custom NewPipe Android app. The user reports the feature looks good.

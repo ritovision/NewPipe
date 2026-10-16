@@ -1,6 +1,6 @@
 # Library polish — 2026-10-16
 
-**Status:** Original polish independently reviewed by Claude Opus Max and GPT-6 Astra xhigh: both PASS WITH NONBLOCKERS. All six follow-up findings are addressed below; validation and focused re-review in progress.
+**Status:** Original polish independently reviewed by Claude Opus Max and GPT-6 Astra xhigh: both PASS WITH NONBLOCKERS. All six follow-up findings are addressed below. Final runtime revision 4881fc69c passed Astra xhigh review and 176 JVM/build checks; Claude's final retry hit its session allowance and did not return a verdict.
 **Base:** fed10c6dd (Library v1 sign-off).
 **Scope:** Small UI identity fixes, permanent artwork, thumbnail fallback, transaction rollback correctness, and non-disruptive error feedback. No Tags, cloud service, or schema change.
 
@@ -165,3 +165,26 @@ shipping with them:
 
 No additional upstream file or schema/dependency change was needed for these
 corrections. The first-round raw reports remain available under doc/reviews.
+
+
+## Final release gate — 2026-10-16
+
+Runtime source is pinned to 4881fc69c. All six requested findings are fixed, including
+the additional thumbnail interleaving and test-only blocking read found during the
+first re-review. The typed repair-error hardening note was addressed as well.
+
+- Final Astra Extra High review: **PASS**, no actionable regression in scope.
+- Final Claude Opus Max retry: **not completed**, CLI session limit (exit 1,
+  reported reset 6am America/New_York). Its preceding review passed with notes,
+  subsequently corrected; do not claim Claude approved the final revision.
+- JVM: **176 tests executed, 0 failures**. Ktlint/Checkstyle passed.
+- App APK and test APK: compiled successfully. **35 Library Android cases are
+  compiled-only**; no emulator or automatic device instrumentation was run.
+- SQL-only assertions separately exercised the exact refresh statement's survivor,
+  pinned, empty and rollback handling, plus preserving an already-valid automatic
+  thumbnail and the formerly-false snapshot decision interleaving.
+- Merge into custom/dev and install only its established separately signed custom
+  package. Preserve the original F-Droid installation and custom app data.
+
+Existing native multi-file import crash-consistency limitations and cross-device
+or Tags coordination are unchanged and are not misrepresented as solved here.

@@ -16,3 +16,6 @@ Future external reviews belong in this directory, with model/effort, reviewed re
 - [Claude Opus Max — Library polish follow-ups, round 1](library-polish-followups-round1-claude-2026-10-16.md) — source review of 6af54b825: PASS WITH NONBLOCKERS; follow-up findings corrected, final verification pending.
 
 - [GPT-6 Astra Extra High — Library polish follow-ups, round 1](library-polish-followups-round1-astra-2026-10-16.md) — source review of 6af54b825: BLOCK; follow-up findings corrected, final verification pending.
+
+- [Final GPT-6 Astra xhigh follow-up verification](library-polish-final-followups-astra-2026-10-16.md) — PASS on 4881fc69c; all requested fixes cleared.
+- [Final Claude Opus Max attempt](library-polish-final-claude-attempt-2026-10-16.md) — not completed: session limit, no final verdict.
