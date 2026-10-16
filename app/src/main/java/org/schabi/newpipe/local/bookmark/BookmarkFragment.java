@@ -27,7 +27,6 @@ import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.schabi.newpipe.NewPipeDatabase;
 import org.schabi.newpipe.R;
-import org.schabi.newpipe.custom.library.LibraryBindingStore;
 import org.schabi.newpipe.custom.library.LibraryRepository;
 import org.schabi.newpipe.database.AppDatabase;
 import org.schabi.newpipe.database.LocalItem;
@@ -497,10 +496,8 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
     }
 
     private boolean isProtectedLibrary(final PlaylistMetadataEntry item) {
-        return (item.getOrderingName() != null && item.getOrderingName().trim()
-                .equalsIgnoreCase(LibraryBindingStore.LIBRARY_NAME))
-                || LibraryRepository.isBoundLibrary(NewPipeDatabase.getInstance(requireContext()),
-                        item.getUid());
+        return LibraryRepository.isUiProtected(NewPipeDatabase.getInstance(requireContext()),
+                item.getUid(), item.getOrderingName());
     }
 
     private void showLocalDialog(final PlaylistMetadataEntry selectedItem) {

@@ -9,7 +9,7 @@ import org.schabi.newpipe.database.playlist.PlaylistMetadataEntry;
 import org.schabi.newpipe.local.LocalItemBuilder;
 import org.schabi.newpipe.local.history.HistoryRecordManager;
 import org.schabi.newpipe.util.Localization;
-import org.schabi.newpipe.util.image.CoilHelper;
+import org.schabi.newpipe.custom.library.LibraryArtwork;
 
 import java.time.format.DateTimeFormatter;
 
@@ -39,7 +39,7 @@ public class LocalPlaylistItemHolder extends PlaylistItemHolder {
                 itemStreamCountView.getContext(), item.getStreamCount()));
         itemUploaderView.setVisibility(View.INVISIBLE);
 
-        CoilHelper.INSTANCE.loadPlaylistThumbnail(itemThumbnailView, item.getThumbnailUrl());
+        LibraryArtwork.load(itemThumbnailView, item.getUid(), item.getThumbnailUrl());
 
         if (item instanceof PlaylistDuplicatesEntry
                 && ((PlaylistDuplicatesEntry) item).getTimesStreamIsContained() > 0) {

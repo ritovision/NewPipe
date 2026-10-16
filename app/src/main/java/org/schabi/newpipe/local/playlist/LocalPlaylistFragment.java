@@ -39,7 +39,6 @@ import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.schabi.newpipe.NewPipeDatabase;
 import org.schabi.newpipe.R;
-import org.schabi.newpipe.custom.library.LibraryBindingStore;
 import org.schabi.newpipe.custom.library.LibraryRepository;
 import org.schabi.newpipe.database.LocalItem;
 import org.schabi.newpipe.database.playlist.PlaylistStreamEntry;
@@ -97,10 +96,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     private LocalPlaylistManager playlistManager;
 
     private boolean isProtectedLibrary() {
-        return (name != null && name.trim().equalsIgnoreCase(
-                LibraryBindingStore.LIBRARY_NAME))
-                || (playlistId != null && LibraryRepository.isBoundLibrary(
-                        NewPipeDatabase.getInstance(requireContext()), playlistId));
+        return LibraryRepository.isUiProtected(
+                NewPipeDatabase.getInstance(requireContext()), playlistId, name);
     }
 
     private LocalPlaylistViewModel viewModel;
@@ -296,11 +293,15 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         }
         super.onCreateOptionsMenu(menu, inflater);
         inflater.inflate(R.menu.menu_local_playlist, menu);
-        if (isProtectedLibrary()) {
-            menu.findItem(R.id.menu_item_rename_playlist).setVisible(false);
-            menu.findItem(R.id.menu_item_remove_watched).setVisible(false);
-            menu.findItem(R.id.menu_item_remove_duplicates).setVisible(false);
-        }
+    }
+
+    @Override
+    public void onPrepareOptionsMenu(@NonNull final Menu menu) {
+        super.onPrepareOptionsMenu(menu);
+        final boolean ordinaryPlaylist = !isProtectedLibrary();
+        menu.findItem(R.id.menu_item_rename_playlist).setVisible(ordinaryPlaylist);
+        menu.findItem(R.id.menu_item_remove_watched).setVisible(ordinaryPlaylist);
+        menu.findItem(R.id.menu_item_remove_duplicates).setVisible(ordinaryPlaylist);
     }
 
     @Override
@@ -391,8 +392,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
     @Override
     public boolean onOptionsItemSelected(final MenuItem item) {
-        if (isProtectedLibrary() && item.getItemId() != R.id.menu_item_share_playlist) {
-            return true; // Block rename/bulk actions; individual Delete has its own confirmation.
+        if (isProtectedLibrary() && (item.getItemId() == R.id.menu_item_rename_playlist
+                || item.getItemId() == R.id.menu_item_remove_watched
+                || item.getItemId() == R.id.menu_item_remove_duplicates)) {
+            return true; // Individual Library deletion keeps its own explicit confirmation.
         }
         if (item.getItemId() == R.id.menu_item_share_playlist) {
             createShareConfirmationDialog();
@@ -621,9 +624,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                                                 }
                                             }
                                         },
-                                        throwable -> showError(new ErrorInfo(throwable,
-                                                UserAction.REQUESTED_BOOKMARK,
-                                                "Removing stream from Library everywhere"))
+                                        throwable -> showUiErrorSnackbar(this,
+                                                "Removing video from Library", throwable)
                                 ));
                     })
                     .setNegativeButton(R.string.cancel, null)
@@ -766,7 +768,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
             // Library deletion uses the explicit remove-everywhere transaction,
             // while ordinary playlists retain their existing local-only delete.
-            dialogBuilder.addEntry(StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL);
+            if (!LibraryRepository.isBoundLibrary(
+                    NewPipeDatabase.getInstance(requireContext()), playlistId)) {
+                dialogBuilder.addEntry(StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL);
+            }
             dialogBuilder.addEntry(StreamDialogDefaultEntry.DELETE);
 
             // set custom actions

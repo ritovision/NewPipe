@@ -10,7 +10,9 @@ import android.util.Log
 import android.widget.Toast
 import androidx.sqlite.db.SimpleSQLiteQuery
 import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.schedulers.Schedulers
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 import java.util.concurrent.Callable
 import org.schabi.newpipe.NewPipeDatabase
 import org.schabi.newpipe.database.AppDatabase
@@ -28,16 +30,24 @@ object LibraryRepository {
     private const val TAG = "RitoVisionLibrary"
     private const val SMALL_INSERT_THRESHOLD = 32
 
-    private data class Session(
-        val db: AppDatabase,
-        val id: Long,
-        // Suppress saves from stale in-memory ordinary playlist editors after
-        // an explicit global Library removal. A fresh explicit add clears it.
-        val recentlyRemoved: MutableSet<Long> = HashSet()
-    )
+    private data class Session(val db: AppDatabase, val id: Long)
 
     @Volatile
     private var session: Session? = null
+
+    private val identityChanges = BehaviorSubject.createDefault(Unit).toSerialized()
+
+    private fun publishSession(value: Session?) {
+        session = value
+        identityChanges.onNext(Unit)
+    }
+
+    /** List thumbnails can rebind after asynchronous initialization or identity repair. */
+    internal fun observeLibraryId(db: AppDatabase): Observable<Long> = identityChanges.map { current(db)?.id ?: -1L }.distinctUntilChanged()
+
+    /** No database I/O: UI gets the same bound-ID-first policy in every screen. */
+    @JvmStatic
+    fun isUiProtected(db: AppDatabase, playlistId: Long?, name: String?): Boolean = LibraryIdentityPolicy.protects(current(db)?.id, playlistId, name)
 
     @JvmStatic
     fun start(context: Context) {
@@ -120,10 +130,10 @@ object LibraryRepository {
         try {
             db.runInTransaction {
                 backfill(db, id)
-                session = Session(db, id)
+                publishSession(Session(db, id))
             }
         } catch (error: Throwable) {
-            session = null
+            publishSession(null)
             throw error
         }
         return id
@@ -162,10 +172,10 @@ object LibraryRepository {
                 store.write(
                     LibraryBindingStore.Binding(playlistId, LibraryBindingStore.LIBRARY_NAME)
                 )
-                session = Session(db, playlistId)
+                publishSession(Session(db, playlistId))
             }
         } catch (error: Throwable) {
-            session = null
+            publishSession(null)
             throw error
         }
         return playlistId
@@ -210,9 +220,6 @@ object LibraryRepository {
         if (playlistId != active.id) {
             insertMissing(db, active.id, streamIds)
         }
-        // A normal create/append is a deliberate user save, not a stale editor
-        // rewrite; it may legitimately restore a globally removed stream.
-        active.recentlyRemoved.removeAll(streamIds.toSet())
     }
 
     /**
@@ -222,9 +229,7 @@ object LibraryRepository {
     @JvmStatic
     fun appendDirectly(db: AppDatabase, playlistId: Long, streamIds: List<Long>): List<Long> {
         check(isLibrary(db, playlistId)) { "Not a protected Library playlist" }
-        val inserted = insertMissing(db, playlistId, streamIds)
-        current(db)?.recentlyRemoved?.removeAll(streamIds.toSet())
-        return inserted
+        return insertMissing(db, playlistId, streamIds)
     }
 
     /**
@@ -269,29 +274,31 @@ object LibraryRepository {
         check(active.id == playlistId) {
             "Global removal must target the verified Library"
         }
+        // All deletion state lives in this transaction. In particular, there
+        // is no in-memory removal marker that can survive a failed COMMIT.
         return db.runInTransaction(
             Callable {
                 if (!libraryContains(db, playlistId, streamId)) {
-                    false // Retried removal: already absent, with no side effects.
+                    false
                 } else {
-                    active.recentlyRemoved.add(streamId)
-                    try {
-                        val sql = db.openHelper.writableDatabase
-                        sql.execSQL(
-                            "DELETE FROM playlist_stream_join WHERE stream_id = ?",
-                            arrayOf<Any>(streamId)
-                        )
-                        sql.execSQL(
-                            "UPDATE playlists SET thumbnail_stream_id = ?, " +
-                                "is_thumbnail_permanent = 0 WHERE thumbnail_stream_id = ?",
-                            arrayOf<Any>(PlaylistEntity.DEFAULT_THUMBNAIL_ID, streamId)
-                        )
-                        true
-                    } catch (error: Throwable) {
-                        // The DB transaction rolls back; remove the tombstone too.
-                        active.recentlyRemoved.remove(streamId)
-                        throw error
-                    }
+                    val sql = db.openHelper.writableDatabase
+                    sql.execSQL(
+                        "DELETE FROM playlist_stream_join WHERE stream_id = ?",
+                        arrayOf<Any>(streamId)
+                    )
+                    sql.execSQL(
+                        """
+                        UPDATE playlists SET is_thumbnail_permanent = 0,
+                            thumbnail_stream_id = COALESCE((
+                                SELECT j.stream_id FROM playlist_stream_join j
+                                WHERE j.playlist_id = playlists.uid
+                                ORDER BY j.join_index LIMIT 1
+                            ), -1)
+                        WHERE thumbnail_stream_id = ?
+                        """.trimIndent(),
+                        arrayOf<Any>(streamId)
+                    )
+                    true
                 }
             }
         )
@@ -326,10 +333,17 @@ object LibraryRepository {
         proposedIds: List<Long>
     ): List<Long> {
         val active = current(db) ?: return proposedIds
-        if (playlistId == active.id || active.recentlyRemoved.isEmpty()) {
-            return proposedIds
+        if (playlistId == active.id || proposedIds.isEmpty()) return proposedIds
+        // create/append are the only explicit save paths. An editor rewrite
+        // may reorder/remove memberships, but cannot recreate a globally
+        // removed item. Read canonical membership inside the SAME Room write
+        // transaction: rollback restores this authority without a second store.
+        return if (proposedIds.size > SMALL_INSERT_THRESHOLD) {
+            val saved = orderedStreamIds(db, active.id).toHashSet()
+            LibraryEditPolicy.keepSaved(proposedIds, saved::contains)
+        } else {
+            LibraryEditPolicy.keepSaved(proposedIds) { libraryContains(db, active.id, it) }
         }
-        return proposedIds.filterNot { it in active.recentlyRemoved }
     }
 
     /** Bookmark sorting may update Library metadata, never its name. */
@@ -352,12 +366,12 @@ object LibraryRepository {
     /** Called only by the ZIP restore path, after validating/staging the ZIP. */
     @Synchronized
     fun suspendForRestore() {
-        session = null
+        publishSession(null)
     }
 
     /** Test helper: emulate a process entry through RouterActivity. */
     fun forgetSessionForTest() {
-        session = null
+        publishSession(null)
     }
 
     @JvmStatic

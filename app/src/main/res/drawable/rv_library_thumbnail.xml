@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bookshelf kept in the left half: upstream's stream-count overlay occupies the right. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="160dp"
+    android:height="90dp"
+    android:viewportWidth="160"
+    android:viewportHeight="90">
+    <path android:fillColor="@color/ic_launcher_background"
+        android:pathData="M0,0H160V90H0Z" />
+    <path android:fillColor="@android:color/white"
+        android:pathData="M16,24H28V63H16Z M32,18H45V63H32Z M49,27L60,24L70,61L59,64Z M12,68H73V73H12Z" />
+    <path android:fillColor="@color/ic_launcher_background"
+        android:pathData="M19,30H25V33H19Z M19,53H25V56H19Z M35,24H42V27H35Z M35,53H42V56H35Z" />
+</vector>

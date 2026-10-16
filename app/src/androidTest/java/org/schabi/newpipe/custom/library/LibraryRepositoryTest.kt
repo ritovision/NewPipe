@@ -324,7 +324,7 @@ class LibraryRepositoryTest {
         assertEquals(listOf(keptId), entries(favorites))
         assertEquals(listOf(keptId), entries(workout))
         assertEquals(
-            org.schabi.newpipe.database.playlist.model.PlaylistEntity.DEFAULT_THUMBNAIL_ID,
+            keptId,
             manager.getPlaylistThumbnailStreamId(favorites)
         )
         // Removal from playlists must not erase history, subscription or the
@@ -402,5 +402,55 @@ class LibraryRepositoryTest {
         assertFalse(LibraryRepository.removeEverywhere(db, library, id))
         assertTrue(entries(library).isEmpty())
         assertTrue(entries(favorites).isEmpty())
+    }
+
+    @Test
+    fun sameNamedOrdinaryPlaylistRetainsNormalActionsAndNoGlobalAuthority() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/duplicate-library-name")
+        manager.createPlaylist("Library", listOf(a)).test().await().assertComplete()
+        val ordinary = manager.playlists.blockingFirst().single { it.uid != library }.uid
+        assertFalse(LibraryRepository.isUiProtected(db, ordinary, "Library"))
+        assertTrue(LibraryRepository.isUiProtected(db, library, "Library"))
+        assertFalse(LibraryRepository.isBoundLibrary(db, ordinary))
+        try {
+            LibraryRepository.removeEverywhere(db, ordinary, uid(1, a.url))
+            fail("An ordinary playlist must never authorize global deletion")
+        } catch (expected: IllegalStateException) {
+            assertEquals(1, entries(library).size)
+        }
+        manager.updateJoin(ordinary, emptyList()).test().await().assertComplete()
+        assertEquals(1, entries(library).size)
+        manager.renamePlaylist(ordinary, "Renamed duplicate").test().await().assertComplete()
+        manager.updatePlaylists(emptyList(), listOf(ordinary)).test().await().assertComplete()
+        assertEquals(1, manager.playlists.blockingFirst().size)
+    }
+
+    @Test
+    fun identityObserverRebindsArtworkAfterInitializationAndSessionReset() {
+        val observer = LibraryRepository.observeLibraryId(db).test()
+        observer.assertValues(-1L)
+        val library = LibraryRepository.initialize(db, store)
+        observer.assertValues(-1L, library)
+        LibraryRepository.forgetSessionForTest()
+        observer.assertValues(-1L, library, -1L)
+        LibraryRepository.initialize(db, store)
+        observer.assertValues(-1L, library, -1L, library)
+        observer.dispose()
+    }
+
+    @Test
+    fun thumbnailFallbackKeepsUnaffectedPinnedImageAndResetsEmptyPlaylist() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/thumbnail-a")
+        val b = stream("https://example.org/thumbnail-b")
+        val emptyAfter = createPlaylist("Only A", a)
+        val pinned = createPlaylist("Pinned B", a, b)
+        manager.changePlaylistThumbnail(pinned, uid(1, b.url), true)
+            .test().await().assertComplete()
+        LibraryRepository.removeEverywhere(db, library, uid(1, a.url))
+        assertEquals(PlaylistEntity.DEFAULT_THUMBNAIL_ID, manager.getPlaylistThumbnailStreamId(emptyAfter))
+        assertEquals(uid(1, b.url), manager.getPlaylistThumbnailStreamId(pinned))
+        assertTrue(manager.getIsPlaylistThumbnailPermanent(pinned))
     }
 }
