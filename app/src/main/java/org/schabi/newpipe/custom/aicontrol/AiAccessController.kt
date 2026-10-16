@@ -18,10 +18,12 @@ import kotlin.concurrent.write
 internal class AiAccessController {
     private val lock = ReentrantReadWriteLock(true)
     private val stopping = AtomicBoolean(true)
-    private var generation = 0L
+
+    @Volatile private var generation = 0L
     private var deviceId = ""
     private var catalogEpoch = ""
-    private var grants: Map<String, Set<AiScope>> = emptyMap()
+
+    @Volatile private var grants: Map<String, Set<AiScope>> = emptyMap()
 
     fun enableFromLocalConsent(deviceId: String, catalogEpoch: String, grants: Map<String, Set<AiScope>>) {
         AiProtocol.requireUuid(deviceId)

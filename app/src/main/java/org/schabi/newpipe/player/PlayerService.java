@@ -111,6 +111,7 @@ public final class PlayerService extends MediaBrowserServiceCompat {
                 }
         );
         sessionConnector.setPlaybackPreparer(mediaBrowserPlaybackPreparer);
+        org.schabi.newpipe.custom.aicontrol.AiPlayerRegistry.register(this);
 
         // Note: you might be tempted to create the player instance and call startForeground here,
         // but be aware that the Android system might start the service just to perform media
@@ -205,6 +206,7 @@ public final class PlayerService extends MediaBrowserServiceCompat {
 
     @Override
     public void onDestroy() {
+        org.schabi.newpipe.custom.aicontrol.AiPlayerRegistry.unregister(this);
         if (DEBUG) {
             Log.d(TAG, "destroy() called");
         }

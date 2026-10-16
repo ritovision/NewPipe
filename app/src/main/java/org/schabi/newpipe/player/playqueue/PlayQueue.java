@@ -48,6 +48,19 @@ public abstract class PlayQueue implements Serializable {
     private transient PublishSubject<PlayQueueEvent> eventBroadcast;
     private transient Flowable<PlayQueueEvent> broadcastReceiver;
     private transient boolean disposed = false;
+    private transient String instanceToken;
+    private long stateRevision;
+
+    /**
+     * Exact queue occurrence/version guard for in-process controllers.
+     * @return opaque runtime identity and monotonically increasing queue revision
+     */
+    public synchronized String getStateRevisionToken() {
+        if (instanceToken == null) {
+            instanceToken = java.util.UUID.randomUUID().toString();
+        }
+        return instanceToken + ":" + stateRevision;
+    }
 
     PlayQueue(final int index, final List<PlayQueueItem> startWith) {
         streams = new ArrayList<>(startWith);
@@ -81,6 +94,9 @@ public abstract class PlayQueue implements Serializable {
      * Dispose the play queue by stopping all message buses.
      */
     public void dispose() {
+        synchronized (this) {
+            stateRevision++;
+        }
         if (eventBroadcast != null) {
             eventBroadcast.onComplete();
         }
@@ -566,7 +582,8 @@ public abstract class PlayQueue implements Serializable {
     // Rx Broadcast
     //////////////////////////////////////////////////////////////////////////*/
 
-    private void broadcast(@NonNull final PlayQueueEvent event) {
+    private synchronized void broadcast(@NonNull final PlayQueueEvent event) {
+        stateRevision++;
         if (eventBroadcast != null) {
             eventBroadcast.onNext(event);
         }

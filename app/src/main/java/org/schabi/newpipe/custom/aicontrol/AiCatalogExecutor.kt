@@ -25,6 +25,8 @@ internal class AiCatalogExecutor(
             val parsed = AiProtocol.decodeEnvelope(rawJson)
             request = parsed
             AiProtocol.validateShape(parsed)
+            // Player calls must never execute inside the Room catalog transaction.
+            if (AiProtocol.isPlayback(parsed.command)) throw AiFailure("INVALID_DISPATCH", AiOutcome.NOT_EXECUTED)
             val mutation = AiProtocol.isMutation(parsed.command)
             checkAdmissionTime(parsed, mutation, clock())
             access.withAuthorization(parsed, session) { lease ->

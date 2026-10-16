@@ -35,6 +35,9 @@ internal class AiCatalogStore(
     fun run(command: AiCatalogCommand): JsonObject {
         val library = LibraryRepository.boundLibraryId(db) ?: throw AiFailure("LIBRARY_NOT_READY", AiOutcome.NOT_EXECUTED)
         return when (command) {
+            AiCatalogCommand.NowPlaying, AiCatalogCommand.Pause, AiCatalogCommand.Resume,
+            is AiCatalogCommand.SkipIfCurrent -> throw AiFailure("INVALID_DISPATCH", AiOutcome.NOT_EXECUTED)
+
             AiCatalogCommand.Status -> buildJsonObject {
                 put("library_id", library)
                 put("saved_items", scalar("SELECT COUNT(*) FROM playlist_stream_join WHERE playlist_id = ?", library))

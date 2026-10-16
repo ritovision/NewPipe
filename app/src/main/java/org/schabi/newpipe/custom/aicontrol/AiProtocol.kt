@@ -23,7 +23,8 @@ internal data class AiRequest(
     @SerialName("request_id") val requestId: String,
     @SerialName("issued_at_ms") val issuedAtMs: Long,
     @SerialName("expires_at_ms") val expiresAtMs: Long,
-    val command: AiCatalogCommand
+    val command: AiCatalogCommand,
+    @SerialName("playback_epoch") val playbackEpoch: String? = null
 )
 
 /** The row ID alone is never sufficient authorization to mutate a stream. */
@@ -39,6 +40,28 @@ internal sealed class AiCatalogCommand {
     @Serializable
     @SerialName("get_catalog_status")
     data object Status : AiCatalogCommand()
+
+    @Serializable
+    @SerialName("get_now_playing")
+    data object NowPlaying : AiCatalogCommand()
+
+    @Serializable
+    @SerialName("pause")
+    data object Pause : AiCatalogCommand()
+
+    @Serializable
+    @SerialName("resume")
+    data object Resume : AiCatalogCommand()
+
+    /** A checked queue index plus identity makes a repeated skip refuse the next track. */
+    @Serializable
+    @SerialName("skip_if_current")
+    data class SkipIfCurrent(
+        @SerialName("expected_queue_index") val expectedQueueIndex: Int,
+        val service: String,
+        val url: String,
+        @SerialName("expected_queue_revision") val expectedQueueRevision: String
+    ) : AiCatalogCommand()
 
     @Serializable
     @SerialName("list_playlists")
@@ -140,7 +163,8 @@ internal enum class AiScope(val wireName: String) {
     LIBRARY_WRITE("library.write"),
     LIBRARY_DELETE("library.delete"),
     PLAYLIST_WRITE("playlist.write"),
-    PLAYLIST_DELETE("playlist.delete")
+    PLAYLIST_DELETE("playlist.delete"),
+    PLAYBACK_CONTROL("playback.control")
 }
 
 @Serializable
@@ -225,11 +249,23 @@ internal object AiProtocol {
         requireUuid(request.deviceId)
         requireUuid(request.catalogEpoch)
         requireUuid(request.requestId)
+        request.playbackEpoch?.let(::requireUuid)
+        if (isPlayback(request.command) && isMutation(request.command)) {
+            checkInput(request.playbackEpoch != null, "PLAYBACK_EPOCH_REQUIRED")
+            checkInput(request.expiresAtMs - request.issuedAtMs <= 30_000L, "INVALID_DEADLINE")
+        }
         checkInput(request.clientId.matches(Regex("[A-Za-z0-9._:-]{1,128}")), "INVALID_CLIENT")
         checkInput(request.issuedAtMs > 0 && request.expiresAtMs > request.issuedAtMs, "INVALID_DEADLINE")
         checkInput(request.expiresAtMs - request.issuedAtMs <= MAX_TTL_MS, "INVALID_DEADLINE")
         when (val command = request.command) {
-            AiCatalogCommand.Status -> Unit
+            AiCatalogCommand.Status, AiCatalogCommand.NowPlaying, AiCatalogCommand.Pause,
+            AiCatalogCommand.Resume -> Unit
+
+            is AiCatalogCommand.SkipIfCurrent -> {
+                checkInput(command.expectedQueueIndex >= 0)
+                webIdentity(command.service, command.url)
+                checkInput(command.expectedQueueRevision.matches(Regex("[0-9a-f-]{36}:[0-9]{1,19}")))
+            }
 
             is AiCatalogCommand.ListPlaylists -> {
                 checkInput(command.after >= 0)
@@ -314,7 +350,22 @@ internal object AiProtocol {
         if (request.expiresAtMs <= nowMs) throw AiFailure("EXPIRED", AiOutcome.NOT_EXECUTED)
     }
 
+    fun isPlayback(command: AiCatalogCommand): Boolean = when (command) {
+        AiCatalogCommand.NowPlaying, AiCatalogCommand.Pause, AiCatalogCommand.Resume,
+        is AiCatalogCommand.SkipIfCurrent -> true
+
+        AiCatalogCommand.Status, is AiCatalogCommand.ListPlaylists, is AiCatalogCommand.ListItems,
+        is AiCatalogCommand.Search, is AiCatalogCommand.GetStream, is AiCatalogCommand.CreatePlaylist,
+        is AiCatalogCommand.RenamePlaylist, is AiCatalogCommand.DeletePlaylist, is AiCatalogCommand.Save,
+        is AiCatalogCommand.Add, is AiCatalogCommand.Remove, is AiCatalogCommand.Reorder,
+        is AiCatalogCommand.Move, is AiCatalogCommand.PreviewRemoval, is AiCatalogCommand.RemoveLibrary,
+        is AiCatalogCommand.Receipt -> false
+    }
+
     fun requiredScopes(command: AiCatalogCommand): Set<AiScope> = when (command) {
+        AiCatalogCommand.NowPlaying, AiCatalogCommand.Pause, AiCatalogCommand.Resume,
+        is AiCatalogCommand.SkipIfCurrent -> setOf(AiScope.PLAYBACK_CONTROL)
+
         is AiCatalogCommand.Save -> setOf(AiScope.LIBRARY_WRITE)
 
         is AiCatalogCommand.RemoveLibrary -> setOf(AiScope.LIBRARY_DELETE)
@@ -335,13 +386,15 @@ internal object AiProtocol {
     }
 
     fun isMutation(command: AiCatalogCommand): Boolean = when (command) {
+        AiCatalogCommand.Pause, AiCatalogCommand.Resume, is AiCatalogCommand.SkipIfCurrent -> true
+
         is AiCatalogCommand.CreatePlaylist, is AiCatalogCommand.RenamePlaylist, is AiCatalogCommand.DeletePlaylist,
         is AiCatalogCommand.Save, is AiCatalogCommand.Add, is AiCatalogCommand.Remove, is AiCatalogCommand.Reorder,
         is AiCatalogCommand.Move, is AiCatalogCommand.RemoveLibrary -> true
 
-        AiCatalogCommand.Status, is AiCatalogCommand.ListPlaylists, is AiCatalogCommand.ListItems,
-        is AiCatalogCommand.Search, is AiCatalogCommand.GetStream, is AiCatalogCommand.PreviewRemoval,
-        is AiCatalogCommand.Receipt -> false
+        AiCatalogCommand.Status, AiCatalogCommand.NowPlaying, is AiCatalogCommand.ListPlaylists,
+        is AiCatalogCommand.ListItems, is AiCatalogCommand.Search, is AiCatalogCommand.GetStream,
+        is AiCatalogCommand.PreviewRemoval, is AiCatalogCommand.Receipt -> false
     }
 
     fun fingerprint(request: AiRequest): String = digest(json.encodeToString(request))
@@ -373,10 +426,15 @@ internal object AiProtocol {
     }
 
     private fun item(value: AiStreamRef) {
-        checkInput(value.streamId > 0 && value.service.isNotBlank() && value.service.length <= 64)
-        checkInput(value.url.length in 1..2048)
+        checkInput(value.streamId > 0)
+        webIdentity(value.service, value.url)
+    }
+
+    private fun webIdentity(service: String, url: String) {
+        checkInput(service.isNotBlank() && service.length <= 64)
+        checkInput(url.length in 1..2048)
         val uri = try {
-            URI(value.url)
+            URI(url)
         } catch (error: Exception) {
             throw AiFailure("INVALID_URL")
         }

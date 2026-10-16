@@ -19,7 +19,10 @@ internal object AiTestFixtures {
     const val NOW = 1_800_000_000_000L
     val item = AiStreamRef(1, "YouTube", "https://www.youtube.com/watch?v=example")
 
-    fun request(command: AiCatalogCommand = AiCatalogCommand.Status) = AiRequest(1, DEVICE, "test-client", EPOCH, REQUEST, NOW, NOW + 30_000, command)
+    fun request(command: AiCatalogCommand = AiCatalogCommand.Status) = AiRequest(
+        1, DEVICE, "test-client", EPOCH, REQUEST, NOW, NOW + 30_000, command,
+        if (AiProtocol.isPlayback(command) && AiProtocol.isMutation(command)) AiProcessIdentity.playbackEpoch else null
+    )
 
     fun failure(code: String, action: () -> Unit) {
         try {
@@ -40,6 +43,10 @@ class AiProtocolTest {
         val revision = "a".repeat(64)
         val commands = listOf(
             AiCatalogCommand.Status,
+            AiCatalogCommand.NowPlaying,
+            AiCatalogCommand.Pause,
+            AiCatalogCommand.Resume,
+            AiCatalogCommand.SkipIfCurrent(0, "YouTube", "https://example.org/a", AiTestFixtures.OTHER + ":0"),
             AiCatalogCommand.ListPlaylists(),
             AiCatalogCommand.ListItems(2),
             AiCatalogCommand.Search("music"),
@@ -60,6 +67,26 @@ class AiProtocolTest {
         commands.forEach { command ->
             val request = AiTestFixtures.request(command)
             assertEquals(request, AiProtocol.decode(encode(request)))
+        }
+    }
+
+    @Test
+    fun playbackCommandsRequireTheirOwnPermissionAndCannotBeRoutedThroughCatalog() {
+        assertEquals(setOf(AiScope.PLAYBACK_CONTROL), AiProtocol.requiredScopes(AiCatalogCommand.NowPlaying))
+        assertEquals(setOf(AiScope.PLAYBACK_CONTROL), AiProtocol.requiredScopes(AiCatalogCommand.SkipIfCurrent(0, "YouTube", "https://example.org/a", AiTestFixtures.OTHER + ":0")))
+        assertFalse(AiProtocol.isMutation(AiCatalogCommand.NowPlaying))
+        assertTrue(AiProtocol.isMutation(AiCatalogCommand.SkipIfCurrent(0, "YouTube", "https://example.org/a", AiTestFixtures.OTHER + ":0")))
+        assertTrue(AiProtocol.isPlayback(AiCatalogCommand.Pause))
+        assertFalse(AiProtocol.isPlayback(AiCatalogCommand.RemoveLibrary(listOf(AiTestFixtures.item))))
+    }
+
+    @Test
+    fun skipMustIncludeAValidIndexAndMediaIdentity() {
+        AiTestFixtures.failure("INVALID_ARGUMENT") {
+            AiProtocol.validateShape(AiTestFixtures.request(AiCatalogCommand.SkipIfCurrent(-1, "YouTube", "https://example.org/a", AiTestFixtures.OTHER + ":0")))
+        }
+        AiTestFixtures.failure("INVALID_URL") {
+            AiProtocol.validateShape(AiTestFixtures.request(AiCatalogCommand.SkipIfCurrent(0, "YouTube", "file:///etc/passwd", AiTestFixtures.OTHER + ":0")))
         }
     }
 
