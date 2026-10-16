@@ -8,4 +8,7 @@ These documents preserve external model reviews for later adjudication. **Nothin
 - [Claude Opus max — Library implementation review (2026-10-15)](library-implementation-claude-opus-max-2026-10-15.md) — independent review of commit `f245e5497`; PASS WITH CHANGES: initialization session gaps, recovery, restore atomicity, and performance. Unadjudicated.
 - [Claude Opus max — Final Library review (2026-10-16)](library-final-claude-opus-max-2026-10-16.md) — independent source review at commit 577bf2f77. PASS WITH NONBLOCKERS; closing test/documentation corrections made; remaining v1 limitations accepted. Library milestone complete.
 
+- [Claude Opus Max — Library polish review (2026-10-16)](library-polish-claude-opus-max-2026-10-16.md) — independent read-only review of f98fa3092: PASS WITH NONBLOCKERS, five Low findings.
+- [GPT-6 Astra Extra High — Library polish review (2026-10-16)](library-polish-gpt6-astra-xhigh-2026-10-16.md) — independent read-only review of f98fa3092: PASS WITH NONBLOCKERS, two Low findings.
+
 Future external reviews belong in this directory, with model/effort, reviewed revision, permissions, source references, known uncertainties, and adjudication status.
