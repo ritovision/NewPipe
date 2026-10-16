@@ -103,6 +103,33 @@ describe('private gateway boundaries',()=>{
   const optedIn=await h.oauth(requested,[...core,'playlist.delete']);
   expect(optedIn.scope.split(' ').sort()).toEqual([...core,'playlist.delete'].sort());
  },20000);
+ test('OAuth refresh returns new scoped credentials without interactive owner login',async()=>{
+  const requested=['mcp.connect','library.read','playback.control'];
+  const first=await h.oauth(requested);
+  expect(first.expires_in).toBe(600);
+  expect(typeof first.refresh_token).toBe('string');
+  const refresh=await h.get('/oauth/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+   body:new URLSearchParams({grant_type:'refresh_token',client_id:first.client_id,refresh_token:first.refresh_token,resource:origin+'/mcp'}).toString()});
+  expect(refresh.status).toBe(200);
+  const second=await refresh.json();
+  expect(typeof second.access_token).toBe('string');
+  expect(typeof second.refresh_token).toBe('string');
+  expect(second.access_token).not.toBe(first.access_token);
+  expect(second.refresh_token).not.toBe(first.refresh_token);
+  expect(second.expires_in).toBe(600);
+  expect(second.scope.split(' ').sort()).toEqual([...requested].sort());
+  expect((await h.rpc(second.access_token,'tools/list',{})).status).toBe(200);
+  const d=await h.pairedDevice(),ws=await h.connectDevice(d);
+  try {
+   // A refreshed token retains read/playback, without gaining playlist or delete writes.
+   expect((await h.call(second.access_token,'get_catalog_status',{device_id:d.id})).data.code).toBe('OK');
+   expect((await h.call(second.access_token,'get_now_playing',{device_id:d.id})).data.code).toBe('OK');
+   const write={device_id:d.id,request_id:randomUUID(),issued_at_ms:Date.now(),name:'Must remain denied'};
+   expect((await h.call(second.access_token,'create_playlist',write)).data.code).toBe('PERMISSION_DENIED');
+   const deletion={device_id:d.id,request_id:randomUUID(),issued_at_ms:Date.now(),playlist_id:17};
+   expect((await h.call(second.access_token,'delete_playlist',deletion)).data.code).toBe('PERMISSION_DENIED');
+  } finally {ws.close();}
+ },15000);
  test('OAuth PKCE, browser-bound setup consent and authenticated tools work',async()=>{
   const credentials=await h.oauth();
   const listed=await h.rpc(credentials.access_token,'tools/list',{});expect(listed.status).toBe(200);expect(listed.value.result.tools.some(t=>t.name==='remove_library_items')).toBe(true);
