@@ -66,19 +66,18 @@ class LocalPlaylistViewModel(application: Application) : AndroidViewModel(applic
                     }
                 }
 
-                itemsToKeep
+                playlist.map { it.streamId } to itemsToKeep.map { it.streamId }
             }
 
         val disposable = streamsMaybe
             .subscribeOn(Schedulers.io())
-            .flatMapCompletable { itemsToKeep ->
-                val streamIds = itemsToKeep.map { it.streamId }
+            .flatMapCompletable { (expectedStreamIds, streamIds) ->
 
                 // Always reevaluate the automatic thumbnail at write time.
                 // A concurrent global delete may have changed the thumbnail
                 // even when the original one was not watched. The transaction
                 // preserves any thumbnail that is currently pinned.
-                playlistManager.updateJoin(playlistId, streamIds, true)
+                playlistManager.updateJoinIfUnchanged(playlistId, streamIds, expectedStreamIds, true)
             }
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
@@ -95,12 +94,12 @@ class LocalPlaylistViewModel(application: Application) : AndroidViewModel(applic
     fun removeDuplicates(playlistId: Long) {
         _workState.value = WorkState.Loading
 
-        val disposable = playlistManager.getDistinctPlaylistStreams(playlistId)
+        val disposable = playlistManager.getPlaylistStreams(playlistId)
             .firstElement()
             .subscribeOn(Schedulers.io())
-            .flatMapCompletable { itemsToKeep ->
-                val streamIds = itemsToKeep.map { it.streamId }
-                playlistManager.updateJoin(playlistId, streamIds)
+            .flatMapCompletable { items ->
+                val expectedStreamIds = items.map { it.streamId }
+                playlistManager.updateJoinIfUnchanged(playlistId, expectedStreamIds.distinct(), expectedStreamIds, true)
             }
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(

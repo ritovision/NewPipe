@@ -13,6 +13,8 @@ import static org.schabi.newpipe.util.ThemeHelper.shouldUseGridLayout;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Parcelable;
 import android.text.InputType;
 import android.text.TextUtils;
@@ -35,14 +37,16 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.evernote.android.state.State;
+import com.google.android.material.snackbar.Snackbar;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.schabi.newpipe.NewPipeDatabase;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.custom.library.LibraryRepository;
+import org.schabi.newpipe.custom.library.PlaylistEditConflictException;
+import org.schabi.newpipe.custom.library.PlaylistSaveQueue;
 import org.schabi.newpipe.database.LocalItem;
 import org.schabi.newpipe.database.playlist.PlaylistStreamEntry;
-import org.schabi.newpipe.database.playlist.model.PlaylistEntity;
 import org.schabi.newpipe.database.stream.model.StreamEntity;
 import org.schabi.newpipe.databinding.DialogEditTextBinding;
 import org.schabi.newpipe.databinding.LocalPlaylistHeaderBinding;
@@ -76,6 +80,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.Disposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistStreamEntry>, Void>
         implements PlaylistControlViewHolder, DebounceSavable {
@@ -110,6 +115,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     private AtomicBoolean isLoadingComplete;
     /** Used to debounce saving playlist edits to disk. */
     private DebounceSaver debounceSaver;
+    private List<Long> loadedStreamIds = new ArrayList<>();
+    private PlaylistSaveQueue playlistSaveQueue;
+    private long playlistSaveListenerGeneration;
+    private final Handler playlistSaveHandler = new Handler(Looper.getMainLooper());
 
     /**
      * The pager adapter that the fragment is created from when it is used as frontpage, i.e.
@@ -140,8 +149,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             } else {
                 hideLoading();
                 if (state instanceof LocalPlaylistViewModel.WorkState.Error error) {
-                    showError(new ErrorInfo(error.getThrowable(), UserAction.REQUESTED_BOOKMARK,
-                            "Playlist operation"));
+                    showPlaylistSaveError(error.getThrowable());
                 }
             }
         });
@@ -162,6 +170,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     @Override
     public void onViewCreated(@NonNull final View view, @Nullable final Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        attachPlaylistSaveListener();
         // Separate from load disposables: refreshing playlist rows must not
         // unsubscribe the menu from late startup/rebind identity changes.
         libraryIdentitySubscription = LibraryRepository
@@ -326,6 +335,12 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
     @Override
     public void onDestroyView() {
+        // Capture the newest edit even if an earlier save is still executing.
+        saveImmediate();
+        playlistSaveListenerGeneration++;
+        if (playlistSaveQueue != null) {
+            playlistSaveQueue.setListener(null);
+        }
         if (libraryIdentitySubscription != null) {
             libraryIdentitySubscription.dispose();
             libraryIdentitySubscription = null;
@@ -393,6 +408,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             public void onNext(final List<PlaylistStreamEntry> streams) {
                 // Skip handling the result after it has been modified
                 if (debounceSaver == null || !debounceSaver.getIsModified()) {
+                    loadedStreamIds = playlistStreamIds(streams);
+                    if (playlistSaveQueue != null) {
+                        playlistSaveQueue.acceptLoadedBaseline(loadedStreamIds);
+                    }
                     handleResult(streams);
                     isLoadingComplete.set(true);
                 }
@@ -588,23 +607,6 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         disposables.add(disposable);
     }
 
-    private void updateThumbnailUrl() {
-        if (playlistManager.getIsPlaylistThumbnailPermanent(playlistId)) {
-            return;
-        }
-
-        final long thumbnailStreamId;
-
-        if (!itemListAdapter.getItemsList().isEmpty()) {
-            thumbnailStreamId = ((PlaylistStreamEntry) itemListAdapter.getItemsList().get(0))
-                    .getStreamEntity().getUid();
-        } else {
-            thumbnailStreamId = PlaylistEntity.DEFAULT_THUMBNAIL_ID;
-        }
-
-        changeThumbnailStreamId(thumbnailStreamId, false);
-    }
-
     private void openRemoveDuplicatesDialog() {
         new AlertDialog.Builder(this.getActivity())
                 .setTitle(R.string.remove_duplicates_title)
@@ -669,10 +671,6 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         }
 
         itemListAdapter.removeItem(item);
-        if (playlistManager.getPlaylistThumbnailStreamId(playlistId) == item.getStreamId()) {
-            updateThumbnailUrl();
-        }
-
         setStreamCountAndOverallDuration(itemListAdapter.getItemsList());
         debounceSaver.setHasChangesToSave();
         saveImmediate();
@@ -685,41 +683,93 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
      */
     @Override
     public void saveImmediate() {
-        if (playlistManager == null || itemListAdapter == null) {
-            return;
-        }
-
-        // List must be loaded and modified in order to save
-        if (isLoadingComplete == null || debounceSaver == null
+        if (playlistManager == null || itemListAdapter == null || playlistId == null
+                || isLoadingComplete == null || debounceSaver == null
                 || !isLoadingComplete.get() || !debounceSaver.getIsModified()) {
             return;
         }
+        if (playlistSaveQueue == null) {
+            final LocalPlaylistManager writer = playlistManager;
+            final long targetId = playlistId;
+            playlistSaveQueue = new PlaylistSaveQueue(
+                    command -> Schedulers.io().scheduleDirect(command),
+                    (expected, desired) ->
+                            writer.savePlaylistSnapshot(targetId, expected, desired));
+            attachPlaylistSaveListener();
+        }
+        playlistSaveQueue.submit(loadedStreamIds,
+                playlistStreamIds(itemListAdapter.getItemsList()));
+    }
 
-        final List<LocalItem> items = itemListAdapter.getItemsList();
-        final List<Long> streamIds = new ArrayList<>(items.size());
+    private void attachPlaylistSaveListener() {
+        if (playlistSaveQueue == null || getView() == null) {
+            return;
+        }
+        final long generation = ++playlistSaveListenerGeneration;
+        playlistSaveQueue.setListener(result -> playlistSaveHandler.post(() -> {
+            if (generation != playlistSaveListenerGeneration || getView() == null) {
+                return;
+            }
+            if (result.getError() != null) {
+                showPlaylistSaveError(result.getError());
+                return;
+            }
+            loadedStreamIds = new ArrayList<>(result.getCommitted());
+            if (debounceSaver != null && itemListAdapter != null
+                    && debounceSaver.getIsModified()) {
+                if (result.getSubmitted().equals(
+                        playlistStreamIds(itemListAdapter.getItemsList()))) {
+                    debounceSaver.setNoChangesToSave();
+                } else {
+                    saveImmediate();
+                }
+            }
+        }));
+    }
+
+    private void reloadAfterDiscardingEdits() {
+        final long generation = ++playlistSaveListenerGeneration;
+        if (playlistSaveQueue != null) {
+            playlistSaveQueue.setListener(null);
+        }
+        final Runnable reload = () -> playlistSaveHandler.post(() -> {
+            if (generation != playlistSaveListenerGeneration || getView() == null
+                    || debounceSaver == null) {
+                return;
+            }
+            debounceSaver.setNoChangesToSave();
+            attachPlaylistSaveListener();
+            startLoading(false);
+        });
+        if (playlistSaveQueue == null) {
+            reload.run();
+        } else {
+            playlistSaveQueue.discardAndWhenIdle(reload);
+        }
+    }
+
+    private static List<Long> playlistStreamIds(final List<? extends LocalItem> items) {
+        final List<Long> result = new ArrayList<>(items.size());
         for (final LocalItem item : items) {
             if (item instanceof PlaylistStreamEntry entry) {
-                streamIds.add(entry.getStreamId());
+                result.add(entry.getStreamId());
             }
         }
+        return result;
+    }
 
-        if (DEBUG) {
-            Log.d(TAG, "Updating playlist id=[" + playlistId + "] "
-                    + "with [" + streamIds.size() + "] items");
+    private void showPlaylistSaveError(final Throwable error) {
+        if (getView() == null) {
+            return;
         }
-
-        final Disposable disposable = playlistManager.updateJoin(playlistId, streamIds)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        () -> {
-                            if (debounceSaver != null) {
-                                debounceSaver.setNoChangesToSave();
-                            }
-                        },
-                        throwable -> showError(new ErrorInfo(throwable,
-                                UserAction.REQUESTED_BOOKMARK, "Saving playlist"))
-                );
-        disposables.add(disposable);
+        if (error instanceof PlaylistEditConflictException) {
+            Snackbar.make(requireView(), R.string.rv_playlist_edit_conflict,
+                            Snackbar.LENGTH_INDEFINITE)
+                    .setAction(R.string.rv_playlist_reload,
+                            view -> reloadAfterDiscardingEdits()).show();
+        } else {
+            showError(new ErrorInfo(error, UserAction.REQUESTED_BOOKMARK, "Saving playlist"));
+        }
     }
 
 

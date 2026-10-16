@@ -222,6 +222,10 @@ object LibraryRepository {
         }.subscribeOn(Schedulers.io())
     }
 
+    /** Verified identity only; callers must recheck within their writer transaction. */
+    @JvmStatic
+    fun boundLibraryId(db: AppDatabase): Long? = current(db)?.id
+
     /** Cheap UI check; never runs Room queries on the main thread. */
     @JvmStatic
     fun isBoundLibrary(db: AppDatabase, playlistId: Long): Boolean = current(db)?.id == playlistId

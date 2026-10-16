@@ -307,7 +307,7 @@ class LibraryRepositoryTest {
         )
 
         manager.updatePlaylists(listOf(wrong), emptyList()).test().await()
-            .assertError(IllegalStateException::class.java)
+            .assertComplete()
         assertEquals("Library", manager.playlists.blockingFirst().single().orderingName)
     }
 

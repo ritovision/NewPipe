@@ -1,0 +1,236 @@
+/*
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+package org.schabi.newpipe.custom.library
+
+import java.util.ArrayDeque
+import java.util.concurrent.Executor
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class PlaylistSaveQueueTest {
+    private class ManualExecutor : Executor {
+        val work = ArrayDeque<Runnable>()
+        override fun execute(command: Runnable) {
+            work.add(command)
+        }
+        fun runAll() {
+            while (work.isNotEmpty()) work.removeFirst().run()
+        }
+    }
+
+    @Test
+    fun submittedEditsCommitAfterTheViewListenerDetaches() {
+        val tasks = ManualExecutor()
+        var stored = listOf(1L, 2L, 3L)
+        val writes = mutableListOf<List<Long>>()
+        lateinit var queue: PlaylistSaveQueue
+        queue = PlaylistSaveQueue(tasks) { expected, desired ->
+            assertEquals(stored, expected)
+            stored = desired.toList()
+            writes.add(stored)
+            if (writes.size == 1) {
+                queue.submit(listOf(1, 2, 3), listOf(3))
+                queue.setListener(null)
+            }
+            stored
+        }
+        queue.setListener { error("Detached UI must not own the save chain") }
+        queue.submit(stored, listOf(2, 3))
+        tasks.runAll()
+        assertEquals(listOf(listOf(2L, 3L), listOf(3L)), writes)
+        assertEquals(listOf(3L), stored)
+    }
+
+    @Test
+    fun aDelayedUiAcknowledgementCannotGiveTheNextSaveAnOldBaseline() {
+        val tasks = ManualExecutor()
+        var stored = listOf(1L, 2L)
+        val queue = PlaylistSaveQueue(tasks) { expected, desired ->
+            assertEquals(stored, expected)
+            desired.toList().also { stored = it }
+        }
+        queue.submit(listOf(1, 2), listOf(2))
+        tasks.runAll()
+        // The UI has not processed its old completion event yet.
+        queue.submit(listOf(1, 2), emptyList())
+        tasks.runAll()
+        assertTrue(stored.isEmpty())
+    }
+
+    @Test
+    fun multiplePendingSnapshotsCoalesceToTheLatestWithoutGrowingAQueue() {
+        val tasks = ManualExecutor()
+        var calls = 0
+        var saved = emptyList<Long>()
+        val queue = PlaylistSaveQueue(tasks) { expected, desired ->
+            assertEquals(listOf(1L, 2L, 3L), expected)
+            calls++
+            desired.also { saved = it }
+        }
+        queue.submit(listOf(1, 2, 3), listOf(1, 2))
+        queue.submit(listOf(1, 2, 3), listOf(1))
+        queue.submit(listOf(1, 2, 3), emptyList())
+        assertEquals(1, tasks.work.size)
+        tasks.runAll()
+        assertEquals(1, calls)
+        assertTrue(saved.isEmpty())
+    }
+
+    @Test
+    fun reloadWaitsForTheStartedCommitThenDiscardsThePendingSnapshot() {
+        val tasks = ManualExecutor()
+        val events = mutableListOf<String>()
+        lateinit var queue: PlaylistSaveQueue
+        queue = PlaylistSaveQueue(tasks) { _, desired ->
+            events.add("start")
+            queue.submit(listOf(1, 2), emptyList())
+            queue.discardAndWhenIdle { events.add("reload") }
+            assertFalse(events.contains("reload"))
+            events.add("commit")
+            desired
+        }
+        queue.submit(listOf(1, 2), listOf(2))
+        tasks.runAll()
+        assertEquals(listOf("start", "commit", "reload"), events)
+    }
+
+    @Test
+    fun reloadBeforeWorkerStartsDiscardsWithoutWritingAndAllowsLaterSaves() {
+        val tasks = ManualExecutor()
+        var calls = 0
+        var reloaded = false
+        val queue = PlaylistSaveQueue(tasks) { expected, desired ->
+            calls++
+            assertEquals(listOf(5L), expected)
+            desired
+        }
+        queue.submit(listOf(1), emptyList())
+        queue.discardAndWhenIdle { reloaded = true }
+        tasks.runAll()
+        assertEquals(0, calls)
+        assertTrue(reloaded)
+        queue.acceptLoadedBaseline(listOf(5))
+        queue.submit(listOf(5), emptyList())
+        tasks.runAll()
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun failedComparisonBlocksNewWritesUntilExplicitReload() {
+        val tasks = ManualExecutor()
+        var calls = 0
+        var fail = true
+        val queue = PlaylistSaveQueue(tasks) { _, desired ->
+            calls++
+            if (fail) throw PlaylistEditConflictException()
+            desired
+        }
+        queue.submit(listOf(1), emptyList())
+        tasks.runAll()
+        queue.submit(listOf(1), listOf(2))
+        tasks.runAll()
+        assertEquals(1, calls)
+        queue.discardAndWhenIdle { fail = false }
+        queue.acceptLoadedBaseline(listOf(3))
+        queue.submit(listOf(3), emptyList())
+        tasks.runAll()
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun newBaselineMayBeAdoptedAfterAFreshUnmodifiedRead() {
+        val tasks = ManualExecutor()
+        var expectedByWriter = listOf(1L)
+        val queue = PlaylistSaveQueue(tasks) { expected, desired ->
+            assertEquals(expectedByWriter, expected)
+            desired
+        }
+        queue.submit(listOf(1), emptyList())
+        tasks.runAll()
+        expectedByWriter = listOf(2)
+        queue.acceptLoadedBaseline(expectedByWriter)
+        queue.submit(expectedByWriter, emptyList())
+        tasks.runAll()
+    }
+
+    @Test
+    fun staleObserverCannotReplaceTheBaselineOfAnActiveSave() {
+        val tasks = ManualExecutor()
+        val queue = PlaylistSaveQueue(tasks) { expected, desired ->
+            assertEquals(listOf(1L), expected)
+            desired
+        }
+        queue.submit(listOf(1), emptyList())
+        queue.acceptLoadedBaseline(listOf(999))
+        tasks.runAll()
+    }
+
+    @Test
+    fun inputSnapshotsAreDefensiveCopies() {
+        val tasks = ManualExecutor()
+        val expected = mutableListOf(1L, 2L)
+        val desired = mutableListOf(2L)
+        val queue = PlaylistSaveQueue(tasks) { before, after ->
+            assertEquals(listOf(1L, 2L), before)
+            assertEquals(listOf(2L), after)
+            after
+        }
+        queue.submit(expected, desired)
+        expected.clear()
+        desired.clear()
+        tasks.runAll()
+    }
+
+    @Test
+    fun presentationFailureCannotStopTheSaveChain() {
+        val tasks = ManualExecutor()
+        var calls = 0
+        lateinit var queue: PlaylistSaveQueue
+        queue = PlaylistSaveQueue(tasks) { _, desired ->
+            if (++calls == 1) queue.submit(listOf(1, 2), emptyList())
+            desired
+        }
+        queue.setListener { throw IllegalStateException("Broken view") }
+        queue.submit(listOf(1, 2), listOf(2))
+        tasks.runAll()
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun attachingANewListenerReceivesTheLastOutcome() {
+        val tasks = ManualExecutor()
+        val queue = PlaylistSaveQueue(tasks) { _, desired -> desired }
+        queue.submit(listOf(1), emptyList())
+        tasks.runAll()
+        var delivered = false
+        queue.setListener { result ->
+            assertEquals(emptyList<Long>(), result.committed)
+            delivered = true
+        }
+        assertTrue(delivered)
+    }
+
+    @Test
+    fun freshUnmodifiedReloadRecoversABlockedQueueAfterAStorageError() {
+        val tasks = ManualExecutor()
+        var failing = true
+        var calls = 0
+        val queue = PlaylistSaveQueue(tasks) { expected, desired ->
+            calls++
+            if (failing) throw IllegalStateException("Synthetic storage error")
+            assertEquals(listOf(9L), expected)
+            desired
+        }
+        queue.submit(listOf(1), emptyList())
+        tasks.runAll()
+        queue.submit(listOf(1), listOf(2))
+        failing = false
+        queue.acceptLoadedBaseline(listOf(9))
+        queue.submit(listOf(9), emptyList())
+        tasks.runAll()
+        assertEquals(2, calls)
+    }
+}

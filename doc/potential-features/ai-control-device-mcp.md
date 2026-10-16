@@ -1,7 +1,7 @@
 # AI Control — Device-First MCP and Remote Commands
 
-**Status:** Future-feature proposal / architecture exploration; implementation NOT approved
-**Priority:** Deferred; does not depend on Cloudflare library synchronization
+**Status:** Historical architecture exploration. Superseded for accepted v1 product decisions by [AI Control v1](../specs/ai-control-v1.md); no implementation has started.
+**Priority:** Active planning in the v1 specification; Cloudflare Library synchronization remains deferred.
 **Created:** 2026-10-15
 **Project:** Personal NewPipe fork (`custom/dev`)
 

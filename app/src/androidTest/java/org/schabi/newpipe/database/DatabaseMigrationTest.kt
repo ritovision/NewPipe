@@ -13,6 +13,7 @@ import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.schabi.newpipe.custom.aicontrol.AiDatabaseMigration
 import org.schabi.newpipe.database.playlist.model.PlaylistEntity
 import org.schabi.newpipe.database.playlist.model.PlaylistRemoteEntity
 import org.schabi.newpipe.extractor.ServiceList
@@ -343,6 +344,7 @@ class DatabaseMigrationTest {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
+            .addMigrations(AiDatabaseMigration.FROM_UPSTREAM_9)
             .build()
         testHelper.closeWhenFinished(database)
         return database

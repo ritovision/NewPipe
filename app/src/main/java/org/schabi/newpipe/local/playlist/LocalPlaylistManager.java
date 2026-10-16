@@ -1,8 +1,11 @@
 package org.schabi.newpipe.local.playlist;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.WorkerThread;
+import androidx.sqlite.db.SupportSQLiteStatement;
 
 import org.schabi.newpipe.custom.library.LibraryRepository;
+import org.schabi.newpipe.custom.library.PlaylistEditGuard;
 import org.schabi.newpipe.database.AppDatabase;
 import org.schabi.newpipe.database.playlist.PlaylistDuplicatesEntry;
 import org.schabi.newpipe.database.playlist.PlaylistMetadataEntry;
@@ -90,27 +93,65 @@ public class LocalPlaylistManager {
 
     public Completable updateJoin(final long playlistId, final List<Long> streamIds,
                                   final boolean refreshAutomaticThumbnail) {
-        return Completable.fromRunnable(() -> database.runInTransaction(() -> {
-            // updateJoin also handles reorder, watched-removal and duplicate cleanup.
-            // Never infer a global Library deletion from a rewritten editor list.
-            if (!LibraryRepository.rewriteLibraryWithoutRemoving(database, playlistId,
-                    streamIds)) {
-                // A stale ordinary-playlist editor cannot resurrect a stream
-                // explicitly removed from Library and every playlist.
-                final List<Long> safeIds = LibraryRepository.filterStaleOrdinaryUpdate(
-                        database, playlistId, streamIds);
-                final List<PlaylistStreamEntity> joinEntities =
-                        new ArrayList<>(safeIds.size());
-                for (int i = 0; i < safeIds.size(); i++) {
-                    joinEntities.add(new PlaylistStreamEntity(playlistId, safeIds.get(i), i));
-                }
-                playlistStreamTable.deleteBatch(playlistId);
-                playlistStreamTable.insertAll(joinEntities);
-                if (refreshAutomaticThumbnail) {
-                    LibraryRepository.refreshAutomaticThumbnail(database, playlistId);
-                }
+        return updateJoinChecked(playlistId, new ArrayList<>(streamIds), null,
+                refreshAutomaticThumbnail);
+    }
+
+    public Completable updateJoinIfUnchanged(final long playlistId,
+                                             final List<Long> streamIds,
+                                             final List<Long> expectedStreamIds,
+                                             final boolean refreshAutomaticThumbnail) {
+        return updateJoinChecked(playlistId, new ArrayList<>(streamIds),
+                new ArrayList<>(expectedStreamIds), refreshAutomaticThumbnail);
+    }
+
+    private Completable updateJoinChecked(final long playlistId,
+                                           final List<Long> streamIds,
+                                           @Nullable final List<Long> expectedStreamIds,
+                                           final boolean refreshAutomaticThumbnail) {
+        return Completable.fromRunnable(() -> database.runInTransaction(() ->
+                updateJoinInTransaction(playlistId, streamIds, expectedStreamIds,
+                        refreshAutomaticThumbnail))).subscribeOn(Schedulers.io());
+    }
+
+    /**
+     * Saves on an IO worker independently of a Fragment view subscription.
+     * @param playlistId the local playlist being edited
+     * @param expectedStreamIds the previously observed ordered membership
+     * @param streamIds the desired ordered membership
+     * @return the membership actually committed, including Library protections
+     */
+    @WorkerThread
+    public List<Long> savePlaylistSnapshot(final long playlistId,
+                                          final List<Long> expectedStreamIds,
+                                          final List<Long> streamIds) {
+        return database.runInTransaction(() -> {
+            updateJoinInTransaction(playlistId, streamIds, expectedStreamIds, true);
+            return PlaylistEditGuard.readCurrentIds(database, playlistId);
+        });
+    }
+
+    private void updateJoinInTransaction(final long playlistId,
+                                          final List<Long> streamIds,
+                                          @Nullable final List<Long> expectedStreamIds,
+                                          final boolean refreshAutomaticThumbnail) {
+        if (expectedStreamIds != null) {
+            PlaylistEditGuard.verifyUnchanged(database, playlistId, expectedStreamIds);
+        }
+        // A full UI replacement cannot implicitly remove canonical Library members.
+        if (!LibraryRepository.rewriteLibraryWithoutRemoving(database, playlistId, streamIds)) {
+            final List<Long> safeIds = LibraryRepository.filterStaleOrdinaryUpdate(
+                    database, playlistId, streamIds);
+            final List<PlaylistStreamEntity> joinEntities = new ArrayList<>(safeIds.size());
+            for (int i = 0; i < safeIds.size(); i++) {
+                joinEntities.add(new PlaylistStreamEntity(playlistId, safeIds.get(i), i));
             }
-        })).subscribeOn(Schedulers.io());
+            playlistStreamTable.deleteBatch(playlistId);
+            playlistStreamTable.insertAll(joinEntities);
+            if (refreshAutomaticThumbnail) {
+                LibraryRepository.refreshAutomaticThumbnail(database, playlistId);
+            }
+        }
     }
 
     public Completable updatePlaylists(final List<PlaylistMetadataEntry> updateItems,
@@ -125,11 +166,11 @@ public class LocalPlaylistManager {
                 playlistTable.deletePlaylist(uid);
             }
             for (final PlaylistEntity item : items) {
-                // Bookmark reordering may update Library metadata but cannot
-                // rename the protected canonical list.
-                LibraryRepository.requireUnchangedLibraryName(database,
-                        item.getUid(), item.getName());
-                playlistTable.upsertPlaylist(item);
+                // This is a bookmark ORDER save, not a metadata replacement. A stale
+                // screen must not undo a rename/thumbnail change or recreate a deleted list.
+                database.getOpenHelper().getWritableDatabase().execSQL(
+                        "UPDATE playlists SET display_index = ? WHERE uid = ?",
+                        new Object[]{item.getDisplayIndex(), item.getUid()});
             }
         })).subscribeOn(Schedulers.io());
     }
@@ -160,10 +201,7 @@ public class LocalPlaylistManager {
     }
 
     public Maybe<Integer> renamePlaylist(final long playlistId, final String name) {
-        return Maybe.defer(() -> {
-            LibraryRepository.requireNotLibrary(database, playlistId);
-            return modifyPlaylist(playlistId, name, THUMBNAIL_ID_LEAVE_UNCHANGED, false);
-        }).subscribeOn(Schedulers.io());
+        return modifyPlaylist(playlistId, name, THUMBNAIL_ID_LEAVE_UNCHANGED, false);
     }
 
     public Maybe<Integer> changePlaylistThumbnail(final long playlistId,
@@ -194,20 +232,31 @@ public class LocalPlaylistManager {
                                           @Nullable final String name,
                                           final long thumbnailStreamId,
                                           final boolean isPermanent) {
-        return playlistTable.getPlaylist(playlistId)
-                .firstElement()
-                .filter(playlistEntities -> !playlistEntities.isEmpty())
-                .map(playlistEntities -> {
-                    final PlaylistEntity playlist = playlistEntities.get(0);
-                    if (name != null) {
-                        playlist.setName(name);
-                    }
-                    if (thumbnailStreamId != THUMBNAIL_ID_LEAVE_UNCHANGED) {
-                        playlist.setThumbnailStreamId(thumbnailStreamId);
-                        playlist.setThumbnailPermanent(isPermanent);
-                    }
-                    return playlistTable.update(playlist);
-                }).subscribeOn(Schedulers.io());
+        return Maybe.fromCallable(() -> database.runInTransaction(() -> {
+            if (name != null) {
+                LibraryRepository.requireNotLibrary(database, playlistId);
+                try (SupportSQLiteStatement statement = database.getOpenHelper()
+                        .getWritableDatabase().compileStatement(
+                                "UPDATE playlists SET name = ? WHERE uid = ?")) {
+                    statement.bindString(1, name);
+                    statement.bindLong(2, playlistId);
+                    return statement.executeUpdateDelete();
+                }
+            }
+            if (thumbnailStreamId == THUMBNAIL_ID_LEAVE_UNCHANGED) {
+                return 0;
+            }
+            PlaylistEditGuard.verifyThumbnail(database, playlistId, thumbnailStreamId);
+            try (SupportSQLiteStatement statement = database.getOpenHelper()
+                    .getWritableDatabase().compileStatement(
+                            "UPDATE playlists SET thumbnail_stream_id = ?, "
+                                    + "is_thumbnail_permanent = ? WHERE uid = ?")) {
+                statement.bindLong(1, thumbnailStreamId);
+                statement.bindLong(2, isPermanent ? 1 : 0);
+                statement.bindLong(3, playlistId);
+                return statement.executeUpdateDelete();
+            }
+        })).subscribeOn(Schedulers.io());
     }
 
     public Maybe<Boolean> hasPlaylists() {
