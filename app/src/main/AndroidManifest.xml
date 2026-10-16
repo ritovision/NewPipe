@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <!-- We need to be able to open links in the browser on API 30+ -->
@@ -86,6 +87,21 @@
             android:exported="false"
             android:label="@string/title_activity_play_queue"
             android:launchMode="singleTask" />
+
+        <activity
+            android:name=".custom.aicontrol.AiControlActivity"
+            android:exported="false"
+            android:label="@string/rv_ai_title" />
+
+        <service
+            android:name=".custom.aicontrol.AiControlService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-enabled authenticated remote control of this media catalog and playback; persistent visible notification with Stop; no background work without opt-in." />
+        </service>
 
         <activity
             android:name=".settings.SettingsActivity"

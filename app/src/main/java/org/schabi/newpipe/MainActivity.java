@@ -126,6 +126,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int ITEM_ID_BOOKMARKS = -3;
     private static final int ITEM_ID_DOWNLOADS = -4;
     private static final int ITEM_ID_HISTORY = -5;
+    private static final int ITEM_ID_AI_CONTROL = -20;
     private static final int ITEM_ID_SETTINGS = 0;
     private static final int ITEM_ID_DONATION = 1;
     private static final int ITEM_ID_ABOUT = 2;
@@ -296,6 +297,10 @@ public class MainActivity extends AppCompatActivity {
                 .add(R.id.menu_tabs_group, ITEM_ID_HISTORY, ORDER, R.string.action_history)
                 .setIcon(R.drawable.ic_history);
 
+        drawerLayoutBinding.navigation.getMenu()
+                .add(R.id.menu_tabs_group, ITEM_ID_AI_CONTROL, ORDER, R.string.rv_ai_title)
+                .setIcon(android.R.drawable.ic_menu_manage);
+
         //Kiosks
         final int currentServiceId = ServiceHelper.getSelectedServiceId(this);
         final StreamingService service = NewPipe.getService(currentServiceId);
@@ -371,6 +376,10 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case ITEM_ID_HISTORY:
                 NavigationHelper.openStatisticFragment(getSupportFragmentManager());
+                break;
+            case ITEM_ID_AI_CONTROL:
+                startActivity(new Intent(this,
+                        org.schabi.newpipe.custom.aicontrol.AiControlActivity.class));
                 break;
         }
     }

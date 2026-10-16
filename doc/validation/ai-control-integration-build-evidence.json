@@ -1,0 +1,19 @@
+{
+  "baseline_commit": "f2ab3f6ae719ff31870629d342f773e483aea458",
+  "code_status": "integration uncommitted candidate r8",
+  "jvm": {
+    "tests": 285,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "native_build": "integration-build-r8.log",
+  "gateway_tests": 30,
+  "gateway_build": "gateway-hardened-r5.log",
+  "worker_deployed_version": "7c7a3b62-9a88-4f6d-9cdf-6499c17de5a1",
+  "worker_state": "fail_closed_missing_auth_secrets",
+  "apk_sha256": {
+    "app/build/outputs/apk/debug/app-debug.apk": "49901886c1c7f68af320341e45c02866766087b638285011ef2cfe9cc91be951",
+    "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk": "87a3531191c3fee1f4bd0ee990639a6b35b59150842e6acc4ef338c66d84dda8"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ritovision-newpipe-ai-control",
+  "main": "src/index.ts",
+  "account_id": "5b7f5d92c4eeed125617786cbe047552",
+  "compatibility_date": "2026-08-25",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": {
+    "enabled": false
+  },
+  "vars": {
+    "PUBLIC_ORIGIN": "https://ritovision-newpipe-ai-control.matthewjpellerito.workers.dev",
+    "OWNER_ID": "8a3ffa03-accb-4b64-98c9-e123eb0dd73b"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ACCOUNT",
+        "class_name": "ControlAccount"
+      },
+      {
+        "name": "DEVICES",
+        "class_name": "DeviceRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "ControlAccount",
+        "DeviceRoom"
+      ]
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "03c831c33fd24e37ba3db17ad02fc5e2"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "AUTH_LIMITER",
+      "namespace_id": "470116071",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    },
+    {
+      "name": "CONTROL_LIMITER",
+      "namespace_id": "470116072",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    }
+  ]
+}

@@ -3,4 +3,39 @@
     <string name="rv_playlist_edit_conflict">This playlist changed elsewhere. Reloading discards your unsaved edits.</string>
     <string name="rv_playlist_reload">Reload</string>
     <string name="rv_playlist_save_failed">Could not update this playlist. It may have changed elsewhere.</string>
+
+    <string name="rv_ai_title">AI Control</string>
+    <string name="rv_ai_intro">Connect an authorized AI client to this NewPipe installation. Your Library stays on this device. After setup, manage your catalog directly through the AI chat.</string>
+    <string name="rv_ai_loading">Loading device state…</string>
+    <string name="rv_ai_status">Connection: %1$s</string>
+    <string name="rv_ai_paired">This device is paired.</string>
+    <string name="rv_ai_unpaired">Not paired. Enter a gateway and its one-time pairing code below.</string>
+    <string name="rv_ai_start">Start AI Control</string>
+    <string name="rv_ai_stop">Stop AI Control</string>
+    <string name="rv_ai_pairing_heading">Device setup</string>
+    <string name="rv_ai_device_name">Device name</string>
+    <string name="rv_ai_gateway">Gateway HTTPS address</string>
+    <string name="rv_ai_default_gateway" translatable="false">https://ritovision-newpipe-ai-control.matthewjpellerito.workers.dev</string>
+    <string name="rv_ai_pairing_code">One-time pairing code</string>
+    <string name="rv_ai_pair">Pair this device</string>
+    <string name="rv_ai_permissions_heading">Allowed actions on this device</string>
+    <string name="rv_ai_permissions_explanation">These are standing permissions. Enabling deletion lets an authorized AI remove the exact items you request without a second confirmation. Library removal also removes those items from all local playlists. Disabling a permission immediately disconnects old sessions.</string>
+    <string name="rv_ai_scope_read">Read and search saved Library and playlists</string>
+    <string name="rv_ai_scope_save">Save media to Library and resolve public URLs</string>
+    <string name="rv_ai_scope_delete">Remove Library items everywhere</string>
+    <string name="rv_ai_scope_playlists">Create and edit ordinary playlists</string>
+    <string name="rv_ai_scope_delete_playlists">Delete ordinary playlists (keep Library)</string>
+    <string name="rv_ai_scope_playback">Control playback and read the active queue</string>
+    <string name="rv_ai_save_permissions">Save name and permissions</string>
+    <string name="rv_ai_copy_device">Copy device ID</string>
+    <string name="rv_ai_copied">Device ID copied</string>
+    <string name="rv_ai_clients_heading">Authorized clients seen on this device</string>
+    <string name="rv_ai_no_clients">No client has used this device yet.</string>
+    <string name="rv_ai_revoke_client">Block this client on this device</string>
+    <string name="rv_ai_forget">Disconnect, forget pairing and reset client blocks</string>
+    <string name="rv_ai_background_explanation">AI Control uses a visible background-service notification. Stop disconnects immediately. Force-stop, restart, battery restrictions, or a lost connection may take the device offline. Offline commands are never queued for later playback or catalog changes. Backups do not transfer pairing or credentials.</string>
+    <string name="rv_ai_notification_explanation">Shows when authorized AI control is enabled, with an immediate Stop action.</string>
+    <string name="rv_ai_notification_state">Remote control: %1$s</string>
+    <string name="rv_ai_notifications_needed">Enable notifications for this NewPipe installation before starting AI Control, so its connection and Stop action stay visible.</string>
+    <string name="rv_ai_start_visible">Open AI Control and tap Start while the app is visible.</string>
 </resources>

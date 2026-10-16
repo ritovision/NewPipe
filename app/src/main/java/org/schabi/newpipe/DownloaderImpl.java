@@ -76,6 +76,10 @@ public final class DownloaderImpl extends Downloader {
     }
 
     public String getCookies(final String url) {
+        if (org.schabi.newpipe.custom.aicontrol.AiExtractionNetwork.isRestricted()) {
+            return org.schabi.newpipe.custom.aicontrol.AiExtractionNetwork
+                    .restrictedCookies(url, getCookie(YOUTUBE_RESTRICTED_MODE_COOKIE_KEY));
+        }
         final String youtubeCookie = url.contains(YOUTUBE_DOMAIN)
                 ? getCookie(YOUTUBE_RESTRICTED_MODE_COOKIE_KEY) : null;
 
@@ -164,7 +168,8 @@ public final class DownloaderImpl extends Downloader {
         });
 
         try (
-                okhttp3.Response response = client.newCall(requestBuilder.build()).execute()
+                okhttp3.Response response = org.schabi.newpipe.custom.aicontrol.AiExtractionNetwork
+                        .clientFor(client).newCall(requestBuilder.build()).execute()
         ) {
             if (response.code() == 429) {
                 throw new ReCaptchaException("reCaptcha Challenge requested", url);
@@ -172,7 +177,8 @@ public final class DownloaderImpl extends Downloader {
 
             String responseBodyToReturn = null;
             try (ResponseBody body = response.body()) {
-                responseBodyToReturn = body.string();
+                responseBodyToReturn = org.schabi.newpipe.custom.aicontrol.AiExtractionNetwork
+                        .readBody(body);
             }
 
             final String latestUrl = response.request().url().toString();

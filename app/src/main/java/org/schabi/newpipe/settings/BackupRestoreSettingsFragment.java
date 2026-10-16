@@ -112,12 +112,19 @@ public class BackupRestoreSettingsFragment extends BasePreferenceFragment {
                 // Deletes all shared preferences xml files.
                 final SharedPreferences sharedPreferences =
                         PreferenceManager.getDefaultSharedPreferences(requireContext());
-                sharedPreferences.edit().clear().apply();
-                // Restarts the app
-                if (getActivity() == null) {
-                    return;
-                }
-                NavigationHelper.restartApp(getActivity());
+                org.schabi.newpipe.custom.aicontrol.AiControlLifecycle.beforeImport(
+                        requireContext(),
+                        () -> {
+                            sharedPreferences.edit().clear().apply();
+                            if (getActivity() != null) {
+                                NavigationHelper.restartApp(getActivity());
+                            }
+                        },
+                        error -> {
+                            if (isAdded()) {
+                                showErrorSnackbar(error, "Resetting AI Control settings");
+                            }
+                        });
             });
             builder.setNegativeButton(R.string.cancel, (dialogInterface, i) -> {
             });
@@ -165,7 +172,19 @@ public class BackupRestoreSettingsFragment extends BasePreferenceFragment {
             new androidx.appcompat.app.AlertDialog.Builder(requireActivity())
                     .setMessage(R.string.override_current_data)
                     .setPositiveButton(R.string.ok, (d, id) ->
-                            importDatabase(file, lastImportDataUri))
+                            org.schabi.newpipe.custom.aicontrol.AiControlLifecycle.beforeImport(
+                                    requireContext(),
+                                    () -> {
+                                        if (isAdded()) {
+                                            importDatabase(file, lastImportDataUri);
+                                        }
+                                    },
+                                    error -> {
+                                        if (isAdded()) {
+                                            showErrorSnackbar(error,
+                                                    "Disconnecting AI before import");
+                                        }
+                                    }))
                     .setNegativeButton(R.string.cancel, (d, id) ->
                             d.cancel())
                     .show();

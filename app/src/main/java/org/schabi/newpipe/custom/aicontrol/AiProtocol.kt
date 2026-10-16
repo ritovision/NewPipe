@@ -64,6 +64,22 @@ internal sealed class AiCatalogCommand {
     ) : AiCatalogCommand()
 
     @Serializable
+    @SerialName("play_items")
+    data class PlayItems(val items: List<AiStreamRef>) : AiCatalogCommand()
+
+    @Serializable
+    @SerialName("append_to_queue")
+    data class AppendQueue(val items: List<AiStreamRef>) : AiCatalogCommand()
+
+    @Serializable
+    @SerialName("resolve_stream_url")
+    data class ResolveUrl(val url: String) : AiCatalogCommand()
+
+    @Serializable
+    @SerialName("save_urls")
+    data class SaveUrls(val urls: List<String>, @SerialName("playlist_id") val playlistId: Long? = null) : AiCatalogCommand()
+
+    @Serializable
     @SerialName("list_playlists")
     data class ListPlaylists(val after: Long = 0, val limit: Int = 50) : AiCatalogCommand()
 
@@ -151,7 +167,7 @@ internal sealed class AiCatalogCommand {
 
     @Serializable
     @SerialName("remove_library_items")
-    data class RemoveLibrary(val items: List<AiStreamRef>) : AiCatalogCommand()
+    data class RemoveLibrary(val items: List<AiStreamRef>, @SerialName("expected_revision") val expectedRevision: String? = null) : AiCatalogCommand()
 
     @Serializable
     @SerialName("get_command_result")
@@ -267,6 +283,18 @@ internal object AiProtocol {
                 checkInput(command.expectedQueueRevision.matches(Regex("[0-9a-f-]{36}:[0-9]{1,19}")))
             }
 
+            is AiCatalogCommand.PlayItems -> items(command.items)
+
+            is AiCatalogCommand.AppendQueue -> items(command.items)
+
+            is AiCatalogCommand.ResolveUrl -> AiPublicUrlPolicy.validate(command.url)
+
+            is AiCatalogCommand.SaveUrls -> {
+                checkInput(command.urls.size in 1..20)
+                command.urls.forEach(AiPublicUrlPolicy::validate)
+                command.playlistId?.let(::playlist)
+            }
+
             is AiCatalogCommand.ListPlaylists -> {
                 checkInput(command.after >= 0)
                 page(command.limit)
@@ -335,7 +363,10 @@ internal object AiProtocol {
 
             is AiCatalogCommand.PreviewRemoval -> items(command.items)
 
-            is AiCatalogCommand.RemoveLibrary -> items(command.items)
+            is AiCatalogCommand.RemoveLibrary -> {
+                items(command.items)
+                revision(command.expectedRevision)
+            }
 
             is AiCatalogCommand.Receipt -> requireUuid(command.originalRequestId)
         }
@@ -352,21 +383,25 @@ internal object AiProtocol {
 
     fun isPlayback(command: AiCatalogCommand): Boolean = when (command) {
         AiCatalogCommand.NowPlaying, AiCatalogCommand.Pause, AiCatalogCommand.Resume,
-        is AiCatalogCommand.SkipIfCurrent -> true
+        is AiCatalogCommand.SkipIfCurrent, is AiCatalogCommand.PlayItems, is AiCatalogCommand.AppendQueue -> true
 
         AiCatalogCommand.Status, is AiCatalogCommand.ListPlaylists, is AiCatalogCommand.ListItems,
         is AiCatalogCommand.Search, is AiCatalogCommand.GetStream, is AiCatalogCommand.CreatePlaylist,
         is AiCatalogCommand.RenamePlaylist, is AiCatalogCommand.DeletePlaylist, is AiCatalogCommand.Save,
         is AiCatalogCommand.Add, is AiCatalogCommand.Remove, is AiCatalogCommand.Reorder,
         is AiCatalogCommand.Move, is AiCatalogCommand.PreviewRemoval, is AiCatalogCommand.RemoveLibrary,
-        is AiCatalogCommand.Receipt -> false
+        is AiCatalogCommand.Receipt, is AiCatalogCommand.ResolveUrl, is AiCatalogCommand.SaveUrls -> false
     }
 
     fun requiredScopes(command: AiCatalogCommand): Set<AiScope> = when (command) {
         AiCatalogCommand.NowPlaying, AiCatalogCommand.Pause, AiCatalogCommand.Resume,
         is AiCatalogCommand.SkipIfCurrent -> setOf(AiScope.PLAYBACK_CONTROL)
 
-        is AiCatalogCommand.Save -> setOf(AiScope.LIBRARY_WRITE)
+        is AiCatalogCommand.PlayItems, is AiCatalogCommand.AppendQueue -> setOf(AiScope.PLAYBACK_CONTROL, AiScope.LIBRARY_READ)
+
+        is AiCatalogCommand.SaveUrls -> if (command.playlistId == null) setOf(AiScope.LIBRARY_WRITE) else setOf(AiScope.LIBRARY_WRITE, AiScope.PLAYLIST_WRITE)
+
+        is AiCatalogCommand.Save, is AiCatalogCommand.ResolveUrl -> setOf(AiScope.LIBRARY_WRITE)
 
         is AiCatalogCommand.RemoveLibrary -> setOf(AiScope.LIBRARY_DELETE)
 
@@ -386,7 +421,8 @@ internal object AiProtocol {
     }
 
     fun isMutation(command: AiCatalogCommand): Boolean = when (command) {
-        AiCatalogCommand.Pause, AiCatalogCommand.Resume, is AiCatalogCommand.SkipIfCurrent -> true
+        AiCatalogCommand.Pause, AiCatalogCommand.Resume, is AiCatalogCommand.SkipIfCurrent,
+        is AiCatalogCommand.PlayItems, is AiCatalogCommand.AppendQueue, is AiCatalogCommand.SaveUrls -> true
 
         is AiCatalogCommand.CreatePlaylist, is AiCatalogCommand.RenamePlaylist, is AiCatalogCommand.DeletePlaylist,
         is AiCatalogCommand.Save, is AiCatalogCommand.Add, is AiCatalogCommand.Remove, is AiCatalogCommand.Reorder,
@@ -394,7 +430,7 @@ internal object AiProtocol {
 
         AiCatalogCommand.Status, AiCatalogCommand.NowPlaying, is AiCatalogCommand.ListPlaylists,
         is AiCatalogCommand.ListItems, is AiCatalogCommand.Search, is AiCatalogCommand.GetStream,
-        is AiCatalogCommand.PreviewRemoval, is AiCatalogCommand.Receipt -> false
+        is AiCatalogCommand.PreviewRemoval, is AiCatalogCommand.Receipt, is AiCatalogCommand.ResolveUrl -> false
     }
 
     fun fingerprint(request: AiRequest): String = digest(json.encodeToString(request))

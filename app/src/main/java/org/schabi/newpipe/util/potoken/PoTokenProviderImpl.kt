@@ -5,6 +5,7 @@ import android.os.Looper
 import android.util.Log
 import org.schabi.newpipe.App
 import org.schabi.newpipe.BuildConfig
+import org.schabi.newpipe.custom.aicontrol.AiExtractionNetwork
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.services.youtube.InnertubeClientRequestInfo
 import org.schabi.newpipe.extractor.services.youtube.PoTokenProvider
@@ -17,10 +18,9 @@ object PoTokenProviderImpl : PoTokenProvider {
     private val webViewSupported by lazy { DeviceUtils.supportsWebView() }
     private var webViewBadImpl = false // whether the system has a bad WebView implementation
 
-    private object WebPoTokenGenLock
-    private var webPoTokenVisitorData: String? = null
-    private var webPoTokenStreamingPot: String? = null
-    private var webPoTokenGenerator: PoTokenGenerator? = null
+    private val webPoTokenGenLock = java.util.concurrent.locks.ReentrantLock(true)
+    private data class WebTokenCache(val generator: PoTokenGenerator, val visitorData: String, val streamingPot: String)
+    private var webTokenCache: WebTokenCache? = null
 
     override fun getWebClientPoToken(videoId: String): PoTokenResult? {
         if (!webViewSupported || webViewBadImpl) {
@@ -46,8 +46,8 @@ object PoTokenProviderImpl : PoTokenProvider {
     }
 
     /**
-     * @param forceRecreate whether to force the recreation of [webPoTokenGenerator], to be used in
-     * case the current [webPoTokenGenerator] threw an error last time
+     * @param forceRecreate whether to force the recreation of [webTokenCache], to be used in
+     * case the current [webTokenCache] threw an error last time
      * [PoTokenGenerator.generatePoToken] was called
      */
     private fun getWebClientPoToken(videoId: String, forceRecreate: Boolean): PoTokenResult {
@@ -55,16 +55,13 @@ object PoTokenProviderImpl : PoTokenProvider {
         data class Quadruple<T1, T2, T3, T4>(val t1: T1, val t2: T2, val t3: T3, val t4: T4)
 
         val (poTokenGenerator, visitorData, streamingPot, hasBeenRecreated) =
-            synchronized(WebPoTokenGenLock) {
-                val shouldRecreate = webPoTokenGenerator == null || forceRecreate ||
-                    webPoTokenGenerator!!.isExpired()
-
+            AiExtractionNetwork.withLock(webPoTokenGenLock) {
+                val current = webTokenCache
+                val shouldRecreate = current == null || forceRecreate || current.generator.isExpired()
                 if (shouldRecreate) {
                     val innertubeClientRequestInfo = InnertubeClientRequestInfo.ofWebClient()
-                    innertubeClientRequestInfo.clientInfo.clientVersion =
-                        YoutubeParsingHelper.getClientVersion()
-
-                    webPoTokenVisitorData = YoutubeParsingHelper.getVisitorDataFromInnertube(
+                    innertubeClientRequestInfo.clientInfo.clientVersion = YoutubeParsingHelper.getClientVersion()
+                    val nextVisitor = YoutubeParsingHelper.getVisitorDataFromInnertube(
                         innertubeClientRequestInfo,
                         NewPipe.getPreferredLocalization(),
                         NewPipe.getPreferredContentCountry(),
@@ -73,39 +70,36 @@ object PoTokenProviderImpl : PoTokenProvider {
                         null,
                         false
                     )
-                    // close the current webPoTokenGenerator on the main thread
-                    webPoTokenGenerator?.let { Handler(Looper.getMainLooper()).post { it.close() } }
-
-                    // create a new webPoTokenGenerator
-                    webPoTokenGenerator = PoTokenWebView
-                        .newPoTokenGenerator(App.instance).blockingGet()
-
-                    // The streaming poToken needs to be generated exactly once before generating
-                    // any other (player) tokens.
-                    webPoTokenStreamingPot = webPoTokenGenerator!!
-                        .generatePoToken(webPoTokenVisitorData!!).blockingGet()
+                    var unpublished: PoTokenGenerator? = null
+                    try {
+                        val nextGenerator = AiExtractionNetwork.awaitSingle(PoTokenWebView.newPoTokenGenerator(App.instance))
+                        unpublished = nextGenerator
+                        val nextStreaming = AiExtractionNetwork.awaitSingle(nextGenerator.generatePoToken(nextVisitor))
+                        // Publish only one complete cache. Cancellation never leaves a generator
+                        // paired with missing/older visitor or streaming-token data.
+                        webTokenCache = WebTokenCache(nextGenerator, nextVisitor, nextStreaming)
+                        unpublished = null
+                        current?.generator?.let { Handler(Looper.getMainLooper()).post { it.close() } }
+                    } finally {
+                        unpublished?.let { Handler(Looper.getMainLooper()).post { it.close() } }
+                    }
                 }
-
-                return@synchronized Quadruple(
-                    webPoTokenGenerator!!,
-                    webPoTokenVisitorData!!,
-                    webPoTokenStreamingPot!!,
-                    shouldRecreate
-                )
+                val ready = checkNotNull(webTokenCache)
+                Quadruple(ready.generator, ready.visitorData, ready.streamingPot, shouldRecreate)
             }
 
         val playerPot = try {
             // Not using synchronized here, since poTokenGenerator would be able to generate
             // multiple poTokens in parallel if needed. The only important thing is for exactly one
             // visitorData/streaming poToken to be generated before anything else.
-            poTokenGenerator.generatePoToken(videoId).blockingGet()
+            AiExtractionNetwork.awaitSingle(poTokenGenerator.generatePoToken(videoId))
         } catch (throwable: Throwable) {
             if (hasBeenRecreated) {
                 // the poTokenGenerator has just been recreated (and possibly this is already the
                 // second time we try), so there is likely nothing we can do
                 throw throwable
             } else {
-                // retry, this time recreating the [webPoTokenGenerator] from scratch;
+                // retry, this time recreating the [webTokenCache] from scratch;
                 // this might happen for example if NewPipe goes in the background and the WebView
                 // content is lost
                 Log.e(TAG, "Failed to obtain poToken, retrying", throwable)
@@ -113,7 +107,7 @@ object PoTokenProviderImpl : PoTokenProvider {
             }
         }
 
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.DEBUG && !AiExtractionNetwork.isRestricted()) {
             Log.d(
                 TAG,
                 "poToken for $videoId: playerPot=$playerPot, " +

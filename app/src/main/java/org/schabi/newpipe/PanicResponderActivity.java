@@ -36,7 +36,11 @@ public class PanicResponderActivity extends Activity {
             //  once they are restored when the app restarts
             //  or if the app reloads the current video after being killed,
             //  that should be cleared also
-            ExitActivity.exitAndRemoveFromRecentApps(this);
+            org.schabi.newpipe.custom.aicontrol.AiControlLifecycle.stopForExit(this, () -> {
+                ExitActivity.exitAndRemoveFromRecentApps(this);
+                finishAndRemoveTask();
+            });
+            return;
         }
 
         finishAndRemoveTask();

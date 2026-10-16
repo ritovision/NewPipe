@@ -124,6 +124,11 @@ public final class PlayerService extends MediaBrowserServiceCompat {
 
     @Override
     public int onStartCommand(final Intent intent, final int flags, final int startId) {
+        if (intent != null && intent.hasExtra(
+                org.schabi.newpipe.custom.aicontrol.AiPlayerStartBridge.EXTRA_TICKET)) {
+            return org.schabi.newpipe.custom.aicontrol.AiPlayerStartBridge
+                    .onStartCommand(this, intent, startId);
+        }
         if (DEBUG) {
             Log.d(TAG, "onStartCommand() called with: intent = [" + intent
                     + "], extras = [" + BundleKt.toDebugString(intent.getExtras())
@@ -197,6 +202,11 @@ public final class PlayerService extends MediaBrowserServiceCompat {
     public void onTaskRemoved(final Intent rootIntent) {
         super.onTaskRemoved(rootIntent);
         if (player != null && !player.videoPlayerSelected()) {
+            return;
+        }
+        if (org.schabi.newpipe.custom.aicontrol.AiControlLifecycle.keepsProcessAlive()) {
+            // The opted-in AI service owns process reachability independently of the video UI.
+            destroyPlayerAndStopService();
             return;
         }
         onDestroy();

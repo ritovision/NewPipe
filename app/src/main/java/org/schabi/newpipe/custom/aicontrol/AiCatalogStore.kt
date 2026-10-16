@@ -32,16 +32,54 @@ internal class AiCatalogStore(
 ) {
     private val sql get() = db.openHelper.writableDatabase
 
-    fun run(command: AiCatalogCommand): JsonObject {
+    fun run(command: AiCatalogCommand, resolved: List<AiResolvedMedia> = emptyList()): JsonObject {
         val library = LibraryRepository.boundLibraryId(db) ?: throw AiFailure("LIBRARY_NOT_READY", AiOutcome.NOT_EXECUTED)
         return when (command) {
             AiCatalogCommand.NowPlaying, AiCatalogCommand.Pause, AiCatalogCommand.Resume,
-            is AiCatalogCommand.SkipIfCurrent -> throw AiFailure("INVALID_DISPATCH", AiOutcome.NOT_EXECUTED)
+            is AiCatalogCommand.SkipIfCurrent, is AiCatalogCommand.PlayItems, is AiCatalogCommand.AppendQueue -> throw AiFailure("INVALID_DISPATCH", AiOutcome.NOT_EXECUTED)
 
             AiCatalogCommand.Status -> buildJsonObject {
                 put("library_id", library)
                 put("saved_items", scalar("SELECT COUNT(*) FROM playlist_stream_join WHERE playlist_id = ?", library))
                 put("protocol_version", AiProtocol.VERSION)
+            }
+
+            is AiCatalogCommand.ResolveUrl -> {
+                val media = resolved.singleOrNull() ?: throw AiFailure("RESOLUTION_REQUIRED", AiOutcome.NOT_EXECUTED)
+                buildJsonObject {
+                    put("service", media.service)
+                    put("url", media.entity.url)
+                    put("title", media.entity.title.take(512))
+                    put("uploader", media.entity.uploader.take(256))
+                    put("duration_seconds", media.entity.duration)
+                }
+            }
+
+            is AiCatalogCommand.SaveUrls -> {
+                if (resolved.size != command.urls.size) throw AiFailure("RESOLUTION_REQUIRED", AiOutcome.NOT_EXECUTED)
+                command.playlistId?.let { ordinary(it, library, null) }
+                val ids = resolved.map { media ->
+                    val entity = media.entity
+                    if (serviceNames.name(entity.serviceId) != media.service) throw AiFailure("UNSUPPORTED_SERVICE")
+                    AiPublicUrlPolicy.validate(entity.url)
+                    val existing = query("SELECT uid FROM streams WHERE service_id = ? AND url = ?", entity.serviceId, entity.url).use {
+                        if (it.moveToFirst()) it.getLong(0) else null
+                    }
+                    // Reorganizing an already-known URL must never overwrite its stored metadata.
+                    existing ?: db.streamDAO().upsert(entity.copy(uid = 0))
+                }.distinct()
+                val added = LibraryRepository.appendDirectly(db, library, ids).size
+                val memberships = command.playlistId?.let { append(it, ids, allowDuplicates = false) } ?: 0
+                buildJsonObject {
+                    put("library_id", library)
+                    put("added_items", added)
+                    put("added_memberships", memberships)
+                    put("stream_ids", JsonArray(ids.map(::JsonPrimitive)))
+                    command.playlistId?.let {
+                        put("playlist_id", it)
+                        put("revision", revision(it))
+                    }
+                }
             }
 
             is AiCatalogCommand.ListPlaylists -> listPlaylists(command, library)
@@ -136,6 +174,7 @@ internal class AiCatalogStore(
             is AiCatalogCommand.PreviewRemoval -> {
                 val ids = resolveSaved(command.items, library).distinct()
                 buildJsonObject {
+                    put("revision", removalRevision(ids))
                     put(
                         "items",
                         JsonArray(
@@ -154,6 +193,7 @@ internal class AiCatalogStore(
 
             is AiCatalogCommand.RemoveLibrary -> {
                 val ids = resolve(command.items).distinct()
+                if (command.expectedRevision != null && command.expectedRevision != removalRevision(ids)) throw AiFailure("CONFLICT")
                 var removedItems = 0
                 var removedMemberships = 0L
                 for (id in ids) {
@@ -326,6 +366,16 @@ internal class AiCatalogStore(
         put("uploader", cursor.getString(cursor.getColumnIndexOrThrow("uploader")).orEmpty().take(256))
         put("duration_seconds", cursor.getLong(cursor.getColumnIndexOrThrow("duration")))
         put("position", cursor.getInt(cursor.getColumnIndexOrThrow("join_index")))
+    }
+
+    private fun removalRevision(ids: List<Long>): String {
+        val parts = ids.sorted().map { id ->
+            val membership = query("SELECT playlist_id,join_index FROM playlist_stream_join WHERE stream_id = ? ORDER BY playlist_id,join_index", id).use { cursor ->
+                buildList { while (cursor.moveToNext()) add("${cursor.getLong(0)}:${cursor.getInt(1)}") }
+            }
+            "$id=" + membership.joinToString(",")
+        }
+        return AiProtocol.digest(AiProtocol.json.encodeToString(parts))
     }
 
     private fun revision(playlistId: Long): String {

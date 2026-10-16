@@ -19,12 +19,15 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import java.time.Instant
 import org.schabi.newpipe.BuildConfig
 import org.schabi.newpipe.DownloaderImpl
+import org.schabi.newpipe.custom.aicontrol.AiExtractionNetwork
 
 class PoTokenWebView private constructor(
     context: Context,
     // to be used exactly once only during initialization!
-    private val generatorEmitter: SingleEmitter<PoTokenGenerator>
+    private val generatorEmitter: SingleEmitter<PoTokenGenerator>,
+    private val aiNetwork: AiExtractionNetwork.CapturedContext?
 ) : PoTokenGenerator {
+    private var closed = false
     private val webView = WebView(context)
     private val disposables = CompositeDisposable() // used only during initialization
     private val poTokenEmitters = mutableListOf<Pair<String, SingleEmitter<String>>>()
@@ -299,18 +302,20 @@ class PoTokenWebView private constructor(
     ) {
         disposables.add(
             Single.fromCallable {
-                return@fromCallable DownloaderImpl.getInstance().post(
-                    url,
-                    mapOf(
-                        // replace the downloader user agent
-                        "User-Agent" to listOf(USER_AGENT),
-                        "Accept" to listOf("application/json"),
-                        "Content-Type" to listOf("application/json+protobuf"),
-                        "x-goog-api-key" to listOf(GOOGLE_API_KEY),
-                        "x-user-agent" to listOf("grpc-web-javascript/0.1")
-                    ),
-                    data.toByteArray()
-                )
+                return@fromCallable AiExtractionNetwork.withContext(aiNetwork) {
+                    DownloaderImpl.getInstance().post(
+                        url,
+                        mapOf(
+                            // replace the downloader user agent
+                            "User-Agent" to listOf(USER_AGENT),
+                            "Accept" to listOf("application/json"),
+                            "Content-Type" to listOf("application/json+protobuf"),
+                            "x-goog-api-key" to listOf(GOOGLE_API_KEY),
+                            "x-user-agent" to listOf("grpc-web-javascript/0.1")
+                        ),
+                        data.toByteArray()
+                    )
+                }
             }
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -338,7 +343,7 @@ class PoTokenWebView private constructor(
     private fun onInitializationErrorCloseAndCancel(error: Throwable) {
         runOnMainThread(generatorEmitter) {
             close()
-            generatorEmitter.onError(error)
+            generatorEmitter.tryOnError(error)
         }
     }
 
@@ -347,6 +352,8 @@ class PoTokenWebView private constructor(
      */
     @MainThread
     override fun close() {
+        if (closed) return
+        closed = true
         disposables.dispose()
 
         webView.clearHistory()
@@ -373,10 +380,26 @@ class PoTokenWebView private constructor(
         private const val JS_INTERFACE = "PoTokenWebView"
 
         override fun newPoTokenGenerator(context: Context): Single<PoTokenGenerator> = Single.create { emitter ->
+            val aiNetwork = AiExtractionNetwork.capture()
             runOnMainThread(emitter) {
-                val potWv = PoTokenWebView(context, emitter)
+                if (emitter.isDisposed) return@runOnMainThread
+                val potWv = PoTokenWebView(context, emitter, aiNetwork)
+                if (!AiExtractionNetwork.trackUnclaimed(aiNetwork, potWv) {
+                        Handler(Looper.getMainLooper()).post { potWv.close() }
+                    }
+                ) {
+                    return@runOnMainThread
+                }
                 potWv.loadHtmlAndObtainBotguard(context)
-                emitter.setDisposable(potWv.disposables)
+                if (aiNetwork == null) {
+                    emitter.setDisposable(potWv.disposables)
+                } else {
+                    emitter.setCancellable {
+                        potWv.disposables.dispose()
+                        // Ownership is acknowledged only by the waiting caller after get().
+                        // Root scope cancellation closes every discarded/unclaimed generator.
+                    }
+                }
             }
         }
 

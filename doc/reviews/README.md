@@ -30,3 +30,9 @@ Future external reviews belong in this directory, with model/effort, reviewed re
 - [Claude Opus Max milestone review](ai-control-foundation-claude-2026-10-16.md) — PASS WITH NONBLOCKERS for the inspected local foundation; author corrected additional findings afterward.
 - [Final Astra xhigh verification](ai-control-foundation-astra-final-2026-10-16.md) — PASS WITH NONBLOCKERS for the Claude-driven corrections; limited backup preflight claim clarified.
 - [Author adjudication](ai-control-foundation-adjudication-2026-10-16.md) — accepted fixes, explicit limitations and remaining activation gates. Reviewers did not write code or execute tests.
+
+- [AI Control integration adjudication (2026-10-16)](ai-control-integration-adjudication-2026-10-16.md) — author decisions and corrections for gateway and Android lifecycle/security reviews; deployment and test evidence boundaries are explicit.
+- [Claude Opus Max — gateway milestone](ai-control-gateway-claude-r1-2026-10-16.md) — original security findings, preserved unchanged.
+- [Claude Opus Max — Android activation milestone](ai-control-claude-android-r1-2026-10-16.md) — important native security/lifecycle findings, author fixes recorded separately.
+- [Astra — gateway final targeted closure](ai-control-astra-gateway-r3-2026-10-16.md) — PASS for the three follow-up gateway fixes.
+- [Astra — native follow-up](ai-control-native-closure-r3-2026-10-16.md) — four follow-up issues corrected by the author; later verification remains distinct.

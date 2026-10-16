@@ -1,0 +1,25 @@
+# Independent source review — raw response
+
+Reviewer inspected a bounded snapshot and did not implement code. Author fixes/adjudication are recorded separately.
+
+**BLOCK — three remaining source-level correctness defects.** Read both review documents and all `src/` and `test/`. No changes, code execution, tests, builds, agents, connectors, credentials, or UI access.
+
+1. **A retry can incorrectly become `NOT_EXECUTED`.** At [src/mcp.ts:49–58](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/mcp.ts:49), an account lookup failure returns `NOT_EXECUTED` without consulting the device receipt. If this is a retry of a mutation that executed but lost its reply, that conclusion is false. Preserve uncertainty and request/device correlation when receipt lookup never occurred.
+
+2. **Receipt capacity overrides historical uncertainty.** [src/device.ts:150–164](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/device.ts:150) returns `NOT_EXECUTED / RECEIPT_CAPACITY` before checking timestamp age. Once an executed request’s receipt expires and is deleted, retrying it against a full store incorrectly reports nonexecution. Apply the retention uncertainty check before the capacity rejection. The shared 10,000-receipt limit itself is an accepted availability constraint.
+
+3. **Overlapping block/unblock operations can leave a client stuck blocked.** Account changes are serialized, but subsequent device updates are unversioned and outside that serialization: [src/account.ts:103–112](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/account.ts:103), [src/device.ts:69–73](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/device.ts:69). A delayed block arriving after an unblock leaves the account unblocked while device calls still fail. Propagate a policy revision and reject stale updates, with retry/reconciliation.
+
+The following fixes **PASS source inspection**, subject to those findings:
+
+| Area | Evidence |
+|---|---|
+| Validation failures cannot escape the concurrency callback | [account.ts:9](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/account.ts:9), [device.ts:19](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/device.ts:19). |
+| Pair retries, permanent revocation, and staged-enrollment/revoke race | Account finalization rejects revoked entries; device revocation creates a tombstone even before registration. Both orderings are covered: [account.ts:49–97](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/account.ts:49), [device.ts:48–63](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/device.ts:48). |
+| Post-dispatch exceptions, non-JSON responses, and 5xx | Preserve `OUTCOME_UNKNOWN` and correlation: [mcp.ts:51–57](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/mcp.ts:51). |
+| Original OAuth scopes, signature purposes, cookie/CSRF integration | Signed handle-bound scope proof, distinct HMAC purposes, unchecked deletion defaults, provider consent validation: [auth.ts:10–20](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/auth.ts:10), [auth.ts:39–59](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/auth.ts:39), [auth.ts:74–78](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/auth.ts:74). |
+| Nonce validation and consumption | Signature and expiry checked before serialized consumption/socket replacement: [device.ts:108–118](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/device.ts:108). |
+| Durable receipts, cleanup, hibernation state | Receipt precedes send; cleanup uses ≤128-key batches; presence uses automatic-response timestamps; attachments are bounded: [device.ts:170](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/device.ts:170), [device.ts:244](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/device.ts:244), [device.ts:28](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/device.ts:28), [device.ts:207](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/device.ts:207). |
+| Grant revocation and result isolation | Owner/client binding precedes provider revocation; lookups require the caller’s receipt and original scopes: [auth.ts:112–125](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/auth.ts:112), [device.ts:143–147](/home/rito/.cache/newpipe-ai-control/gateway-review-20261016-r2/src/device.ts:143). |
+
+Missing bulk-cleanup, hibernation, fault-injection, concurrent-policy, and actual grant-revocation tests are **coverage gaps, not additional defects**. Provider internals and deployed runtime behavior are outside this snapshot. Standing deletion grants remain appropriate; no per-delete confirmation is required.

@@ -17,6 +17,7 @@ internal class AiCatalogExecutor(
     private val db: AppDatabase,
     private val access: AiAccessController,
     private val store: AiCatalogStore = AiCatalogStore(db),
+    private val urlResolver: AiUrlResolver? = null,
     private val clock: () -> Long = System::currentTimeMillis
 ) {
     fun execute(rawJson: String, session: AiAccessController.Session): AiResult {
@@ -29,6 +30,48 @@ internal class AiCatalogExecutor(
             if (AiProtocol.isPlayback(parsed.command)) throw AiFailure("INVALID_DISPATCH", AiOutcome.NOT_EXECUTED)
             val mutation = AiProtocol.isMutation(parsed.command)
             checkAdmissionTime(parsed, mutation, clock())
+            val urls = when (val command = parsed.command) {
+                is AiCatalogCommand.ResolveUrl -> listOf(command.url)
+                is AiCatalogCommand.SaveUrls -> command.urls
+                else -> emptyList()
+            }
+            var prepared = emptyList<AiResolvedMedia>()
+            if (urls.isNotEmpty()) {
+                // Receipt lookup BEFORE network activity: a saved URL's retry must not depend on
+                // the current availability of the source, and must not save a later re-add twice.
+                val cached = access.withAuthorization(parsed, session) { lease ->
+                    db.runInTransaction(
+                        Callable {
+                            lease.checkActive()
+                            val old = if (mutation) db.aiCommandReceiptDao().find(parsed.deviceId, parsed.catalogEpoch, parsed.clientId, parsed.requestId) else null
+                            if (old != null) {
+                                if (old.fingerprint != AiProtocol.fingerprint(parsed)) throw AiFailure("REQUEST_ID_REUSED")
+                                lease.requireScopes(scopes(old.requiredScopes))
+                                decodeReceipt(old).copy(replayed = true)
+                            } else {
+                                val now = clock()
+                                if (mutation && parsed.expiresAtMs <= now && now - parsed.issuedAtMs >= AiProtocol.RECEIPT_TTL_MS - AiProtocol.CLOCK_SKEW_MS) {
+                                    throw AiFailure("EXPIRED_RESULT_NOT_RETAINED", AiOutcome.OUTCOME_UNKNOWN)
+                                }
+                                AiProtocol.checkDeadline(parsed, now)
+                                null
+                            }
+                        }
+                    )
+                }
+                if (cached != null) return cached
+                val resolver = urlResolver ?: throw AiFailure("RESOLVER_UNAVAILABLE", AiOutcome.NOT_EXECUTED)
+                prepared = urls.map { url ->
+                    val check = {
+                        access.withAuthorization(parsed, session) { lease ->
+                            lease.checkActive()
+                            AiProtocol.checkDeadline(parsed, clock())
+                        }
+                    }
+                    check()
+                    resolver.resolve(url, check).also { check() }
+                }
+            }
             access.withAuthorization(parsed, session) { lease ->
                 checkAdmissionTime(parsed, mutation, clock())
                 db.runInTransaction(
@@ -70,7 +113,7 @@ internal class AiCatalogExecutor(
                                 return@Callable decodeReceipt(previous).copy(replayed = true)
                             }
                             val checkedAt = clock()
-                            if (parsed.expiresAtMs <= checkedAt && checkedAt - parsed.issuedAtMs >= AiProtocol.RECEIPT_TTL_MS) {
+                            if (parsed.expiresAtMs <= checkedAt && checkedAt - parsed.issuedAtMs >= AiProtocol.RECEIPT_TTL_MS - AiProtocol.CLOCK_SKEW_MS) {
                                 // Missing history outside the retention window is not proof of no effect.
                                 throw AiFailure("EXPIRED_RESULT_NOT_RETAINED", AiOutcome.OUTCOME_UNKNOWN)
                             }
@@ -79,7 +122,7 @@ internal class AiCatalogExecutor(
                             if (dao.count() >= MAX_RECEIPTS) throw AiFailure("RECEIPT_CAPACITY", AiOutcome.NOT_EXECUTED)
                         }
 
-                        val data = store.run(command)
+                        val data = store.run(command, prepared)
                         val result = AiResult(parsed.requestId, parsed.deviceId, if (mutation) AiOutcome.COMMITTED else AiOutcome.COMPLETED, data = data)
                         val serialized = AiProtocol.json.encodeToString(result)
                         if (serialized.toByteArray(Charsets.UTF_8).size > AiProtocol.MAX_RESULT_BYTES) throw AiFailure("RESULT_TOO_LARGE")

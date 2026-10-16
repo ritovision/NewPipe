@@ -24,6 +24,11 @@ object AiPlayerRegistry {
         if (service.get() === value) service.clear()
     }
 
+    internal fun serviceInstance(): PlayerService? {
+        check(Looper.myLooper() == Looper.getMainLooper())
+        return service.get()
+    }
+
     internal fun player(): Player? {
         check(Looper.myLooper() == Looper.getMainLooper())
         return service.get()?.player

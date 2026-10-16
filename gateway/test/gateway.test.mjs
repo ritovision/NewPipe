@@ -1,0 +1,71 @@
+import { beforeAll, afterAll, describe, expect, test } from 'vitest';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { harness, origin, ownerKey, digest } from './helpers.mjs';
+let h;
+beforeAll(async()=>{h=await harness();},30000);
+afterAll(async()=>{await h?.mf.dispose();});
+
+describe('private gateway boundaries',()=>{
+ test('health is generic and anonymous MCP is rejected',async()=>{
+  expect((await h.get('/health')).status).toBe(200);
+  const r=await h.post('/mcp',{jsonrpc:'2.0',id:1,method:'tools/list'},{Accept:'application/json, text/event-stream'});
+  expect(r.status).toBe(401);expect(r.headers.get('www-authenticate')).toContain('oauth-protected-resource');
+ });
+ test('raw internal routes and unauthenticated administration are unavailable',async()=>{
+  expect((await h.post('/dispatch',{})).status).toBe(404);
+  expect((await h.post('/register',{})).status).toBe(404);
+  expect((await h.post('/admin/pairings',{})).status).toBe(401);
+ });
+ test('untrusted origins and oversized input fail before dispatch',async()=>{
+  expect((await h.post('/admin/pairings',{}, {Origin:'https://evil.example',Authorization:'Bearer '+ownerKey})).status).toBe(403);
+  expect((await h.get('/device/pair',{method:'POST',body:'x'.repeat(20000)})).status).toBe(413);
+ });
+ test('discovery identifies the protected MCP resource',async()=>{
+  const challenge=await h.post('/mcp',{jsonrpc:'2.0',id:1,method:'tools/list'},{Accept:'application/json, text/event-stream'});
+  const metadata=challenge.headers.get('www-authenticate')?.match(/resource_metadata="([^"]+)"/)?.[1];expect(metadata).toBeTruthy();
+  const r=await h.get(new URL(metadata).pathname);expect(r.status).toBe(200);expect((await r.json()).resource).toBe(origin+'/mcp');
+ });
+ test('OAuth PKCE, browser-bound setup consent and authenticated tools work',async()=>{
+  const credentials=await h.oauth();
+  const listed=await h.rpc(credentials.access_token,'tools/list',{});expect(listed.status).toBe(200);expect(listed.value.result.tools.some(t=>t.name==='remove_library_items')).toBe(true);
+  const devices=await h.call(credentials.access_token,'list_devices',{});expect(Array.isArray(devices.data.devices)).toBe(true);
+  const reused=await h.get('/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:credentials.consentCookie,Origin:origin},body:new URLSearchParams({handle:credentials.consentHandle,owner_key:ownerKey,decision:'allow'}).toString()});
+  expect(reused.headers.get('location')??'').not.toMatch(/[?&]code=/);
+ },15000);
+ test('unpaired devices cannot get a connection challenge',async()=>{
+  const r=await h.post('/device/challenge',{device_id:randomUUID(),client_nonce:randomBytes(24).toString('base64url'),timestamp_ms:Date.now(),signature:'not-a-signature'});expect(r.status).toBe(401);
+ });
+ test('device pairing requires private-key proof and allows only an identical retry',async()=>{
+  const d=await h.pairedDevice();expect((await h.post('/device/pair',d.registration)).status).toBe(200);
+  expect((await h.post('/device/pair',{...d.registration,signature:'invalid'})).status).toBe(401);
+ });
+ test('OAuth scopes are enforced independently of phone state',async()=>{
+  const credentials=await h.oauth(['mcp.connect','library.read']),d=await h.pairedDevice();
+  const r=await h.call(credentials.access_token,'create_playlist',{device_id:d.id,request_id:randomUUID(),issued_at_ms:Date.now(),name:'Denied'});expect(r.data.code).toBe('PERMISSION_DENIED');
+ },15000);
+ test('offline commands never replay on reconnect and live mutations have one effect',async()=>{
+  const credentials=await h.oauth(),d=await h.pairedDevice();
+  const args={device_id:d.id,request_id:randomUUID(),issued_at_ms:Date.now(),name:'Offline'};
+  const offline=await h.call(credentials.access_token,'create_playlist',args);expect(offline.data.code).toBe('DEVICE_OFFLINE');
+  let effects=0;const ws=await h.connectDevice(d,()=>{effects++;});
+  try {
+   expect((await h.call(credentials.access_token,'create_playlist',args)).data.code).toBe('DEVICE_OFFLINE');expect(effects).toBe(0);
+   const online={device_id:d.id,request_id:randomUUID(),issued_at_ms:Date.now(),name:'Online'};
+   expect((await h.call(credentials.access_token,'create_playlist',online)).data.outcome).toBe('COMMITTED');expect(effects).toBe(1);
+   expect((await h.call(credentials.access_token,'create_playlist',online)).data.replayed).toBe(true);expect(effects).toBe(1);
+   expect((await h.call(credentials.access_token,'create_playlist',{...online,name:'Changed'})).data.code).toBe('REQUEST_ID_REUSED');expect(effects).toBe(1);
+  } finally {ws.close();}
+ },15000);
+ test('disconnect after dispatch reports unknown without resending',async()=>{
+  const credentials=await h.oauth(),d=await h.pairedDevice();let count=0;
+  const ws=await h.connectDevice(d,(_,socket)=>{count++;socket.close();return false;});
+  const args={device_id:d.id,request_id:randomUUID(),issued_at_ms:Date.now(),name:'Uncertain'};
+  const r=await h.call(credentials.access_token,'create_playlist',args);expect(r.data.outcome).toBe('OUTCOME_UNKNOWN');
+  expect((await h.call(credentials.access_token,'create_playlist',args)).data.outcome).toBe('OUTCOME_UNKNOWN');expect(count).toBe(1);
+ },15000);
+ test('revoked clients lose access even with a previously issued token',async()=>{
+  const credentials=await h.oauth(),client_id='c_'+digest(credentials.client_id);
+  expect((await h.post('/admin/revoke-client',{client_id},{Authorization:'Bearer '+ownerKey})).status).toBe(200);
+  expect((await h.call(credentials.access_token,'list_devices',{})).data.code).toBe('CLIENT_REVOKED');
+ },15000);
+});

@@ -58,7 +58,7 @@ internal class AiPlaybackExecutor(
                             if (old.fingerprint != fingerprint) throw AiFailure("REQUEST_ID_REUSED")
                             return@synchronized old.result.copy(replayed = true)
                         }
-                        if (parsed.expiresAtMs <= now && now - parsed.issuedAtMs >= RETAIN_MS) {
+                        if (parsed.expiresAtMs <= now && now - parsed.issuedAtMs >= RETAIN_MS - AiProtocol.CLOCK_SKEW_MS) {
                             throw AiFailure("RESULT_NOT_RETAINED", AiOutcome.OUTCOME_UNKNOWN)
                         }
                     }

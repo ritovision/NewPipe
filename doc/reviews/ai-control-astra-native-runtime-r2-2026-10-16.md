@@ -1,0 +1,13 @@
+# Independent source review — raw response
+
+Reviewer inspected a bounded snapshot and did not implement code. Author fixes/adjudication are recorded separately.
+
+**BLOCK**
+
+- **P1 — Stop/revocation can be discarded.** [AiControlRuntime.kt:186](/home/rito/.cache/newpipe-ai-control/android-runtime-focus-r2/AiControlRuntime.kt:186): if Stop or `revokeClient()` is queued, a subsequent `configure()` invalidates it before persistence. Configuration then reads the old enabled/grant state and reconnects at line 199. **Remedy:** compose pending policy changes; preserve Stop/revocation unless explicitly reversed.
+
+- **P2 — Stale failure can disable the replacement connection.** [AiControlRuntime.kt:322](/home/rito/.cache/newpipe-ai-control/android-runtime-focus-r2/AiControlRuntime.kt:322): transport identity is checked separately from `access.signalStop()`. Replacement can occur between them; the old callback then stops the new authorization gate, while the later identity check skips recovery. **Remedy:** atomically validate the transport generation and invalidate only its gate.
+
+- **P2 — Stop/restore leaves network operations running.** [AiRelayTransport.kt:234](/home/rito/.cache/newpipe-ai-control/android-runtime-focus-r2/AiRelayTransport.kt:234) discards HTTP `Call` handles; [close():206](/home/rito/.cache/newpipe-ai-control/android-runtime-focus-r2/AiRelayTransport.kt:206) cancels only the WebSocket. A closed transport can also initiate its challenge POST before checking `closed` at line 70. Extraction similarly checks cancellation around a blocking read at [AiUrlResolver.kt:145](/home/rito/.cache/newpipe-ai-control/android-runtime-focus-r2/AiUrlResolver.kt:145). **Remedy:** retain and cancel calls by generation, including pairing/extraction, with cancellation-safe registration before dispatch.
+
+- **P2 — Playback bypasses Android’s started-service lifetime.** [AiPlayerStartBridge.kt:48](/home/rito/.cache/newpipe-ai-control/android-runtime-focus-r2/AiPlayerStartBridge.kt:48) directly invokes an existing service. [PlayerService.java:114](/home/rito/.cache/newpipe-ai-control/android-runtime-focus-r2/PlayerService.java:114) registers instances created solely for media-browser binding. Direct invocation can accept playback without actually starting that service; the last unbind then destroys playback. **Remedy:** establish the Android started-service lifetime when delivering the ticket, including for existing bound instances.

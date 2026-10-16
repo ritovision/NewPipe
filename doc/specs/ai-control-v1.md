@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-16
 **Target:** RitoVision personal NewPipe fork, `custom/dev`
-**Status:** Implementation authorized by the user on 2026-10-16 and started on isolated `feature/ai-control`. Current milestone: local catalog foundation; not a deployed or completed AI Control release.
+**Status:** Android catalog, playback, URL ingestion, pairing UI/security, opt-in service and relay implementation are in the isolated `feature/ai-control` candidate. Cloudflare Worker/Durable Objects are deployed **fail-closed pending owner secret configuration**. Native/gateway tests and reviews are recorded in `doc/architecture/ai-control-integration.md`; this is not a verified end-to-end ChatGPT release.
 **Source proposal:** `doc/potential-features/ai-control-device-mcp.md`
 **Source review:** `doc/reviews/ai-control-claude-opus-max-2026-10-15.md` (raw October 15 review; retained unchanged)
 **Adjudication:** `doc/reviews/ai-control-claude-adjudication-2026-10-16.md` (accepted, modified, rejected, and superseded recommendations; independent implementation review still to come)

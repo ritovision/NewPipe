@@ -18,11 +18,20 @@ import org.schabi.newpipe.player.Player
  * service or replace PlayerHolder's listener. A single pending operation can be cancelled before
  * execution, including interruption; a started effect can only be reported as uncertain on timeout.
  */
-internal class AiAndroidPlaybackPort(@Suppress("UNUSED_PARAMETER") context: Context) : AiPlaybackPort {
+internal class AiAndroidPlaybackPort(context: Context, private val media: AiSavedMediaLookup = AiSavedMediaReader(context)) : AiPlaybackPort {
+    private val app = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
 
     override fun execute(command: AiCatalogCommand, checkActive: () -> Unit): JsonObject {
         if (Looper.myLooper() == Looper.getMainLooper()) throw AiFailure("WRONG_THREAD", AiOutcome.NOT_EXECUTED)
+        checkActive()
+        val items = when (command) {
+            is AiCatalogCommand.PlayItems -> media.read(command.items, checkActive)
+            is AiCatalogCommand.AppendQueue -> media.read(command.items, checkActive)
+            else -> emptyList()
+        }
+        checkActive()
+        if (command is AiCatalogCommand.PlayItems) return AiPlayerStartBridge.play(app, items, checkActive)
         val call = AiMainThreadCall<JsonObject>()
         val task = Runnable {
             call.run {
@@ -31,7 +40,7 @@ internal class AiAndroidPlaybackPort(@Suppress("UNUSED_PARAMETER") context: Cont
                     checkActive()
                 }
                 checked()
-                runOnMain(command, AiPlayerRegistry.player(), checked)
+                runOnMain(command, AiPlayerRegistry.player(), items, checked)
             }
         }
         if (!main.post(task)) throw AiFailure("PLAYER_UNAVAILABLE", AiOutcome.NOT_EXECUTED)
@@ -50,13 +59,15 @@ internal class AiAndroidPlaybackPort(@Suppress("UNUSED_PARAMETER") context: Cont
         }
     }
 
-    private fun runOnMain(command: AiCatalogCommand, player: Player?, checkActive: () -> Unit): JsonObject {
+    private fun runOnMain(command: AiCatalogCommand, player: Player?, items: List<org.schabi.newpipe.extractor.stream.StreamInfoItem>, checkActive: () -> Unit): JsonObject {
         checkActive()
         val queue = player?.playQueue
         if (command == AiCatalogCommand.NowPlaying && (player == null || queue == null)) {
             return buildJsonObject { put("active", false) }
         }
-        if (player == null || player.exoPlayerIsNull() || queue == null) throw AiFailure("NO_ACTIVE_PLAYER", AiOutcome.NOT_EXECUTED)
+        if (player == null || player.exoPlayerIsNull() || queue == null) {
+            throw AiFailure(if (command is AiCatalogCommand.AppendQueue) "NO_ACTIVE_QUEUE" else "NO_ACTIVE_PLAYER", AiOutcome.NOT_EXECUTED)
+        }
         return synchronized(queue) {
             checkActive()
             val selected = queue.item
@@ -76,6 +87,19 @@ internal class AiAndroidPlaybackPort(@Suppress("UNUSED_PARAMETER") context: Cont
                         put("service", serviceName(current.serviceId))
                         put("url", current.url)
                         put("title", current.title.take(512))
+                    }
+                }
+
+                is AiCatalogCommand.AppendQueue -> {
+                    if (queue.isEmpty || queue.broadcastReceiver == null) throw AiFailure("NO_ACTIVE_QUEUE", AiOutcome.NOT_EXECUTED)
+                    if (queue.size() + items.size > 10_000) throw AiFailure("QUEUE_TOO_LARGE", AiOutcome.NOT_EXECUTED)
+                    checkActive()
+                    val added = org.schabi.newpipe.player.playqueue.SinglePlayQueue(items, 0).streams
+                    queue.append(added)
+                    buildJsonObject {
+                        put("appended_items", added.size)
+                        put("queue_size", queue.size())
+                        put("queue_revision", queue.stateRevisionToken)
                     }
                 }
 
