@@ -188,3 +188,20 @@ first re-review. The typed repair-error hardening note was addressed as well.
 
 Existing native multi-file import crash-consistency limitations and cross-device
 or Tags coordination are unchanged and are not misrepresented as solved here.
+
+
+## Verified physical-device update — 2026-10-16
+
+Installed on the user's Pixel 7 through the primary NotCodex ADB connection.
+Android reported installation success and lastUpdateTime **2026-10-16 03:55:27**.
+The installed base APK SHA-256 matched the validated build byte-for-byte.
+
+- Built commit: `0c91b5bb81da4e55236753807f953d79d8eeb95d`.
+- Reviewed runtime commit: `4881fc69c6414077b86d5412bfd78fa1f101d0bd`.
+- Package: `org.schabi.newpipe.debug.customdev`.
+- APK SHA-256: `cc9f360fb1e76d9dd2b82baea9133652feb62fd8a19fac5d382c8f784ce5c639`.
+- Existing development signer verified before installation; updated in place
+  using install -r, without uninstalling or clearing data.
+- F-Droid package `org.schabi.newpipe` remained installed separately.
+- Runtime/UI acceptance remains the user's manual test; no emulator or
+  automated Android test was run. Final review limitations remain as recorded above.
