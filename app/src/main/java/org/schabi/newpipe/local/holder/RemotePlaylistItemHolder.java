@@ -34,8 +34,11 @@ public class RemotePlaylistItemHolder extends PlaylistItemHolder {
         }
 
         itemTitleView.setText(item.getOrderingName());
-        itemStreamCountView.setText(Localization.localizeStreamCountMini(
-                itemStreamCountView.getContext(), item.getStreamCount()));
+        // Remote bookmarks can legitimately have an unknown (null) stream count.
+        // Never unbox null; clear recycled rows instead of showing an invented zero.
+        final Long streamCount = item.getStreamCount();
+        itemStreamCountView.setText(streamCount == null ? "" : Localization.localizeStreamCountMini(
+                itemStreamCountView.getContext(), streamCount));
         // Here is where the uploader name is set in the bookmarked playlists library
         if (!TextUtils.isEmpty(item.getUploader())) {
             itemUploaderView.setText(Localization.concatenateStrings(item.getUploader(),
