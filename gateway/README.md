@@ -32,6 +32,12 @@ Configure the private ChatGPT plugin/app with the MCP resource above and OAuth. 
 
 Do not install an AI QA APK over the existing `custom/dev` or stock/F-Droid installation. AI-era schema-10 exports cannot be imported into older schema-9 NewPipe builds. Keep pre-upgrade backups separate.
 
+## OAuth scope discovery and reauthorization
+
+The protected MCP resource advertises `mcp.connect` and the available Library, playlist and playback scopes, so MCP clients such as ChatGPT can request meaningful access. Merely advertising a scope **does not grant it**: the owner must authenticate and select the requested permissions on the consent page. `library.delete` and `playlist.delete` are unchecked by default, and the Android permission ceiling applies independently. `offline_access` is an authorization-server scope, not an MCP protected-resource scope.
+
+When these advertised scopes change, **an existing ChatGPT OAuth connection cannot gain them through token refresh**. Reconnect/reauthorize the custom plugin on ChatGPT web (or recreate it if the settings UI does not offer reauthorization). No Pixel re-pairing is necessary. Follow the owner-consent screen and select `playlist.delete` only if you specifically want ChatGPT to delete temporary ordinary playlists; selecting `library.delete` authorizes direct canonical Library removal across all playlists and should not be enabled casually.
+
 ## Development and validation
 
 ```bash

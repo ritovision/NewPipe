@@ -46,6 +46,63 @@ describe('private gateway boundaries',()=>{
   const metadata=challenge.headers.get('www-authenticate')?.match(/resource_metadata="([^"]+)"/)?.[1];expect(metadata).toBeTruthy();
   const r=await h.get(new URL(metadata).pathname);expect(r.status).toBe(200);expect((await r.json()).resource).toBe(origin+'/mcp');
  });
+ test('OAuth discovery requests all device tool scopes, but deletion needs explicit consent',async()=>{
+  // Simulate an MCP client that discovers its requested scopes from the resource
+  // challenge. Previously it saw only mcp.connect and got unusable credentials.
+  const challenge=await h.post('/mcp',{jsonrpc:'2.0',id:1,method:'tools/list'},{Accept:'application/json, text/event-stream'});
+  const header=challenge.headers.get('www-authenticate')??'';
+  const hint=header.match(/(?:^|, )scope="([^"]+)"/)?.[1];
+  expect(hint).toBeTruthy();
+  const requested=hint.split(' ');
+  const core=['mcp.connect','library.read','library.write','playlist.write','playback.control'];
+  const destructive=['playlist.delete','library.delete'];
+  expect(requested).toEqual(expect.arrayContaining([...core,...destructive]));
+  expect(requested).not.toContain('offline_access');
+  const metadata=header.match(/resource_metadata="([^"]+)"/)?.[1];
+  expect(metadata).toBeTruthy();
+  const document=await h.get(new URL(metadata).pathname);
+  expect(document.status).toBe(200);
+  expect((await document.json()).scopes_supported).toEqual(expect.arrayContaining([...core,...destructive]));
+  // A valid owner deliberately chooses all core access and leaves deletes off.
+  const grant=await h.oauth(requested,core);
+  expect(grant.scope.split(' ').sort()).toEqual([...core].sort());
+  for(const scope of destructive) expect(grant.scope.split(' ')).not.toContain(scope);
+  const checkboxes=[...grant.consentHtml.matchAll(/<input type="checkbox"[^>]+>/g)].map(m=>m[0]);
+  for(const scope of destructive){
+   const option=checkboxes.find(x=>x.includes('value="'+scope+'"'));
+   expect(option).toBeTruthy();
+   expect(option).not.toContain('checked');
+  }
+  for(const scope of core.filter(x=>x!=='mcp.connect')){
+   expect(checkboxes.find(x=>x.includes('value="'+scope+'"'))).toContain('checked');
+  }
+  const d=await h.pairedDevice();
+  const ws=await h.connectDevice(d);
+  try {
+   const read=await h.call(grant.access_token,'get_catalog_status',{device_id:d.id});
+   expect(read.data.code).toBe('OK');
+   const playback=await h.call(grant.access_token,'get_now_playing',{device_id:d.id});
+   expect(playback.data.code).toBe('OK');
+   const write=await h.call(grant.access_token,'create_playlist',{device_id:d.id,request_id:randomUUID(),issued_at_ms:Date.now(),name:'Consent QA only'});
+   expect(write.data.outcome).toBe('COMMITTED');
+   // Populating the playlist requires library.write AND playlist.write, not just the latter.
+   const example={stream_id:1,service:'YouTube',url:'https://www.youtube.com/watch?v=x'};
+   const populated=await h.call(grant.access_token,'create_playlist',{device_id:d.id,request_id:randomUUID(),issued_at_ms:Date.now(),name:'Populated consent QA',items:[example]});
+   expect(populated.data.outcome).toBe('COMMITTED');
+   const deletion=await h.call(grant.access_token,'delete_playlist',{device_id:d.id,request_id:randomUUID(),issued_at_ms:Date.now(),playlist_id:17});
+   expect(deletion.data.code).toBe('PERMISSION_DENIED');
+   const remove=await h.call(grant.access_token,'remove_library_items',{device_id:d.id,request_id:randomUUID(),issued_at_ms:Date.now(),items:[{stream_id:1,service:'YouTube',url:'https://www.youtube.com/watch?v=x'}]});
+   expect(remove.data.code).toBe('PERMISSION_DENIED');
+  } finally {ws.close();}
+  const withoutLibraryWrite=await h.oauth(requested,core.filter(s=>s!=='library.write'));
+  const deniedWrite=await h.call(withoutLibraryWrite.access_token,'create_playlist',{
+   device_id:d.id,request_id:randomUUID(),issued_at_ms:Date.now(),name:'Denied populated',
+   items:[{stream_id:1,service:'YouTube',url:'https://www.youtube.com/watch?v=x'}]
+  });
+  expect(deniedWrite.data.code).toBe('PERMISSION_DENIED');
+  const optedIn=await h.oauth(requested,[...core,'playlist.delete']);
+  expect(optedIn.scope.split(' ').sort()).toEqual([...core,'playlist.delete'].sort());
+ },20000);
  test('OAuth PKCE, browser-bound setup consent and authenticated tools work',async()=>{
   const credentials=await h.oauth();
   const listed=await h.rpc(credentials.access_token,'tools/list',{});expect(listed.status).toBe(200);expect(listed.value.result.tools.some(t=>t.name==='remove_library_items')).toBe(true);

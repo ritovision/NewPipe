@@ -16,7 +16,7 @@ export async function harness(bindingOverrides={}) {
  const get=(path,init={})=>mf.dispatchFetch(origin+path,{redirect:'manual',...init});
  const post=(path,value,headers={})=>get(path,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(value)});
  const cookies=r=>(r.headers.getSetCookie?.()??[r.headers.get('set-cookie')]).filter(Boolean).map(c=>c.split(';')[0]).join('; ');
- async function oauth(scopes=['mcp.connect','library.read','library.write','playlist.write','library.delete','playlist.delete','playback.control']) {
+ async function oauth(scopes=['mcp.connect','library.read','library.write','playlist.write','library.delete','playlist.delete','playback.control'], approvedScopes=scopes) {
   const registered=await post('/oauth/register',{client_name:'Synthetic QA client',redirect_uris:['https://example.com/callback'],grant_types:['authorization_code','refresh_token'],response_types:['code'],token_endpoint_auth_method:'none'});
   assert.equal(registered.status,201,await registered.clone().text());const client=await registered.json();
   const verifier=randomBytes(32).toString('base64url'),challenge=createHash('sha256').update(verifier).digest('base64url');
@@ -24,12 +24,12 @@ export async function harness(bindingOverrides={}) {
   const page=await get('/authorize?'+query);assert.equal(page.status,200,await page.clone().text());const text=await page.text();
   const handle=text.match(/name="handle" value="([^"]+)"/)?.[1];assert.ok(handle);
   const scopeProof=text.match(/name="scope_proof" value="([^"]+)"/)?.[1];assert.ok(scopeProof);
-  const values=new URLSearchParams({handle,scope_proof:scopeProof,owner_key:ownerKey,decision:'allow'});for(const scope of scopes) if(scope!=='mcp.connect') values.append('scope',scope);
+  const values=new URLSearchParams({handle,scope_proof:scopeProof,owner_key:ownerKey,decision:'allow'});for(const scope of approvedScopes) if(scope!=='mcp.connect') values.append('scope',scope);
   const approved=await get('/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:cookies(page),Origin:origin},body:values.toString()});
   assert.equal(approved.status,302,await approved.clone().text());const redirect=new URL(approved.headers.get('location'));assert.equal(redirect.searchParams.get('state'),'synthetic-state');
   const code=redirect.searchParams.get('code');assert.ok(code);
   const exchanged=await get('/oauth/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'authorization_code',client_id:client.client_id,redirect_uri:'https://example.com/callback',code_verifier:verifier,code,resource:origin+'/mcp'}).toString()});
-  assert.equal(exchanged.status,200,await exchanged.clone().text());return {...await exchanged.json(),client_id:client.client_id,consentHandle:handle,consentCookie:cookies(page)};
+  assert.equal(exchanged.status,200,await exchanged.clone().text());return {...await exchanged.json(),client_id:client.client_id,consentHandle:handle,consentCookie:cookies(page),consentHtml:text};
  }
  async function rpc(token,method,params,id=1) {
   const r=await post('/mcp',{jsonrpc:'2.0',id,method,params},{Authorization:'Bearer '+token,Accept:'application/json, text/event-stream','MCP-Protocol-Version':'2025-11-25'});

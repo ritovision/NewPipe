@@ -25,12 +25,18 @@ async function publicRoutes(request:Request,env:Env):Promise<Response> {
   if(url.pathname==='/' || url.pathname==='/health') return response({service:'NewPipe AI Control',protocol_version:1,authenticated_control:true});
   throw new ControlError('NOT_FOUND',404);
 }
+// OAuth clients use the protected-resource scope hints to request permissions. Exposing only
+// mcp.connect caused ChatGPT to receive a token that could discover a device but could not use
+// the Library, playlist or playback tools. Advertise all supported DEVICE action scopes, while
+// keeping the actual grant subject to owner-key consent and unchecked destructive checkboxes.
+// offline_access belongs to the authorization server, not the MCP protected resource.
+const MCP_RESOURCE_SCOPES = SCOPES.filter(scope => scope !== 'offline_access');
 function provider(origin:string):OAuthProvider<Env> {
   return new OAuthProvider<Env>({
     apiRoute:'/mcp', apiHandler:{fetch:mcpFetch}, defaultHandler:{fetch:publicRoutes},
     authorizeEndpoint:'/authorize', tokenEndpoint:'/oauth/token', clientRegistrationEndpoint:'/oauth/register',
     accessTokenTTL:600, refreshTokenTTL:604800, clientRegistrationTTL:31_536_000,
-    scopesSupported:[...SCOPES], requiredScopes:['mcp.connect'], allowTokenExchangeGrant:false,
+    scopesSupported:[...SCOPES], requiredScopes:[...MCP_RESOURCE_SCOPES], allowTokenExchangeGrant:false,
     clientIdMetadataDocumentEnabled:true, cookiePrefix:'__Host-newpipe-oauth-',
     resourceMetadata:{resource:origin+'/mcp',authorization_servers:[origin]},
   });
