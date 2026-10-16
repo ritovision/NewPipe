@@ -6,6 +6,11 @@ package org.schabi.newpipe.custom.library
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import java.nio.file.Path
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -452,5 +457,147 @@ class LibraryRepositoryTest {
         assertEquals(PlaylistEntity.DEFAULT_THUMBNAIL_ID, manager.getPlaylistThumbnailStreamId(emptyAfter))
         assertEquals(uid(1, b.url), manager.getPlaylistThumbnailStreamId(pinned))
         assertTrue(manager.getIsPlaylistThumbnailPermanent(pinned))
+    }
+
+    @Test
+    fun pendingWatchedRemovalUsesCurrentSurvivorForThumbnail() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/watched-thumb-a")
+        val b = stream("https://example.org/watched-thumb-b")
+        val c = stream("https://example.org/watched-thumb-c")
+        val playlist = createPlaylist("Remove Watched race", a, b, c)
+        val staleSurvivors = listOf(uid(1, b.url), uid(1, c.url))
+
+        // Remove Watched captured [B,C]; an independent Library delete now
+        // removes B before that pending edit reaches the writer transaction.
+        LibraryRepository.removeEverywhere(db, library, uid(1, b.url))
+        manager.updateJoin(playlist, staleSurvivors, true).test().await().assertComplete()
+
+        assertEquals(listOf(uid(1, c.url)), entries(playlist))
+        assertEquals(uid(1, c.url), manager.getPlaylistThumbnailStreamId(playlist))
+    }
+
+    @Test
+    fun pendingWatchedRemovalDoesNotOverwriteNewPinnedThumbnail() {
+        LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/pending-pin-a")
+        val b = stream("https://example.org/pending-pin-b")
+        val c = stream("https://example.org/pending-pin-c")
+        val playlist = createPlaylist("New pin", a, b, c)
+        manager.changePlaylistThumbnail(playlist, uid(1, c.url), true)
+            .test().await().assertComplete()
+
+        manager.updateJoin(playlist, listOf(uid(1, b.url), uid(1, c.url)), true)
+            .test().await().assertComplete()
+
+        assertEquals(uid(1, c.url), manager.getPlaylistThumbnailStreamId(playlist))
+        assertTrue(manager.getIsPlaylistThumbnailPermanent(playlist))
+    }
+
+    @Test
+    fun pendingWatchedRemovalUsesDefaultForEmptyPlaylist() {
+        LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/watched-last")
+        val playlist = createPlaylist("Empty after watched removal", a)
+        manager.updateJoin(playlist, emptyList(), true).test().await().assertComplete()
+        assertTrue(entries(playlist).isEmpty())
+        assertEquals(PlaylistEntity.DEFAULT_THUMBNAIL_ID, manager.getPlaylistThumbnailStreamId(playlist))
+    }
+
+    @Test
+    fun thumbnailRefreshAndMembershipRollbackTogether() {
+        LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/rollback-thumb-a")
+        val b = stream("https://example.org/rollback-thumb-b")
+        val playlist = createPlaylist("Thumbnail rollback", a, b)
+        try {
+            db.runInTransaction {
+                manager.updateJoin(playlist, listOf(uid(1, b.url)), true).blockingAwait()
+                assertEquals(uid(1, b.url), manager.getPlaylistThumbnailStreamId(playlist))
+                error("Injected failure before COMMIT")
+            }
+            fail("Expected rollback")
+        } catch (expected: IllegalStateException) {
+            assertEquals("Injected failure before COMMIT", expected.message)
+        }
+        assertEquals(listOf(uid(1, a.url), uid(1, b.url)), entries(playlist))
+        assertEquals(uid(1, a.url), manager.getPlaylistThumbnailStreamId(playlist))
+    }
+
+    @Test
+    fun staleRepairConfirmationCannotAdoptDuplicateAfterStartupBinds() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/stale-repair")
+        manager.createPlaylist("Library", listOf(a)).test().await().assertComplete()
+        val duplicate = manager.playlists.blockingFirst().single { it.uid != library }.uid
+        val observer = LibraryRepository.observeLibraryId(db).test()
+
+        assertFalse(LibraryRepository.rebindIfStillUnbound(db, store, duplicate))
+        assertTrue(LibraryRepository.rebindIfStillUnbound(db, store, library))
+        observer.assertValues(library) // Neither confirmation rescans or republishes.
+        assertTrue(LibraryRepository.isBoundLibrary(db, library))
+        assertFalse(LibraryRepository.isUiProtected(db, duplicate, "Library"))
+        observer.dispose()
+    }
+
+    @Test
+    fun repairConfirmationRebindsOnlyWhileUnbound() {
+        val library = LibraryRepository.initialize(db, store)
+        LibraryRepository.forgetSessionForTest()
+        assertTrue(LibraryRepository.rebindIfStillUnbound(db, store, library))
+        assertTrue(LibraryRepository.isBoundLibrary(db, library))
+    }
+
+    @Test
+    fun queuedGlobalDeleteRechecksIdentityAfterAcquiringWriterLock() {
+        val library = LibraryRepository.initialize(db, store)
+        val a = stream("https://example.org/restore-race")
+        val playlist = createPlaylist("Still saved", a)
+        val streamId = uid(1, a.url)
+        val writerHeld = CountDownLatch(1)
+        val releaseWriter = CountDownLatch(1)
+        val thread = AtomicReference<Thread>()
+        val workers = Executors.newFixedThreadPool(2)
+        try {
+            val holder = workers.submit {
+                db.runInTransaction {
+                    writerHeld.countDown()
+                    check(releaseWriter.await(10, TimeUnit.SECONDS))
+                }
+            }
+            assertTrue(writerHeld.await(5, TimeUnit.SECONDS))
+            val deletion = workers.submit<Boolean> {
+                thread.set(Thread.currentThread())
+                LibraryRepository.removeEverywhere(db, library, streamId)
+            }
+            // Wait for the actual lock wait, not just thread submission. The
+            // old pre-transaction identity check would already have passed here.
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            var waitingForWriter = false
+            while (System.nanoTime() < deadline) {
+                waitingForWriter = thread.get()?.stackTrace?.any {
+                    it.methodName.startsWith("beginTransaction") ||
+                        it.methodName == "waitForConnection"
+                } == true
+                if (waitingForWriter) break
+                Thread.sleep(10)
+            }
+            assertTrue("Deletion did not reach the Room writer lock", waitingForWriter)
+            LibraryRepository.suspendForRestore()
+            releaseWriter.countDown()
+            holder.get(5, TimeUnit.SECONDS)
+            try {
+                deletion.get(5, TimeUnit.SECONDS)
+                fail("A queued delete must reject the suspended Library identity")
+            } catch (expected: ExecutionException) {
+                assertTrue(expected.cause is IllegalStateException)
+            }
+            assertEquals(listOf(streamId), entries(library))
+            assertEquals(listOf(streamId), entries(playlist))
+        } finally {
+            releaseWriter.countDown()
+            workers.shutdownNow()
+            assertTrue(workers.awaitTermination(5, TimeUnit.SECONDS))
+        }
     }
 }

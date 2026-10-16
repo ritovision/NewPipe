@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.schabi.newpipe.NewPipeDatabase;
 import org.schabi.newpipe.R;
+import org.schabi.newpipe.custom.library.LibraryArtwork;
 import org.schabi.newpipe.database.AppDatabase;
 import org.schabi.newpipe.database.LocalItem;
 import org.schabi.newpipe.database.playlist.PlaylistLocalItem;
@@ -27,7 +28,6 @@ import org.schabi.newpipe.error.ErrorUtil;
 import org.schabi.newpipe.error.UserAction;
 import org.schabi.newpipe.local.playlist.LocalPlaylistManager;
 import org.schabi.newpipe.local.playlist.RemotePlaylistManager;
-import org.schabi.newpipe.util.image.CoilHelper;
 
 import java.util.List;
 import java.util.Vector;
@@ -157,14 +157,12 @@ public class SelectPlaylistFragment extends DialogFragment {
             if (selectedItem instanceof PlaylistMetadataEntry entry) {
                 holder.titleView.setText(entry.getOrderingName());
                 holder.view.setOnClickListener(view -> clickedItem(position));
-                CoilHelper.INSTANCE.loadPlaylistThumbnail(holder.thumbnailView,
-                        entry.getThumbnailUrl());
+                LibraryArtwork.load(holder.thumbnailView, entry.getUid(), entry.getThumbnailUrl());
 
             } else if (selectedItem instanceof PlaylistRemoteEntity entry) {
                 holder.titleView.setText(entry.getOrderingName());
                 holder.view.setOnClickListener(view -> clickedItem(position));
-                CoilHelper.INSTANCE.loadPlaylistThumbnail(holder.thumbnailView,
-                        entry.getThumbnailUrl());
+                LibraryArtwork.loadRemote(holder.thumbnailView, entry.getThumbnailUrl());
             }
         }
 

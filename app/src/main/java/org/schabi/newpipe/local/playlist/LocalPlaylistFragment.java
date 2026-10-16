@@ -104,6 +104,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     private Subscription databaseSubscription;
 
     private CompositeDisposable disposables;
+    private Disposable libraryIdentitySubscription;
 
     /** Whether the playlist has been fully loaded from db. */
     private AtomicBoolean isLoadingComplete;
@@ -156,6 +157,21 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                              @Nullable final ViewGroup container,
                              @Nullable final Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_playlist, container, false);
+    }
+
+    @Override
+    public void onViewCreated(@NonNull final View view, @Nullable final Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        // Separate from load disposables: refreshing playlist rows must not
+        // unsubscribe the menu from late startup/rebind identity changes.
+        libraryIdentitySubscription = LibraryRepository
+                .observeLibraryId(NewPipeDatabase.getInstance(requireContext()))
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(id -> {
+                    if (getActivity() != null) {
+                        getActivity().invalidateOptionsMenu();
+                    }
+                }, error -> showUiErrorSnackbar(this, "Updating Library menus", error));
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -299,13 +315,21 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     public void onPrepareOptionsMenu(@NonNull final Menu menu) {
         super.onPrepareOptionsMenu(menu);
         final boolean ordinaryPlaylist = !isProtectedLibrary();
-        menu.findItem(R.id.menu_item_rename_playlist).setVisible(ordinaryPlaylist);
-        menu.findItem(R.id.menu_item_remove_watched).setVisible(ordinaryPlaylist);
-        menu.findItem(R.id.menu_item_remove_duplicates).setVisible(ordinaryPlaylist);
+        for (final int id : new int[]{R.id.menu_item_rename_playlist,
+                R.id.menu_item_remove_watched, R.id.menu_item_remove_duplicates}) {
+            final MenuItem action = menu.findItem(id);
+            if (action != null) {
+                action.setVisible(ordinaryPlaylist);
+            }
+        }
     }
 
     @Override
     public void onDestroyView() {
+        if (libraryIdentitySubscription != null) {
+            libraryIdentitySubscription.dispose();
+            libraryIdentitySubscription = null;
+        }
         super.onDestroyView();
 
         if (itemListAdapter != null) {
@@ -596,7 +620,18 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     }
 
     private void deleteItem(final PlaylistStreamEntry item) {
-        if (itemListAdapter == null) {
+        if (itemListAdapter == null || playlistId == null) {
+            return;
+        }
+        if (isProtectedLibrary() && !LibraryRepository.isBoundLibrary(
+                NewPipeDatabase.getInstance(requireContext()), playlistId)) {
+            // Name-only startup protection is not enough to choose a global
+            // deletion dialog. Wait, then route using the verified ID.
+            disposables.add(LibraryRepository.ensureInitialized(requireContext())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(() -> deleteItem(item),
+                            error -> showUiErrorSnackbar(this,
+                                    "Open Bookmarked Playlists to repair Library", error)));
             return;
         }
         if (isProtectedLibrary()) {

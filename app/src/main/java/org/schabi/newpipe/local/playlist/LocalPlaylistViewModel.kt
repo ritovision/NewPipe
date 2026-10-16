@@ -11,13 +11,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
-import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import java.util.Collections
 import org.schabi.newpipe.NewPipeDatabase
 import org.schabi.newpipe.database.playlist.PlaylistStreamEntry
-import org.schabi.newpipe.database.playlist.model.PlaylistEntity
 import org.schabi.newpipe.local.history.HistoryRecordManager
 
 class LocalPlaylistViewModel(application: Application) : AndroidViewModel(application) {
@@ -86,14 +84,9 @@ class LocalPlaylistViewModel(application: Application) : AndroidViewModel(applic
                 val thumbnailVideoRemoved = flow.second
                 val streamIds = itemsToKeep.map { it.streamId }
 
-                playlistManager.updateJoin(playlistId, streamIds)
-                    .andThen(
-                        Completable.fromAction {
-                            if (thumbnailVideoRemoved) {
-                                updateThumbnailUrl(playlistId, itemsToKeep)
-                            }
-                        }
-                    )
+                // Membership filtering and replacement artwork use the same
+                // transaction, not this potentially stale itemsToKeep snapshot.
+                playlistManager.updateJoin(playlistId, streamIds, thumbnailVideoRemoved)
             }
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
@@ -124,20 +117,6 @@ class LocalPlaylistViewModel(application: Application) : AndroidViewModel(applic
             )
 
         disposables.add(disposable)
-    }
-
-    private fun updateThumbnailUrl(playlistId: Long, itemsToKeep: List<PlaylistStreamEntry>) {
-        if (playlistManager.getIsPlaylistThumbnailPermanent(playlistId)) {
-            return
-        }
-
-        val thumbnailStreamId = if (itemsToKeep.isNotEmpty()) {
-            itemsToKeep[0].streamEntity.uid
-        } else {
-            PlaylistEntity.DEFAULT_THUMBNAIL_ID
-        }
-
-        playlistManager.changePlaylistThumbnail(playlistId, thumbnailStreamId, false).blockingGet()
     }
 
     override fun onCleared() {

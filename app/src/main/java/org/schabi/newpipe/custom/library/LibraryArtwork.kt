@@ -18,12 +18,24 @@ import org.schabi.newpipe.util.image.CoilHelper
 object LibraryArtwork {
     @JvmStatic
     fun load(target: ImageView, playlistId: Long, url: String?) {
-        (target.getTag(R.id.rv_library_artwork_binding) as? Binding)?.close()
+        clearBinding(target)
         val binding = Binding(target, playlistId, url)
         target.setTag(R.id.rv_library_artwork_binding, binding)
         target.addOnAttachStateChangeListener(binding)
         binding.renderCurrent()
         if (target.isAttachedToWindow) binding.connect()
+    }
+
+    /** The tab picker recycles the same holder between local and remote playlists. */
+    @JvmStatic
+    fun loadRemote(target: ImageView, url: String?) {
+        clearBinding(target)
+        CoilHelper.loadPlaylistThumbnail(target, url)
+    }
+
+    private fun clearBinding(target: ImageView) {
+        (target.getTag(R.id.rv_library_artwork_binding) as? Binding)?.close()
+        target.setTag(R.id.rv_library_artwork_binding, null)
     }
 
     private class Binding(
@@ -39,7 +51,8 @@ object LibraryArtwork {
 
         fun connect() {
             subscription?.dispose()
-            shownAsLibrary = null
+            // Keep the rendered identity across reattachment. Coil already
+            // resumes its request; only a changed identity needs a new one.
             subscription = LibraryRepository.observeLibraryId(db)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe({ render(it == playlistId) }, { render(false) })

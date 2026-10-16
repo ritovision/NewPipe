@@ -85,6 +85,11 @@ public class LocalPlaylistManager {
     }
 
     public Completable updateJoin(final long playlistId, final List<Long> streamIds) {
+        return updateJoin(playlistId, streamIds, false);
+    }
+
+    public Completable updateJoin(final long playlistId, final List<Long> streamIds,
+                                  final boolean refreshAutomaticThumbnail) {
         return Completable.fromRunnable(() -> database.runInTransaction(() -> {
             // updateJoin also handles reorder, watched-removal and duplicate cleanup.
             // Never infer a global Library deletion from a rewritten editor list.
@@ -101,6 +106,9 @@ public class LocalPlaylistManager {
                 }
                 playlistStreamTable.deleteBatch(playlistId);
                 playlistStreamTable.insertAll(joinEntities);
+                if (refreshAutomaticThumbnail) {
+                    LibraryRepository.refreshAutomaticThumbnail(database, playlistId);
+                }
             }
         })).subscribeOn(Schedulers.io());
     }

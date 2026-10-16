@@ -1,5 +1,6 @@
 package org.schabi.newpipe.local.bookmark;
 
+import static org.schabi.newpipe.error.ErrorUtil.showUiErrorSnackbar;
 import static org.schabi.newpipe.local.bookmark.MergedPlaylistManager.getMergedOrderedPlaylists;
 import static org.schabi.newpipe.util.ThemeHelper.shouldUseGridLayout;
 
@@ -502,27 +503,14 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
 
     private void showLocalDialog(final PlaylistMetadataEntry selectedItem) {
         if (isProtectedLibrary(selectedItem)) {
-            // An imported or interrupted database can contain an unbound
-            // Library. Offer a non-destructive, explicit identity repair.
             if (!LibraryRepository.isBoundLibrary(
                     NewPipeDatabase.getInstance(requireContext()), selectedItem.getUid())) {
-                new AlertDialog.Builder(requireContext())
-                        .setTitle(R.string.rv_library_repair_title)
-                        .setMessage(R.string.rv_library_repair_message)
-                        .setPositiveButton(R.string.rv_library_repair_action, (dialog, ignored) ->
-                                disposables.add(LibraryRepository
-                                        .confirmRebind(requireContext(), selectedItem.getUid())
-                                        .observeOn(AndroidSchedulers.mainThread())
-                                        .subscribe(
-                                                () -> Toast.makeText(requireContext(),
-                                                        R.string.rv_library_repair_success,
-                                                        Toast.LENGTH_LONG).show(),
-                                                throwable -> showError(new ErrorInfo(throwable,
-                                                        UserAction.REQUESTED_BOOKMARK,
-                                                        "Repairing Library identity"))
-                                        )))
-                        .setNegativeButton(R.string.cancel, null)
-                        .show();
+                // Normal startup is not a repair failure. Resolve identity
+                // before deciding whether this is the canonical or an ordinary list.
+                disposables.add(LibraryRepository.ensureInitialized(requireContext())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(() -> showLocalDialog(selectedItem),
+                                error -> showLibraryRepairDialog(selectedItem)));
             }
             return; // Never offer ordinary rename/delete for Library.
         }
@@ -556,6 +544,39 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
 
         new AlertDialog.Builder(activity)
                 .setItems(items.toArray(new String[0]), action)
+                .show();
+    }
+
+    private void showLibraryRepairDialog(final PlaylistMetadataEntry selectedItem) {
+        // Initialization may have completed while the error was queued for the UI.
+        if (!isProtectedLibrary(selectedItem)) {
+            showLocalDialog(selectedItem);
+            return;
+        }
+        if (LibraryRepository.isBoundLibrary(
+                NewPipeDatabase.getInstance(requireContext()), selectedItem.getUid())) {
+            return;
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.rv_library_repair_title)
+                .setMessage(R.string.rv_library_repair_message)
+                .setPositiveButton(R.string.rv_library_repair_action, (dialog, ignored) ->
+                        disposables.add(LibraryRepository
+                                .confirmRebind(requireContext(), selectedItem.getUid())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(repaired -> {
+                                    if (repaired) {
+                                        Toast.makeText(requireContext(),
+                                                R.string.rv_library_repair_success,
+                                                Toast.LENGTH_LONG).show();
+                                    } else {
+                                        // Another Library finished binding after this
+                                        // dialog opened; return to ordinary actions.
+                                        showLocalDialog(selectedItem);
+                                    }
+                                }, error -> showUiErrorSnackbar(this,
+                                        "Repairing Library identity", error))))
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 

@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.sqlite.db.SimpleSQLiteQuery
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import java.util.concurrent.Callable
@@ -43,7 +44,8 @@ object LibraryRepository {
     }
 
     /** List thumbnails can rebind after asynchronous initialization or identity repair. */
-    internal fun observeLibraryId(db: AppDatabase): Observable<Long> = identityChanges.map { current(db)?.id ?: -1L }.distinctUntilChanged()
+    @JvmStatic
+    fun observeLibraryId(db: AppDatabase): Observable<Long> = identityChanges.map { current(db)?.id ?: -1L }.distinctUntilChanged()
 
     /** No database I/O: UI gets the same bound-ID-first policy in every screen. */
     @JvmStatic
@@ -181,11 +183,28 @@ object LibraryRepository {
         return playlistId
     }
 
+    /** Wait for startup identity resolution before choosing a repair/delete dialog. */
     @JvmStatic
-    fun confirmRebind(context: Context, playlistId: Long): Completable {
+    fun ensureInitialized(context: Context): Completable {
         val appContext = context.applicationContext
         return Completable.fromAction {
-            rebindExisting(
+            initialize(NewPipeDatabase.getInstance(appContext), LibraryBindingStore(appContext))
+        }.subscribeOn(Schedulers.io())
+    }
+
+    /** A repair dialog may have opened before a different canonical ID finished binding. */
+    @Synchronized
+    internal fun rebindIfStillUnbound(db: AppDatabase, store: LibraryBindingStore, playlistId: Long): Boolean {
+        current(db)?.let { return it.id == playlistId }
+        rebindExisting(db, store, playlistId)
+        return true
+    }
+
+    @JvmStatic
+    fun confirmRebind(context: Context, playlistId: Long): Single<Boolean> {
+        val appContext = context.applicationContext
+        return Single.fromCallable {
+            rebindIfStillUnbound(
                 NewPipeDatabase.getInstance(appContext),
                 LibraryBindingStore(appContext),
                 playlistId
@@ -269,15 +288,17 @@ object LibraryRepository {
      */
     fun removeEverywhere(db: AppDatabase, playlistId: Long, streamId: Long): Boolean {
         require(streamId > 0) { "Invalid stream ID" }
-        val active = current(db)
-            ?: error("Library is not initialized; repair it before deleting")
-        check(active.id == playlistId) {
-            "Global removal must target the verified Library"
-        }
         // All deletion state lives in this transaction. In particular, there
         // is no in-memory removal marker that can survive a failed COMMIT.
         return db.runInTransaction(
             Callable {
+                // Validate only after acquiring Room's writer lock. A queued
+                // delete must not use identity cached before restore suspended it.
+                val active = current(db)
+                    ?: error("Library is not initialized; repair it before deleting")
+                check(active.id == playlistId) {
+                    "Global removal must target the verified Library"
+                }
                 if (!libraryContains(db, playlistId, streamId)) {
                     false
                 } else {
@@ -344,6 +365,26 @@ object LibraryRepository {
         } else {
             LibraryEditPolicy.keepSaved(proposedIds) { libraryContains(db, active.id, it) }
         }
+    }
+
+    /**
+     * Refresh from surviving rows, never from a Remove Watched snapshot.
+     * The manager invokes this inside its membership-update transaction, so
+     * a concurrent global delete cannot leave an already removed thumbnail.
+     * Preserve a thumbnail the user has pinned since the operation started.
+     */
+    @JvmStatic
+    fun refreshAutomaticThumbnail(db: AppDatabase, playlistId: Long) {
+        db.openHelper.writableDatabase.execSQL(
+            """
+            UPDATE playlists SET thumbnail_stream_id = COALESCE((
+                SELECT j.stream_id FROM playlist_stream_join j
+                WHERE j.playlist_id = playlists.uid ORDER BY j.join_index LIMIT 1
+            ), -1)
+            WHERE uid = ? AND is_thumbnail_permanent = 0
+            """.trimIndent(),
+            arrayOf<Any>(playlistId)
+        )
     }
 
     /** Bookmark sorting may update Library metadata, never its name. */

@@ -1,6 +1,6 @@
 # Library polish — 2026-10-16
 
-**Status:** Implemented on feature/library-polish; 176/176 JVM checks and builds passed; two independent reviews pending.
+**Status:** Original polish independently reviewed by Claude Opus Max and GPT-6 Astra xhigh: both PASS WITH NONBLOCKERS. All six follow-up findings are addressed below; validation and focused re-review in progress.
 **Base:** fed10c6dd (Library v1 sign-off).
 **Scope:** Small UI identity fixes, permanent artwork, thumbnail fallback, transaction rollback correctness, and non-disruptive error feedback. No Tags, cloud service, or schema change.
 
@@ -61,7 +61,7 @@ Existing upstream source files edited in this polish increment:
 2. BookmarkFragment.java — shared UI identity guard.
 3. LocalPlaylistItemHolder.java — one thumbnail-loading delegation.
 
-The whole Library feature therefore touches **six** upstream source files:
+Before the follow-up fixes, the whole Library feature touched **six** upstream source files:
 those three plus MainActivity, LocalPlaylistManager and ImportExportManager from
 prior milestones. No NewPipeExtractor, playback engine, upstream Room schema,
 playlist layout, separate repository, or independent service is introduced.
@@ -95,3 +95,46 @@ limitations are not represented as solved by this polish.
 The actual thumbnail UPDATE SQL was exercised against in-memory SQLite for nonempty/empty
 playlists, duplicates, unaffected pinned images and rollback. Vector/resource checks confirm
 white artwork and the upstream #CD201F logo red. Android instrumentation was not executed.
+
+
+## All review follow-ups — 2026-10-16
+
+The user requested that every remaining finding from both independent reviews be
+fixed. This follow-up implements all six distinct findings (the startup-menu
+finding was shared by both reviewers):
+
+| Finding | Implemented correction |
+| --- | --- |
+| Menu actions stay hidden after asynchronous identity binding | LocalPlaylistFragment observes identity for its view lifetime and invalidates its activity menu on the main thread. That subscription is separate from playlist-load disposables and ends at onDestroyView. |
+| Duplicate artwork request at bind/reattach | LibraryArtwork retains the last rendered identity on reconnect. Unchanged replay events do not restart Coil; genuine identity changes still re-render. |
+| Startup opens Repair/Remove everywhere on the wrong playlist | Name-only protected actions first await initialization on the IO scheduler, then route by verified ID. Genuine unbound data still offers repair. A stale repair confirmation atomically checks whether a canonical ID has already appeared; it returns to ordinary actions rather than adopting another playlist. Repair failures use a snackbar. |
+| Identity checked before acquiring the database writer lock | removeEverywhere checks the current bound identity inside the Room transaction, after any writer-lock wait, so an intervening restore suspension refuses the operation. Native multi-file import crash-atomicity is unchanged. |
+| Tab-picker artwork missing | SelectPlaylistFragment uses the shared LibraryArtwork loader for local rows. Remote rows explicitly discard any old local artwork binding before normal thumbnail loading, so recycling cannot give them Library artwork. |
+| Pending Remove Watched overwrites thumbnail from a stale snapshot | An updateJoin overload refreshes automatic thumbnails from the actual surviving membership within the same transaction. The ViewModel no longer writes an image from its stale itemsToKeep snapshot afterward. A newly pinned thumbnail is guarded at write time. |
+
+### Boundary changes
+
+These follow-ups add two upstream integration files: SelectPlaylistFragment for
+the previously uncovered image surface, and LocalPlaylistViewModel to remove the
+stale post-transaction thumbnail write. The complete Library feature now touches
+**eight upstream source files**: MainActivity, ImportExportManager,
+LocalPlaylistManager, LocalPlaylistFragment, BookmarkFragment,
+LocalPlaylistItemHolder, LocalPlaylistViewModel and SelectPlaylistFragment.
+Owned logic stays in custom/library; no new service, database migration, extractor
+patch, repository or dependency was introduced.
+
+### Regression coverage and limitations
+
+Seven additional Room instrumentation cases cover current thumbnail selection,
+empty/pinned behavior, atomic thumbnail rollback, stale repair confirmation,
+explicit repair while unbound, and a queued deletion whose identity is suspended
+while it waits for the writer lock. This brings LibraryRepositoryTest to 32 cases.
+They will be compiled, **not executed on an emulator or the phone**, per the user's
+manual-device-testing instruction. A source-extracted automatic-thumbnail UPDATE
+was exercised separately with five in-memory Python SQLite assertions (surviving
+row, pin preservation, empty default, unaffected playlist and rollback). This is
+SQL-level evidence, not Android Room/Coil/Fragment runtime evidence.
+
+The original narrow stale-editor interaction after an intentional re-add, future
+cloud/tag coordination and existing native restore crash-consistency limitations
+are unchanged; they were not among these six follow-up findings.
