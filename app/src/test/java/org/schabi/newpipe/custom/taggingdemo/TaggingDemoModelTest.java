@@ -69,6 +69,44 @@ public final class TaggingDemoModelTest {
     }
 
     @Test
+    public void collapsedCategoryShowsOnlyIncludedAndExcludedTags() {
+        final TaggingDemoModel model = new TaggingDemoModel();
+        final Integer genre = model.categories.get(0).id;
+        final int hipHop = model.visibleTags(genre, true).get(0).id;
+        final int rock = model.visibleTags(genre, true).get(1).id;
+        assertEquals(5, model.categoryTagCount(genre));
+        assertTrue(model.visibleTags(genre, false).isEmpty());
+        model.cycleFilter(hipHop); // Include
+        model.cycleFilter(rock); // Include
+        model.cycleFilter(rock); // Exclude
+        assertEquals(2, model.visibleTags(genre, false).size());
+        assertEquals(1, model.selections.get(hipHop).intValue());
+        assertEquals(-1, model.selections.get(rock).intValue());
+        assertEquals(5, model.visibleTags(genre, true).size());
+        model.cycleFilter(rock); // Clear exclusion
+        assertEquals(1, model.visibleTags(genre, false).size());
+        model.cycleFilter(hipHop); // Exclude
+        assertEquals(1, model.visibleTags(genre, false).size());
+        model.cycleFilter(hipHop); // Clear
+        assertTrue(model.visibleTags(genre, false).isEmpty());
+    }
+
+    @Test
+    public void collapsedUncategorizedAndMovedTagsStillDisplaySelections() {
+        final TaggingDemoModel model = new TaggingDemoModel();
+        final TaggingDemoModel.Tag funny = model.visibleTags(null, true).get(0);
+        model.cycleFilter(funny.id);
+        assertEquals(1, model.visibleTags(null, false).size());
+        final Integer genre = model.categories.get(0).id;
+        model.moveTag(funny, genre);
+        assertTrue(model.visibleTags(null, false).isEmpty());
+        assertTrue(model.visibleTags(genre, false).contains(funny));
+        model.deleteCategory(model.categories.get(0));
+        assertTrue(model.visibleTags(genre, false).isEmpty());
+        assertFalse(model.selections.containsKey(funny.id));
+    }
+
+    @Test
     public void sortingAndSearchAreScopedToSyntheticLibrary() {
         final TaggingDemoModel model = new TaggingDemoModel();
         final List<TaggingDemoModel.Media> result = model.matching("city trio", true, false, 1);

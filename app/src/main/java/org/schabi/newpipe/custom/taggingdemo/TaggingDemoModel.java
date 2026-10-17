@@ -221,6 +221,36 @@ public final class TaggingDemoModel {
         }
     }
 
+    /**
+     * Accordion visibility never controls filter state. When collapsed, both positive and
+     * negative selections remain actionable; unselected tags are simply hidden.
+     * @param categoryId category identifier or null for uncategorized
+     * @param expanded true to expose every tag, false for selected tags only
+     * @return the tags that should be visible in the category
+     */
+    public List<Tag> visibleTags(final Integer categoryId, final boolean expanded) {
+        final List<Tag> result = new ArrayList<>();
+        for (final Tag tag : tags.values()) {
+            final boolean belongs = categoryId == null
+                    ? tag.categoryId == null : categoryId.equals(tag.categoryId);
+            if (belongs && (expanded || selections.getOrDefault(tag.id, 0) != 0)) {
+                result.add(tag);
+            }
+        }
+        return result;
+    }
+
+    public int categoryTagCount(final Integer categoryId) {
+        int count = 0;
+        for (final Tag tag : tags.values()) {
+            if (categoryId == null ? tag.categoryId == null
+                    : categoryId.equals(tag.categoryId)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public void cycleFilter(final int id) {
         if (!tags.containsKey(id)) {
             return;

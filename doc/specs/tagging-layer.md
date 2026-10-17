@@ -70,6 +70,7 @@ Provide a directly accessible **Tags** destination in NewPipe's main navigation/
 - Create, rename and manage optional **tag categories**; view category-grouped tags or a flat uncategorized list.
 - Search **saved Library** streams by textual metadata such as title/uploader.
 - Select multiple tags with **AND / OR** matching and exclude selected tags (**NOT**); show a result count.
+- Categories (including Uncategorized when populated) are **individually collapsible accordions** with **Expand all / Collapse all**. When folded, the category still shows all active included **(+)** and excluded **(−)** tag chips, and those chips remain actionable; only unselected tags are hidden. Collapse/expand never changes matching results or clears selections. Applies to the Tags screen and is useful for a large category management interface.
 - Offer an **Untagged** filter for saved Library streams with zero tag assignments, regardless of category. This is a computed filter, **not** a tag definition; it updates when tags are added, removed or deleted.
 - Filter and sort the **current results**. Exact sort options TBD; at minimum a deterministic order and a title-based option.
 - See the matching stream list, inspect a stream and edit its tags.
@@ -166,7 +167,7 @@ Implement safe ordering and failure recovery (e.g., ensure Library save succeeds
 1. Names and tag uniqueness: global uniqueness or names scoped to category? Can the same label appear in multiple categories?
 2. **RESOLVED (2026-10-16):** category deletion also deletes all contained tag definitions and stream–tag assignments after confirmation; never deletes streams or playlist memberships. No move-to-Uncategorized fallback.
 3. Editing UX: checkbox list versus chips; save immediately or explicit Apply; create tag/category from bottom sheet or separate form?
-4. Fifth details action layout on smaller screens, landscape and accessibility text sizing.
+4. Fifth details action layout on smaller screens, landscape and accessibility text sizing. **Accordion UX resolved (2026-10-17):** individual category folding, Expand all / Collapse all, selected +/- tags visible and usable when folded.
 5. Exact filter grammar: global AND/OR plus excluded tags initially versus grouped expressions by category (Genre OR Genre, AND Mood, NOT Live).
 6. Filtered results sort options: title, original playlist order, time saved, duration, artist and shuffle; whether random order is seeded.
 7. Does Play Results replace current playback immediately or offer an optional confirmation? Queue behavior when already playing.
@@ -179,6 +180,8 @@ Implement safe ordering and failure recovery (e.g., ensure Library save succeeds
 14. How to expose tag operations in cloud/MCP later without duplicating authorization and Library logic.
 
 ## Priority / implementation boundary
+
+**UI-first validation gate (2026-10-17):** Native prototype dialogs, sheets and buttons must use NewPipe's real light/dark/black theme palette, with accessible contrast; never assume a theme accent is a valid filled-button background (the upstream dark accent is white). Category accordions must preserve positive/negative selected-tag visibility while folded.
 
 **UI-first validation gate (2026-10-17):** Library v1 is complete. Before building the tag metadata layer, build a **disposable native NewPipe tagging UI prototype**, inside a dedicated isolated `feature/tagging-ui-spike` worktree. The prototype uses synthetic, in-memory data only: no changes to the real Library, playback queue, SQLite schema, export/import, or AI Control. Validate page information architecture, tag editor, category/tag management, Boolean filtering, Untagged results and playback/playlist action placements through actual Android interactions. `Play Results`, `Add to Queue` and `Save as Playlist` must explicitly say *demo only* until connected to real adapters. Revise the UI with user feedback before implementing persistent architecture. See [Tagging UI Spike](../architecture/tagging-ui-spike.md).
 
