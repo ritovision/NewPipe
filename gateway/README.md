@@ -38,6 +38,17 @@ The protected MCP resource advertises `mcp.connect` and the available Library, p
 
 When these advertised scopes change, **an existing ChatGPT OAuth connection cannot gain them through token refresh**. Reconnect/reauthorize the custom plugin on ChatGPT web (or recreate it if the settings UI does not offer reauthorization). No Pixel re-pairing is necessary. Follow the owner-consent screen and select `playlist.delete` only if you specifically want ChatGPT to delete temporary ordinary playlists; selecting `library.delete` authorizes direct canonical Library removal across all playlists and should not be enabled casually.
 
+## Short reliability acceptance
+
+Run `npm run qa:reliability` inside `gateway/` to execute the synthetic,
+ephemeral MCP/OAuth/Android-relay reliability gates. It uses a Wrangler **dry run**,
+not a live deployment. Relay socket close/reconnect (not real Android Stop,
+Doze or radio transitions), grant revocation, receipt idempotency, cross-device
+isolation and offline rejection are exercised without touching any actual
+phone or Library data. The normal `npm test` also
+includes these cases. The current evidence and remaining hardware-only gates are
+recorded in `../doc/validation/ai-control-reliability-fast-acceptance-2026-10-17.md`.
+
 ## Development and validation
 
 ```bash
