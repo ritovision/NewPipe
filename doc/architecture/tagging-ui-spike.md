@@ -1,6 +1,6 @@
 # Tagging UI Spike — Native NewPipe UX Validation
 
-**Status:** Stage 0 approved for isolated prototyping; no tagging storage architecture authorized by this document.
+**Status:** Stage 0B native UI demo implemented, compiled and unit-tested (2026-10-17); user hands-on UX acceptance pending. No tagging storage architecture authorized by this document.
 **Date:** 2026-10-17
 **Base:** `custom/dev` (Library v1 complete; commit `b9a8f28d3`)
 **Dedicated branch/worktree:** `feature/tagging-ui-spike` at `/home/rito/techstuff/ritoverse/newpipe-tagging`
@@ -65,3 +65,12 @@ Use a small, deterministic set of about 12 fictional or generic media rows with 
 - Global NewPipe provider search integration, smart playlists with live saved queries, cloud sync, AI/MCP write operations, bulk tag editing and cross-provider matching.
 - Persistent tagging state in the demo; a good-looking clickthrough is *not* evidence of database consistency or crash safety.
 - Any claim that Claude has reviewed the demo or the eventual production implementation before that actually happens.
+
+## Stage 0B evidence — 2026-10-17
+
+- Implemented a self-contained native `TaggingDemoActivity` reachable from NewPipe's drawer as `Tags (Demo)`, with a throwaway, in-memory `TaggingDemoModel` of 12 synthetic videos and 10 synthetic tags. No real NewPipe Library query/write, metadata schema, player control, or AI bridge is used.
+- Working demo interactions: local title/uploader search, AND/OR included filters, NOT exclusions via cycling chips, computed Untagged view, Library/title sorting, reusable bottom-sheet tag editor, tag creation/rename/move/deletion, category creation/rename/deletion with affected counts, and non-destructive playback/queue/playlist preview dialogs. Demo scenarios cover reset, empty Library and empty tags.
+- Demo-only `feature/tagging-ui-spike` debug package: `org.schabi.newpipe.debug.featuretagginguispike`, Android launcher label **newtest**. Original `@mipmap/ic_launcher` icon was not edited. The demo is installed alongside the original F-Droid, custom Library and AI Control packages, without uninstalling or clearing their data.
+- Full `:app:testDebugUnitTest` + `:app:assembleDebug` succeeded on NotCodex-2 with local unprivileged Temurin JDK 21. **182 JVM tests, zero failures, zero skipped**; Gradle Kotlin and Java source checks passed. No Android instrumentation tests were run. Focused tagging model tests cover filter matching, category cascade versus media preservation, derived Untagged, sorting/search and tag uniqueness.
+- The Android app's standard `MainActivity` launched successfully on the user's Pixel 7 over Tailscale. **The Tags demo page and bottom sheets have not yet received independent on-device tap/visual acceptance**; the phone returned to an active ChatGPT session, so automated navigation stopped rather than interrupting user activity. The user should open `newtest` → hamburger menu → `Tags (Demo)` for subjective review.
+- Initial prototype is deliberately disposable. UX sign-off is required before implementing the production tag database, two-database deletion journal, import/export and real player or playlist writes. The AI branch remains untouched; future integration must be explicit.

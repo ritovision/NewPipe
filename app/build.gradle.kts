@@ -66,7 +66,9 @@ configure<ApplicationExtension> {
                 resValue("string", "app_name", "NewPipe Debug")
             } else {
                 applicationIdSuffix = ".debug.$normalizedWorkingBranch"
-                resValue("string", "app_name", "NewPipe $workingBranch")
+                resValue("string", "app_name",
+                    if (workingBranch == "feature/tagging-ui-spike") "newtest"
+                    else "NewPipe $workingBranch")
             }
         }
 
