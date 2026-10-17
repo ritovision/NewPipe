@@ -27,6 +27,10 @@
 - Only ~45 seconds of display-off behavior was checked; full Android Doze / battery optimization, process death, reboot, long-lived socket durability and unattended restoration are **not verified**.
 - Gateway synthetic acceptance is separately documented in `ai-control-reliability-fast-acceptance-2026-10-17.md` (45/45 tests passed; 12/12 fast scenario tests repeated three times; final Claude review PASS).
 
+## Follow-up: Tailscale removed as sole cause
+
+A second physical LTE test using USB ADB while Tailscale was **disconnected** failed ordinary public-IP, DNS and gateway TCP probes at +5/+15/+30/+45/+60/+75 seconds with Wi-Fi off. The AI service stayed active. Android separately logged cellular network validation and DNS-probe failure. Wi-Fi restored automatically and MCP reads recovered. This does not prove the carrier or Android routing root cause, but it shows that the failure is **not exclusive to Tailscale or the NewPipe MCP gateway**. Detailed evidence and raw-log pointers: `ai-control-no-vpn-cellular-2026-10-17.md`.
+
 ## Decision
 
 **Physical short acceptance: PARTIAL PASS, NOT a full PASS.** Screen-lock, notification Stop and in-app restart gates passed. Wi-Fi/cellular handoff **failed** before the connection later recovered on Wi-Fi. The long-session test remains explicitly deferred. Before declaring unrestricted background mobility/release reliability, either investigate and fix the handoff failure with controlled network diagnostics, or explicitly accept a documented limitation. No waiver has been requested from or granted by the owner.
