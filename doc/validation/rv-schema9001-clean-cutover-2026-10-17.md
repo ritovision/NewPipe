@@ -19,7 +19,10 @@
 - Headless JDK 21 Gradle: `:app:testDebugUnitTest`, `:app:runCheckstyle`, `:app:runKtlint`, `:app:assembleDebug` and `:app:assembleDebugAndroidTest` all **PASS** at this feature branch's source candidate.
 - **295/295 JVM tests PASS** (35 XML reports; 0 failed/errors/skipped), including new backup version whitelist and namespace tests.
 - Room schema generator produced `9001.json`, confirmed `version:9001`, with the exact same 13 entity definitions and identity hash as the prior fork schema. No unrelated tables altered.
-- Android device instrumentation on synthetic data and physical main-package `pm clear` / reinstall / schema validation are recorded separately after actually executed, not assumed.
+- Physical Pixel 7 instrumentation: **54/54 PASS**, zero failures, using the separately installed `org.schabi.newpipe.debug.featurervschemanamespacing20261017` QA APK and tests on synthetic data. This includes `AiDatabaseMigrationTest` (canonical upstream NP9 -> 9001) and `AiCatalogExecutorTest` (atomic receipt and catalog invariants). On the first attempt, the test APK lacked generated `9001.json` assets, so its single migration test failed due to a **missing test fixture**, not a database migration failure. Repacking the Android test APK **after** Room generated the schema and rerunning yielded all 54 test cases passing. Source validation remains 295/295 JVM tests, style checks, APK and instrumentation builds PASS.
+- The compiled **main custom/dev** APK was also built and transferred with verified SHA-256, matching the installed app package and signer: `org.schabi.newpipe.debug.customdev` (1015), SHA-256 `3a37cad3f3b2dacc12d22f2c854fc39d547da65123aa6f16bc97f4bb86dc9062`. Stored privately on primary NotCodex at `~/.cache/newpipe-ai-control/rv-schema9001-20261017/NewPipe-customdev-NP9-RV1-9001.apk`.
+- Actual main-package `pm clear` was **attempted but blocked by platform safety checks**. It did **not** run and the main app was **not** updated. The user was instructed to use Android Settings -> Apps -> NewPipe custom/dev -> Storage & cache -> Clear storage. A later read-only ADB check confirmed the main app still had its old database at this checkpoint. Once the owner clears it through Android Settings, the verified new APK can be installed without migrating any historical fork data.
+
 
 ## Device cutover boundary
 
