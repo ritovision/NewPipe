@@ -32,3 +32,7 @@ node_modules/
 !*.xcodeproj/project.xcworkspace/
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
+
+# Private coordinator/reviewer scratchpads and local dependency-link workaround
+.work/
+/gateway/node_modules

@@ -1,0 +1,19 @@
+
+ ⛅️ wrangler 4.126.0 (update available 4.151.1)
+───────────────────────────────────────────────
+Total Upload: 1727.99 KiB / gzip: 308.95 KiB
+Worker Startup Time: 28 ms
+Your Worker has access to the following bindings:
+Binding                                                               Resource                  
+env.ACCOUNT (ControlAccount)                                          Durable Object            
+env.DEVICES (DeviceRoom)                                              Durable Object            
+env.OAUTH_KV (03c831c33fd24e37ba3db17ad02fc5e2)                       KV Namespace              
+env.AUTH_LIMITER (120 requests/60s)                                   Rate Limit                
+env.CONTROL_LIMITER (60 requests/60s)                                 Rate Limit                
+env.PUBLIC_ORIGIN ("https://ritovision-newpipe-ai-control...")        Environment Variable      
+env.OWNER_ID ("8a3ffa03-accb-4b64-98c9-e123eb0dd73b")                 Environment Variable      
+
+Uploaded ritovision-newpipe-ai-control (2.58 sec)
+Deployed ritovision-newpipe-ai-control triggers (0.69 sec)
+  https://ritovision-newpipe-ai-control.matthewjpellerito.workers.dev
+Current Version ID: 75645ddd-3e81-4c9e-b4d0-a04f517a9b4c

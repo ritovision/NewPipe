@@ -1,0 +1,16 @@
+DURABLE_CHECKPOINT_OBSERVED prepared
+STOPPING_ONLY emulator-5574 org.schabi.newpipe.debug.featuretagginguispike
+RECOVERY_PASSED prepared
+DURABLE_CHECKPOINT_OBSERVED new:newpipe.db
+STOPPING_ONLY emulator-5574 org.schabi.newpipe.debug.featuretagginguispike
+RECOVERY_PASSED mid-main
+DURABLE_CHECKPOINT_OBSERVED new:ritovision-tags.db
+STOPPING_ONLY emulator-5574 org.schabi.newpipe.debug.featuretagginguispike
+RECOVERY_PASSED mid-tags
+DURABLE_CHECKPOINT_OBSERVED new:ritovision-library.binding
+STOPPING_ONLY emulator-5574 org.schabi.newpipe.debug.featuretagginguispike
+RECOVERY_PASSED post-binding
+DURABLE_CHECKPOINT_OBSERVED committed
+STOPPING_ONLY emulator-5574 org.schabi.newpipe.debug.featuretagginguispike
+RECOVERY_PASSED post-commit
+ACTUAL_PROCESS_DEATH_CHECKPOINTS=5/5 PASS

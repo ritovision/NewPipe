@@ -1,0 +1,54 @@
+{
+  "source_commit": "c8041a26911e174887c5e6ce540a70627943b979",
+  "main_room_version": 9001,
+  "main_namespace": "NP9/RV1",
+  "tag_database_version": 2,
+  "package": "org.schabi.newpipe.debug.featuretagginguispike",
+  "label": "newtest",
+  "jvm": {
+    "tests": 308,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "gateway_tests": 56,
+  "artifacts": {
+    "app": {
+      "bytes": 34905604,
+      "sha256": "c17acc3697a79c6644229f98dc0764990178de6291107d81d4623bb94f76829f"
+    },
+    "tests": {
+      "bytes": 2512997,
+      "sha256": "fda5b3e046ee4aed602ebd7eddf60647c7bd058535ff6eec7223a459d2152ea3"
+    }
+  },
+  "native_status": "153/153 PASS",
+  "production_install": "not performed",
+  "production_gateway_deployment": {
+    "worker": "ritovision-newpipe-ai-control",
+    "version": "75645ddd-3e81-4c9e-b4d0-a04f517a9b4c",
+    "keep_vars": true,
+    "auth_secrets_and_permissions_changed": false
+  },
+  "cloud_permissions": "not expanded",
+  "process_death": "5/5 PASS",
+  "native_device": "owned emulator-5574, API34, synthetic data only",
+  "gateway_post_deploy_probe": {
+    "/.well-known/oauth-protected-resource/mcp": {
+      "http_status": 403,
+      "cloudflare_error": 1010,
+      "detail": "The site owner has blocked access based on your browser's signature."
+    },
+    "/.well-known/oauth-authorization-server": {
+      "http_status": 403,
+      "cloudflare_error": 1010,
+      "detail": "The site owner has blocked access based on your browser's signature."
+    },
+    "/mcp": {
+      "http_status": 403,
+      "cloudflare_error": 1010,
+      "detail": "The site owner has blocked access based on your browser's signature."
+    }
+  },
+  "live_ai_tag_command_acceptance": "NOT VERIFIED: test HTTP client denied at Cloudflare edge (1010); no credentials, consent, device pairing or security rules changed"
+}
