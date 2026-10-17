@@ -175,6 +175,9 @@ internal sealed class AiCatalogCommand {
 }
 
 internal enum class AiScope(val wireName: String) {
+    TAGS_READ("tags.read"),
+    TAGS_WRITE("tags.write"),
+    TAGS_DELETE("tags.delete"),
     LIBRARY_READ("library.read"),
     LIBRARY_WRITE("library.write"),
     LIBRARY_DELETE("library.delete"),
@@ -274,6 +277,8 @@ internal object AiProtocol {
         checkInput(request.issuedAtMs > 0 && request.expiresAtMs > request.issuedAtMs, "INVALID_DEADLINE")
         checkInput(request.expiresAtMs - request.issuedAtMs <= MAX_TTL_MS, "INVALID_DEADLINE")
         when (val command = request.command) {
+            is AiTagCommand -> AiTagProtocol.validate(command)
+
             AiCatalogCommand.Status, AiCatalogCommand.NowPlaying, AiCatalogCommand.Pause,
             AiCatalogCommand.Resume -> Unit
 
@@ -382,6 +387,8 @@ internal object AiProtocol {
     }
 
     fun isPlayback(command: AiCatalogCommand): Boolean = when (command) {
+        is AiTagCommand -> false
+
         AiCatalogCommand.NowPlaying, AiCatalogCommand.Pause, AiCatalogCommand.Resume,
         is AiCatalogCommand.SkipIfCurrent, is AiCatalogCommand.PlayItems, is AiCatalogCommand.AppendQueue -> true
 
@@ -394,6 +401,8 @@ internal object AiProtocol {
     }
 
     fun requiredScopes(command: AiCatalogCommand): Set<AiScope> = when (command) {
+        is AiTagCommand -> AiTagProtocol.scopes(command)
+
         AiCatalogCommand.NowPlaying, AiCatalogCommand.Pause, AiCatalogCommand.Resume,
         is AiCatalogCommand.SkipIfCurrent -> setOf(AiScope.PLAYBACK_CONTROL)
 
@@ -421,6 +430,8 @@ internal object AiProtocol {
     }
 
     fun isMutation(command: AiCatalogCommand): Boolean = when (command) {
+        is AiTagCommand -> AiTagProtocol.mutation(command)
+
         AiCatalogCommand.Pause, AiCatalogCommand.Resume, is AiCatalogCommand.SkipIfCurrent,
         is AiCatalogCommand.PlayItems, is AiCatalogCommand.AppendQueue, is AiCatalogCommand.SaveUrls -> true
 

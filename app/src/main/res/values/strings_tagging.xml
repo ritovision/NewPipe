@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rv_tags">Tags</string>
+    <string name="rv_edit_tags">Edit tags</string>
+    <string name="rv_tag_control_description">Edit tags and save to Library</string>
+    <string name="rv_ai_scope_tags_read">Read tags and categories</string>
+    <string name="rv_ai_scope_tags_write">Create and edit tags and categories</string>
+    <string name="rv_ai_scope_tags_delete">Delete tags and categories (keep videos)</string>
+</resources>

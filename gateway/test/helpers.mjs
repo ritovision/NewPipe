@@ -50,7 +50,7 @@ export async function harness(bindingOverrides={}, opts={}) {
   const registration={device_id:id,name,public_key:publicWire,pairing_code:code,signature:sign('sha256',Buffer.from(message),privateKey).toString('base64url')};
   const paired=await post('/device/pair',registration);assert.equal(paired.status,200,await paired.clone().text());return {id,name,privateKey,registration};
  }
- async function connectDevice(d,listener) {
+ async function connectDevice(d,listener,features={}) {
   const clientNonce=randomBytes(24).toString('base64url'),timestamp=Date.now();
   const proof=`challenge\n${localOrigin}\n${d.id}\n${clientNonce}\n${timestamp}`;
   const r=await post('/device/challenge',{device_id:d.id,client_nonce:clientNonce,timestamp_ms:timestamp,signature:sign('sha256',Buffer.from(proof),d.privateKey).toString('base64url')});
@@ -62,7 +62,7 @@ export async function harness(bindingOverrides={}, opts={}) {
    const timer=setTimeout(()=>reject(new Error('WebSocket handshake timeout')),5000);
    ws.addEventListener('message',event=>{
     const frame=JSON.parse(event.data);
-    if(frame.type==='connected') ws.send(JSON.stringify({type:'hello',connection_id:frame.connection_id,hello:{version:1,device_id:d.id,catalog_epoch:randomUUID(),playback_epoch:randomUUID(),capabilities:['get_catalog_status','create_playlist','delete_playlist','remove_library_items','get_now_playing','get_command_result','pause'],permissions:['library.read','library.write','library.delete','playlist.write','playlist.delete','playback.control']}}));
+    if(frame.type==='connected') ws.send(JSON.stringify({type:'hello',connection_id:frame.connection_id,hello:{version:1,device_id:d.id,catalog_epoch:randomUUID(),playback_epoch:randomUUID(),capabilities:features.capabilities??['get_catalog_status','create_playlist','delete_playlist','remove_library_items','get_now_playing','get_command_result','pause'],permissions:features.permissions??['library.read','library.write','library.delete','playlist.write','playlist.delete','playback.control']}}));
     if(frame.type==='ready') {clearTimeout(timer);resolveReady();}
     if(frame.type==='command') {
      if(listener?.(frame,ws)===false) return;

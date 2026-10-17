@@ -65,8 +65,10 @@ configure<ApplicationExtension> {
                 applicationIdSuffix = ".debug"
                 resValue("string", "app_name", "NewPipe Debug")
             } else {
-                applicationIdSuffix = ".debug.$normalizedWorkingBranch"
-                resValue("string", "app_name", "NewPipe $workingBranch")
+                val taggingQa = workingBranch in listOf("feature/tagging-ui-spike", "feature/tagging", "integration/tagging-ai-20261017")
+                applicationIdSuffix = if (taggingQa) ".debug.featuretagginguispike"
+                    else ".debug.$normalizedWorkingBranch"
+                resValue("string", "app_name", if (taggingQa) "newtest" else "NewPipe $workingBranch")
             }
         }
 

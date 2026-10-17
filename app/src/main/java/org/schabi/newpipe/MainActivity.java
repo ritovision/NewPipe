@@ -88,6 +88,7 @@ import org.schabi.newpipe.util.DeviceUtils;
 import org.schabi.newpipe.util.KioskTranslator;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.custom.library.LibraryRepository;
+import org.schabi.newpipe.custom.tagging.TagsActivity;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.PeertubeHelper;
 import org.schabi.newpipe.util.PermissionHelper;
@@ -127,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int ITEM_ID_DOWNLOADS = -4;
     private static final int ITEM_ID_HISTORY = -5;
     private static final int ITEM_ID_AI_CONTROL = -20;
+    private static final int ITEM_ID_TAGS = -6;
     private static final int ITEM_ID_SETTINGS = 0;
     private static final int ITEM_ID_DONATION = 1;
     private static final int ITEM_ID_ABOUT = 2;
@@ -296,6 +298,9 @@ public class MainActivity extends AppCompatActivity {
         drawerLayoutBinding.navigation.getMenu()
                 .add(R.id.menu_tabs_group, ITEM_ID_HISTORY, ORDER, R.string.action_history)
                 .setIcon(R.drawable.ic_history);
+        drawerLayoutBinding.navigation.getMenu()
+                .add(R.id.menu_tabs_group, ITEM_ID_TAGS, ORDER, "Tags")
+                .setIcon(R.drawable.ic_filter_list);
 
         drawerLayoutBinding.navigation.getMenu()
                 .add(R.id.menu_tabs_group, ITEM_ID_AI_CONTROL, ORDER, R.string.rv_ai_title)
@@ -380,6 +385,9 @@ public class MainActivity extends AppCompatActivity {
             case ITEM_ID_AI_CONTROL:
                 startActivity(new Intent(this,
                         org.schabi.newpipe.custom.aicontrol.AiControlActivity.class));
+                break;
+            case ITEM_ID_TAGS:
+                startActivity(new Intent(this, TagsActivity.class));
                 break;
         }
     }

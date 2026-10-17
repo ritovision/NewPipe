@@ -65,6 +65,7 @@ import com.google.android.material.tabs.TabLayout;
 
 import org.schabi.newpipe.App;
 import org.schabi.newpipe.R;
+import org.schabi.newpipe.custom.tagging.TagEditorFragment;
 import org.schabi.newpipe.database.stream.model.StreamEntity;
 import org.schabi.newpipe.databinding.FragmentVideoDetailBinding;
 import org.schabi.newpipe.download.DownloadDialog;
@@ -503,6 +504,8 @@ public final class VideoDetailFragment
                         dialog -> dialog.show(getParentFragmentManager(), TAG)));
             }
         }));
+        binding.detailControlsTags.setOnClickListener(makeOnClickListener(info ->
+                TagEditorFragment.show(getParentFragmentManager(), new StreamEntity(info))));
         binding.detailControlsDownload.setOnClickListener(v -> {
             if (PermissionHelper.checkStoragePermissions(activity,
                     PermissionHelper.DOWNLOAD_DIALOG_REQUEST_CODE)) {

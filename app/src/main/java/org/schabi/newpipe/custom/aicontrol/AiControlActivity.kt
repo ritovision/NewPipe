@@ -260,6 +260,9 @@ class AiControlActivity : AppCompatActivity() {
     }
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
     private fun scopeLabel(scope: AiScope): Int = when (scope) {
+        AiScope.TAGS_READ -> R.string.rv_ai_scope_tags_read
+        AiScope.TAGS_WRITE -> R.string.rv_ai_scope_tags_write
+        AiScope.TAGS_DELETE -> R.string.rv_ai_scope_tags_delete
         AiScope.LIBRARY_READ -> R.string.rv_ai_scope_read
         AiScope.LIBRARY_WRITE -> R.string.rv_ai_scope_save
         AiScope.LIBRARY_DELETE -> R.string.rv_ai_scope_delete

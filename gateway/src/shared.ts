@@ -2,7 +2,7 @@ import type { OAuthHelpers } from '@cloudflare/workers-oauth-provider';
 import type { ControlAccount } from './account';
 import type { DeviceRoom } from './device';
 
-export const SCOPES = ['mcp.connect', 'library.read', 'library.write', 'library.delete', 'playlist.write', 'playlist.delete', 'playback.control', 'offline_access'] as const;
+export const SCOPES = ['mcp.connect', 'tags.read', 'tags.write', 'tags.delete', 'library.read', 'library.write', 'library.delete', 'playlist.write', 'playlist.delete', 'playback.control', 'offline_access'] as const;
 export const DEVICE_SCOPES = SCOPES.filter(s => s !== 'mcp.connect' && s !== 'offline_access');
 export interface Env {
   OAUTH_KV: KVNamespace;

@@ -35,6 +35,8 @@ internal class AiCatalogStore(
     fun run(command: AiCatalogCommand, resolved: List<AiResolvedMedia> = emptyList()): JsonObject {
         val library = LibraryRepository.boundLibraryId(db) ?: throw AiFailure("LIBRARY_NOT_READY", AiOutcome.NOT_EXECUTED)
         return when (command) {
+            is AiTagCommand -> throw AiFailure("INVALID_DISPATCH", AiOutcome.NOT_EXECUTED)
+
             AiCatalogCommand.NowPlaying, AiCatalogCommand.Pause, AiCatalogCommand.Resume,
             is AiCatalogCommand.SkipIfCurrent, is AiCatalogCommand.PlayItems, is AiCatalogCommand.AppendQueue -> throw AiFailure("INVALID_DISPATCH", AiOutcome.NOT_EXECUTED)
 

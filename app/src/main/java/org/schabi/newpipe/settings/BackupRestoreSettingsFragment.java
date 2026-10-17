@@ -16,30 +16,24 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.preference.Preference;
+import org.schabi.newpipe.custom.tagging.CatalogTransferModel;
 import androidx.preference.PreferenceManager;
 
-import com.grack.nanojson.JsonParserException;
 
-import org.schabi.newpipe.NewPipeDatabase;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.error.ErrorInfo;
 import org.schabi.newpipe.error.ErrorUtil;
 import org.schabi.newpipe.error.UserAction;
 import org.schabi.newpipe.local.subscription.SubscriptionsImportExportHelper;
-import org.schabi.newpipe.settings.export.BackupFileLocator;
-import org.schabi.newpipe.settings.export.ImportExportManager;
 import org.schabi.newpipe.streams.io.NoFileManagerSafeGuard;
 import org.schabi.newpipe.streams.io.StoredFileHelper;
 import org.schabi.newpipe.util.NavigationHelper;
-import org.schabi.newpipe.util.ZipHelper;
 
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class BackupRestoreSettingsFragment extends BasePreferenceFragment {
 
@@ -47,7 +41,8 @@ public class BackupRestoreSettingsFragment extends BasePreferenceFragment {
 
     private final SimpleDateFormat exportDateFormat =
             new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
-    private ImportExportManager manager;
+    private CatalogTransferModel transfer;
+    private androidx.appcompat.app.AlertDialog settingsChoice;
     private String importExportDataPathKey;
     private final ActivityResultLauncher<Intent> requestImportPathLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
@@ -67,7 +62,8 @@ public class BackupRestoreSettingsFragment extends BasePreferenceFragment {
     @Override
     public void onCreatePreferences(@Nullable final Bundle savedInstanceState,
                                     @Nullable final String rootKey) {
-        manager = new ImportExportManager(new BackupFileLocator(requireContext()));
+        transfer = new ViewModelProvider(requireActivity()).get(CatalogTransferModel.class);
+        transfer.getState().observe(this, this::renderTransfer);
 
         importExportDataPathKey = getString(R.string.import_export_data_path);
 
@@ -172,141 +168,61 @@ public class BackupRestoreSettingsFragment extends BasePreferenceFragment {
             new androidx.appcompat.app.AlertDialog.Builder(requireActivity())
                     .setMessage(R.string.override_current_data)
                     .setPositiveButton(R.string.ok, (d, id) ->
-                            org.schabi.newpipe.custom.aicontrol.AiControlLifecycle.beforeImport(
-                                    requireContext(),
-                                    () -> {
-                                        if (isAdded()) {
-                                            importDatabase(file, lastImportDataUri);
-                                        }
-                                    },
-                                    error -> {
-                                        if (isAdded()) {
-                                            showErrorSnackbar(error,
-                                                    "Disconnecting AI before import");
-                                        }
-                                    }))
-                    .setNegativeButton(R.string.cancel, (d, id) ->
-                            d.cancel())
+                            transfer.prepareImport(file, lastImportDataUri))
+                    .setNegativeButton(R.string.cancel, null)
                     .show();
         }
     }
 
     private void exportDatabase(final StoredFileHelper file, final Uri exportDataUri) {
-        try (ExecutorService executor = Executors.newSingleThreadExecutor()) {
-            //checkpoint before export
-            executor.submit(NewPipeDatabase::checkpoint).get();
-
-            final SharedPreferences preferences = PreferenceManager
-                    .getDefaultSharedPreferences(requireContext());
-            manager.exportDatabase(preferences, file);
-
-            saveLastImportExportDataUri(exportDataUri); // save export path only on success
-            Toast.makeText(requireContext(), R.string.export_complete_toast, Toast.LENGTH_SHORT)
-                    .show();
-        } catch (final Exception e) {
-            showErrorSnackbar(e, "Exporting database and settings");
-        }
+        transfer.export(file, exportDataUri);
     }
 
-    private void importDatabase(final StoredFileHelper file, final Uri importDataUri) {
-        // check if file is supported
-        if (!ZipHelper.isValidZipFile(file)) {
-            Toast.makeText(requireContext(), R.string.no_valid_zip_file, Toast.LENGTH_SHORT)
-                    .show();
+    private void renderTransfer(final CatalogTransferModel.State state) {
+        if (!isAdded()) {
             return;
         }
-
-        try {
-            manager.ensureDbDirectoryExists();
-
-            // replace the current database
-            if (!manager.extractDb(file)) {
-                Toast.makeText(requireContext(), R.string.could_not_import_all_files,
-                                Toast.LENGTH_LONG)
-                        .show();
+        final boolean busy = state instanceof CatalogTransferModel.State.Working
+                || state instanceof CatalogTransferModel.State.ChooseSettings;
+        requirePreference(R.string.import_data).setEnabled(!busy);
+        requirePreference(R.string.export_data).setEnabled(!busy);
+        requirePreference(R.string.reset_settings).setEnabled(!busy);
+        final String message = state instanceof CatalogTransferModel.State.Working
+                ? ((CatalogTransferModel.State.Working) state).getMessage() : null;
+        requirePreference(R.string.import_data).setSummary(message);
+        if (state instanceof CatalogTransferModel.State.ChooseSettings) {
+            if (settingsChoice != null && settingsChoice.isShowing()) {
+                return;
             }
-
-            // if settings file exist, ask if it should be imported.
-            final boolean hasJsonPrefs = manager.exportHasJsonPrefs(file);
-            if (hasJsonPrefs || manager.exportHasSerializedPrefs(file)) {
-                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                        .setTitle(R.string.import_settings)
-                        .setMessage(hasJsonPrefs ? null : requireContext()
-                                .getString(R.string.import_settings_vulnerable_format))
-                        .setOnDismissListener(dialog -> finishImport(importDataUri))
-                        .setNegativeButton(R.string.cancel, (dialog, which) -> {
-                            dialog.dismiss();
-                            finishImport(importDataUri);
-                        })
-                        .setPositiveButton(R.string.ok, (dialog, which) -> {
-                            dialog.dismiss();
-                            final Context context = requireContext();
-                            final SharedPreferences prefs = PreferenceManager
-                                    .getDefaultSharedPreferences(context);
-                            try {
-                                if (hasJsonPrefs) {
-                                    manager.loadJsonPrefs(file, prefs);
-                                } else {
-                                    manager.loadSerializedPrefs(file, prefs);
-                                }
-                            } catch (IOException | ClassNotFoundException | JsonParserException e) {
-                                createErrorNotification(e, "Importing preferences");
-                                return;
-                            }
-                            cleanImport(context, prefs);
-                            finishImport(importDataUri);
-                        })
-                        .show();
-            } else {
-                finishImport(importDataUri);
-            }
-        } catch (final Exception e) {
-            showErrorSnackbar(e, "Importing database and settings");
+            final CatalogTransferModel.State.ChooseSettings choice =
+                    (CatalogTransferModel.State.ChooseSettings) state;
+            settingsChoice = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.import_settings)
+                    .setMessage(choice.getJson() ? null : getString(
+                            R.string.import_settings_vulnerable_format))
+                    .setPositiveButton(R.string.ok, (dialog, which) -> transfer.install(true))
+                    .setNegativeButton(R.string.cancel, (dialog, which) -> transfer.install(false))
+                    .setOnCancelListener(dialog -> transfer.cancelPrepared())
+                    .show();
+        } else if (state instanceof CatalogTransferModel.State.Done) {
+            Toast.makeText(requireContext(),
+                    ((CatalogTransferModel.State.Done) state).getMessage(), Toast.LENGTH_LONG)
+                    .show();
+            transfer.consumed();
+        } else if (state instanceof CatalogTransferModel.State.Failed) {
+            showErrorSnackbar(((CatalogTransferModel.State.Failed) state).getError(),
+                    "Transferring Library, tags and settings");
+            transfer.consumed();
         }
     }
 
-    /**
-     * Remove settings that are not supposed to be imported on different devices
-     * and reset them to default values.
-     * @param context the context used for the import
-     * @param prefs the preferences used while running the import
-     */
-    private void cleanImport(@NonNull final Context context,
-                             @NonNull final SharedPreferences prefs) {
-        // Check if media tunnelling needs to be disabled automatically,
-        // if it was disabled automatically in the imported preferences.
-        final String tunnelingKey = context.getString(R.string.disable_media_tunneling_key);
-        final String automaticTunnelingKey =
-                context.getString(R.string.disabled_media_tunneling_automatically_key);
-        // R.string.disable_media_tunneling_key should always be true
-        // if R.string.disabled_media_tunneling_automatically_key equals 1,
-        // but we double check here just to be sure and to avoid regressions
-        // caused by possible later modification of the media tunneling functionality.
-        // R.string.disabled_media_tunneling_automatically_key == 0:
-        //     automatic value overridden by user in settings
-        // R.string.disabled_media_tunneling_automatically_key == -1: not set
-        final boolean wasMediaTunnelingDisabledAutomatically =
-                prefs.getInt(automaticTunnelingKey, -1) == 1
-                        && prefs.getBoolean(tunnelingKey, false);
-        if (wasMediaTunnelingDisabledAutomatically) {
-            prefs.edit()
-                    .putInt(automaticTunnelingKey, -1)
-                    .putBoolean(tunnelingKey, false)
-                    .apply();
-            NewPipeSettings.setMediaTunneling(context);
+    @Override
+    public void onDestroyView() {
+        if (settingsChoice != null) {
+            settingsChoice.dismiss();
+            settingsChoice = null;
         }
-    }
-
-    /**
-     * Save import path and restart app.
-     *
-     * @param importDataUri The import path to save
-     */
-    private void finishImport(final Uri importDataUri) {
-        // save import path only on success
-        saveLastImportExportDataUri(importDataUri);
-        // restart app to properly load db
-        NavigationHelper.restartApp(requireActivity());
+        super.onDestroyView();
     }
 
     private Uri getImportExportDataUri() {
@@ -314,20 +230,8 @@ public class BackupRestoreSettingsFragment extends BasePreferenceFragment {
         return isBlank(path) ? null : Uri.parse(path);
     }
 
-    private void saveLastImportExportDataUri(final Uri importExportDataUri) {
-        final SharedPreferences.Editor editor = defaultPreferences.edit()
-                .putString(importExportDataPathKey, importExportDataUri.toString());
-        editor.apply();
-    }
-
     private void showErrorSnackbar(final Throwable e, final String request) {
         ErrorUtil.showSnackbar(this, new ErrorInfo(e, UserAction.DATABASE_IMPORT_EXPORT, request));
     }
 
-    private void createErrorNotification(final Throwable e, final String request) {
-        ErrorUtil.createNotification(
-                requireContext(),
-                new ErrorInfo(e, UserAction.DATABASE_IMPORT_EXPORT, request)
-        );
-    }
 }

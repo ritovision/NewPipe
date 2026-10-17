@@ -41,6 +41,10 @@
         android:memtagMode="async"
         tools:ignore="AllowBackup">
         <activity
+            android:name=".custom.tagging.TagsActivity"
+            android:exported="false"
+            android:label="Tags" />
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"

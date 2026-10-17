@@ -3,6 +3,8 @@
  */
 package org.schabi.newpipe.custom.library
 
+import kotlin.concurrent.withLock
+
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -16,6 +18,7 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import java.util.concurrent.Callable
 import org.schabi.newpipe.NewPipeDatabase
+import org.schabi.newpipe.custom.tagging.TagRuntime
 import org.schabi.newpipe.database.AppDatabase
 import org.schabi.newpipe.database.playlist.model.PlaylistEntity
 import org.schabi.newpipe.database.playlist.model.PlaylistStreamEntity
@@ -60,7 +63,7 @@ object LibraryRepository {
     fun start(context: Context) {
         val appContext = context.applicationContext
         Completable.fromAction {
-            initialize(NewPipeDatabase.getInstance(appContext), LibraryBindingStore(appContext))
+            TagRuntime.get(appContext).definitions()
         }.subscribeOn(Schedulers.io()).subscribe(
             { Log.i(TAG, "Library initialized") },
             { error ->
@@ -88,8 +91,13 @@ object LibraryRepository {
      * playlist automatically. If NO candidate exists, creating a NEW Library
      * and backfilling is always additive and never destroys an existing list.
      */
+    fun initialize(db: AppDatabase, store: LibraryBindingStore): Long = TagRuntime.lock.withLock {
+        TagRuntime.assertAvailable()
+        initializeLocked(db, store)
+    }
+
     @Synchronized
-    fun initialize(db: AppDatabase, store: LibraryBindingStore): Long {
+    private fun initializeLocked(db: AppDatabase, store: LibraryBindingStore): Long {
         current(db)?.let { return it.id }
 
         val binding = try {
@@ -155,8 +163,13 @@ object LibraryRepository {
      * Deliberate recovery only: the user selected this exact playlist in the
      * UI and accepted that it will become the canonical Library. No deletions.
      */
+    fun rebindExisting(db: AppDatabase, store: LibraryBindingStore, playlistId: Long): Long = TagRuntime.lock.withLock {
+        TagRuntime.assertAvailable()
+        rebindExistingLocked(db, store, playlistId)
+    }
+
     @Synchronized
-    fun rebindExisting(db: AppDatabase, store: LibraryBindingStore, playlistId: Long): Long {
+    private fun rebindExistingLocked(db: AppDatabase, store: LibraryBindingStore, playlistId: Long): Long {
         val previous = current(db)
         check(previous == null || previous.id == playlistId) {
             "A different Library is already active"
@@ -198,7 +211,7 @@ object LibraryRepository {
     fun ensureInitialized(context: Context): Completable {
         val appContext = context.applicationContext
         return Completable.fromAction {
-            initialize(NewPipeDatabase.getInstance(appContext), LibraryBindingStore(appContext))
+            TagRuntime.get(appContext).definitions()
         }.subscribeOn(Schedulers.io())
     }
 
@@ -348,11 +361,14 @@ object LibraryRepository {
         val appContext = context.applicationContext
         return Completable.fromAction {
             val db = NewPipeDatabase.getInstance(appContext)
-            val verifiedId = initialize(db, LibraryBindingStore(appContext))
-            check(verifiedId == playlistId) {
-                "Library identity changed; removal was not performed"
+            val tagging = TagRuntime.lookup(db)
+            if (tagging != null) {
+                tagging.removeEverywhere(playlistId, streamId)
+            } else {
+                val verifiedId = initialize(db, LibraryBindingStore(appContext))
+                check(verifiedId == playlistId) { "Library identity changed; removal was not performed" }
+                removeEverywhere(db, playlistId, streamId)
             }
-            removeEverywhere(db, playlistId, streamId)
         }.subscribeOn(Schedulers.io())
     }
 

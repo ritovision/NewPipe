@@ -5,6 +5,7 @@ import androidx.annotation.WorkerThread;
 import androidx.sqlite.db.SupportSQLiteStatement;
 
 import org.schabi.newpipe.custom.library.LibraryRepository;
+import org.schabi.newpipe.custom.tagging.TagRuntime;
 import org.schabi.newpipe.custom.library.PlaylistEditGuard;
 import org.schabi.newpipe.database.AppDatabase;
 import org.schabi.newpipe.database.playlist.PlaylistDuplicatesEntry;
@@ -49,7 +50,8 @@ public class LocalPlaylistManager {
         // Save to the database directly.
         // Make sure the new playlist is always on the top of bookmark.
         // The index will be reassigned to non-negative number in BookmarkFragment.
-        return Maybe.fromCallable(() -> database.runInTransaction(() -> {
+        return Maybe.fromCallable(() -> TagRuntime.mutate(database,
+                () -> database.runInTransaction(() -> {
                     final List<Long> streamIds = streamTable.upsertAll(streams);
                     final PlaylistEntity newPlaylist = new PlaylistEntity(name, false,
                             streamIds.get(0), -1);
@@ -57,12 +59,13 @@ public class LocalPlaylistManager {
                     return insertJoinEntities(playlistTable.insert(newPlaylist),
                             streamIds, 0);
                 }
-        )).subscribeOn(Schedulers.io());
+        ))).subscribeOn(Schedulers.io());
     }
 
     public Maybe<List<Long>> appendToPlaylist(final long playlistId,
                                               final List<StreamEntity> streams) {
-        return Maybe.fromCallable(() -> database.runInTransaction(() -> {
+        return Maybe.fromCallable(() -> TagRuntime.mutate(database,
+                () -> database.runInTransaction(() -> {
             PlaylistEditGuard.requireExisting(database, playlistId);
             final List<Long> streamIds = streamTable.upsertAll(streams);
             if (LibraryRepository.isLibrary(database, playlistId)) {
@@ -73,7 +76,7 @@ public class LocalPlaylistManager {
                     LibraryRepository.nextJoinIndex(database, playlistId));
             LibraryRepository.refreshAutomaticThumbnail(database, playlistId);
             return inserted;
-        })).subscribeOn(Schedulers.io());
+        }))).subscribeOn(Schedulers.io());
     }
 
     private List<Long> insertJoinEntities(final long playlistId, final List<Long> streamIds,
@@ -112,9 +115,10 @@ public class LocalPlaylistManager {
                                            final List<Long> streamIds,
                                            @Nullable final List<Long> expectedStreamIds,
                                            final boolean refreshAutomaticThumbnail) {
-        return Completable.fromRunnable(() -> database.runInTransaction(() ->
+        return Completable.fromRunnable(() -> TagRuntime.runMutation(database,
+                () -> database.runInTransaction(() ->
                 updateJoinInTransaction(playlistId, streamIds, expectedStreamIds,
-                        refreshAutomaticThumbnail))).subscribeOn(Schedulers.io());
+                        refreshAutomaticThumbnail)))).subscribeOn(Schedulers.io());
     }
 
     /**
@@ -128,10 +132,11 @@ public class LocalPlaylistManager {
     public List<Long> savePlaylistSnapshot(final long playlistId,
                                           final List<Long> expectedStreamIds,
                                           final List<Long> streamIds) {
-        return database.runInTransaction(() -> {
+        return TagRuntime.mutate(database,
+                () -> database.runInTransaction(() -> {
             updateJoinInTransaction(playlistId, streamIds, expectedStreamIds, true);
             return PlaylistEditGuard.readCurrentIds(database, playlistId);
-        });
+        }));
     }
 
     private void updateJoinInTransaction(final long playlistId,
@@ -163,7 +168,8 @@ public class LocalPlaylistManager {
         for (final PlaylistMetadataEntry item : updateItems) {
             items.add(new PlaylistEntity(item));
         }
-        return Completable.fromRunnable(() -> database.runInTransaction(() -> {
+        return Completable.fromRunnable(() -> TagRuntime.runMutation(database,
+                () -> database.runInTransaction(() -> {
             for (final Long uid : deletedItems) {
                 LibraryRepository.requireNotLibrary(database, uid);
                 playlistTable.deletePlaylist(uid);
@@ -175,7 +181,7 @@ public class LocalPlaylistManager {
                         "UPDATE playlists SET display_index = ? WHERE uid = ?",
                         new Object[]{item.getDisplayIndex(), item.getUid()});
             }
-        })).subscribeOn(Schedulers.io());
+        }))).subscribeOn(Schedulers.io());
     }
 
     public Flowable<List<PlaylistStreamEntry>> getDistinctPlaylistStreams(final long playlistId) {
@@ -214,7 +220,8 @@ public class LocalPlaylistManager {
     }
 
     public Maybe<Integer> unsetPlaylistThumbnail(final long playlistId) {
-        return Maybe.fromCallable(() -> database.runInTransaction(() -> {
+        return Maybe.fromCallable(() -> TagRuntime.mutate(database,
+                () -> database.runInTransaction(() -> {
             // Select from current membership while holding the writer lock, not a stale UI row.
             try (SupportSQLiteStatement statement = database.getOpenHelper()
                     .getWritableDatabase().compileStatement(
@@ -225,7 +232,7 @@ public class LocalPlaylistManager {
                 statement.bindLong(1, playlistId);
                 return statement.executeUpdateDelete();
             }
-        })).subscribeOn(Schedulers.io());
+        }))).subscribeOn(Schedulers.io());
     }
 
     public long getPlaylistThumbnailStreamId(final long playlistId) {
@@ -250,7 +257,8 @@ public class LocalPlaylistManager {
                                           @Nullable final String name,
                                           final long thumbnailStreamId,
                                           final boolean isPermanent) {
-        return Maybe.fromCallable(() -> database.runInTransaction(() -> {
+        return Maybe.fromCallable(() -> TagRuntime.mutate(database,
+                () -> database.runInTransaction(() -> {
             if (name != null) {
                 LibraryRepository.requireNotLibrary(database, playlistId);
                 try (SupportSQLiteStatement statement = database.getOpenHelper()
@@ -274,7 +282,7 @@ public class LocalPlaylistManager {
                 statement.bindLong(3, playlistId);
                 return statement.executeUpdateDelete();
             }
-        })).subscribeOn(Schedulers.io());
+        }))).subscribeOn(Schedulers.io());
     }
 
     public Maybe<Boolean> hasPlaylists() {

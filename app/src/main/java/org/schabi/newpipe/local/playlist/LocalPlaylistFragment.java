@@ -878,6 +878,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                     NewPipeDatabase.getInstance(requireContext()), playlistId)) {
                 dialogBuilder.addEntry(StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL);
             }
+            dialogBuilder.addEntry(StreamDialogDefaultEntry.EDIT_TAGS);
             dialogBuilder.addEntry(StreamDialogDefaultEntry.DELETE);
 
             // set custom actions
