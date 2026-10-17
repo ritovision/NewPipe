@@ -34,7 +34,7 @@ import org.schabi.newpipe.testUtil.TestDatabase
 /** Native service/queue integration without playing real media or changing any user catalog. */
 class AiPlaybackDispatchAndroidTest {
     @Test fun boundOnlyServiceIsActuallyStartedAndAppendRetryHasOneEffect() {
-        check(BuildConfig.APPLICATION_ID == "org.schabi.newpipe.debug.featureaicontrol")
+        check(BuildConfig.APPLICATION_ID in setOf("org.schabi.newpipe.debug.featureaicontrol", "org.schabi.newpipe.debug.featuretagginguispike"))
         val app = ApplicationProvider.getApplicationContext<Context>()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         LibraryRepository.forgetSessionForTest()

@@ -207,6 +207,67 @@ class AiTagIntegrationTest {
         assertEquals(AiOutcome.COMMITTED, run(AiTagCommand.SetTags(ref, state.assigned.toList(), repo.editor(key(stream)).revision)).outcome)
     }
 
+    @Test fun staleNativeDefinitionEditCannotUndoAiMoveOrRename() {
+        val first = repo.createCategory("First")
+        val second = repo.createCategory("Second")
+        val tag = repo.createTag("Original", first)
+        val stale = repo.definitions().version
+        assertEquals(AiOutcome.COMMITTED, run(AiTagCommand.UpdateTag(tag, "AI title", second, stale)).outcome)
+        assertThrows(IllegalStateException::class.java) { repo.editTag(tag, "Local draft", first, stale) }
+        assertEquals("AI title", repo.definitions().tags.single().name)
+        assertEquals(second, repo.definitions().tags.single().categoryId)
+        val before = repo.definitions().version
+        assertEquals(AiOutcome.COMMITTED, run(AiTagCommand.RenameCategory(first, "AI category", before)).outcome)
+        assertThrows(IllegalStateException::class.java) { repo.renameCategory(first, "Old local category", before) }
+        assertEquals("AI category", repo.definitions().categories.first { it.id == first }.name)
+    }
+
+    @Test fun repairWaitsForTagBarrierWithoutHoldingLibraryMonitor() {
+        val repairId = libraryId
+        LibraryRepository.forgetSessionForTest()
+        val monitorAcquired = java.util.concurrent.CountDownLatch(1)
+        val repairStarted = java.util.concurrent.CountDownLatch(1)
+        val error = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+        TagRuntime.lock.lock()
+        val repair = Thread {
+            repairStarted.countDown()
+            try {
+                LibraryRepository.rebindIfStillUnbound(db, LibraryBindingStore(binding), repairId)
+            } catch (e: Throwable) {
+                error.set(e)
+            }
+        }
+        val probe = Thread { synchronized(LibraryRepository) { monitorAcquired.countDown() } }
+        try {
+            repair.start()
+            assertTrue(repairStarted.await(2, java.util.concurrent.TimeUnit.SECONDS))
+            Thread.sleep(100)
+            probe.start()
+            assertTrue("Repair held Library while waiting for TagRuntime", monitorAcquired.await(2, java.util.concurrent.TimeUnit.SECONDS))
+        } finally {
+            TagRuntime.lock.unlock()
+            repair.join(5000)
+            probe.join(5000)
+        }
+        assertFalse(repair.isAlive)
+        assertNull(error.get())
+    }
+
+    @Test fun localPlaybackLookupRetainsNativeEligibilityWithoutWeakeningRemoteHostChecks() {
+        val service = org.schabi.newpipe.extractor.NewPipe.getService("PeerTube")
+        val stream = StreamEntity(serviceId = service.serviceId, url = "https://removed-instance.example.org/videos/watch/12345678-1234-1234-1234-123456789012", title = "Previously saved instance", streamType = StreamType.VIDEO_STREAM, duration = 10, uploader = "Synthetic")
+        val tag = repo.createTag("Instance", null)
+        repo.apply(stream, setOf(tag), 0)
+        val saved = repo.snapshot().items.single().stream
+        val reference = AiStreamRef(saved.uid, "PeerTube", saved.url)
+        val values = AiLocalTagPlayback.localLookup(repo, listOf(key(saved))).read(listOf(reference)) {}
+        assertEquals(saved.url, values.single().url)
+        val error = assertThrows(AiFailure::class.java) {
+            AiSavedMediaReader(ApplicationProvider.getApplicationContext()).read(listOf(reference)) {}
+        }
+        assertEquals("UNTRUSTED_MEDIA_HOST", error.code)
+    }
+
     @Test fun nativeAndAiQueriesShareOrderAndRejectStalePagination() {
         item("Zulu")
         item("Alpha")

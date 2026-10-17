@@ -22,6 +22,9 @@ import org.junit.Test
 import org.schabi.newpipe.BuildConfig
 import org.schabi.newpipe.custom.library.LibraryBindingStore
 import org.schabi.newpipe.custom.library.LibraryRepository
+import org.schabi.newpipe.custom.tagging.TagRepository
+import org.schabi.newpipe.custom.tagging.TagRuntime
+import org.schabi.newpipe.custom.tagging.TagStore
 import org.schabi.newpipe.database.stream.model.StreamEntity
 import org.schabi.newpipe.extractor.stream.StreamType
 import org.schabi.newpipe.testUtil.TestDatabase
@@ -33,7 +36,7 @@ class AiLiveRelayAndroidTest {
         val origin = args.getString("qa_gateway").orEmpty()
         val code = args.getString("qa_pairing_code").orEmpty()
         assumeTrue("Live credentials are only supplied for the separate explicit integration run", origin.isNotEmpty() && code.isNotEmpty())
-        check(BuildConfig.APPLICATION_ID == "org.schabi.newpipe.debug.featureaicontrol")
+        check(BuildConfig.APPLICATION_ID in setOf("org.schabi.newpipe.debug.featureaicontrol", "org.schabi.newpipe.debug.featuretagginguispike"))
         val app = ApplicationProvider.getApplicationContext<Context>()
         val ready = File(app.cacheDir, "ai-live-ready.json")
         val finish = File(app.cacheDir, "ai-live-finish")
@@ -42,6 +45,8 @@ class AiLiveRelayAndroidTest {
         LibraryRepository.forgetSessionForTest()
         val db = TestDatabase.createReplacingNewPipeDatabase()
         val binding = app.cacheDir.toPath().resolve("live-test-${UUID.randomUUID()}.db")
+        val tagStore = TagStore(app, null)
+        TagRuntime.registerForTest(db, TagRepository(db, tagStore, LibraryBindingStore(binding)))
         val library = LibraryRepository.initialize(db, LibraryBindingStore(binding))
         db.runInTransaction {
             val ids = (1..3).map { number ->
@@ -63,7 +68,7 @@ class AiLiveRelayAndroidTest {
         try {
             val paired = CountDownLatch(1)
             var pairingError: String? = null
-            runtime.pair(origin, "Pixel 7 isolated AI QA", code, AiScope.entries.map { it.wireName }.toSet()) { error ->
+            runtime.pair(origin, "Isolated tagging integration QA", code, AiScope.entries.map { it.wireName }.toSet()) { error ->
                 pairingError = error
                 paired.countDown()
             }
@@ -93,7 +98,7 @@ class AiLiveRelayAndroidTest {
                     put("synthetic_items", 3)
                 }.toString()
             )
-            val until = System.nanoTime() + TimeUnit.SECONDS.toNanos(180)
+            val until = System.nanoTime() + TimeUnit.SECONDS.toNanos(300)
             while (!finish.exists() && System.nanoTime() < until) Thread.sleep(100)
             assertTrue("Host integration did not finish", finish.exists())
             assertEquals("host_verified", finish.readText().trim())
@@ -102,6 +107,8 @@ class AiLiveRelayAndroidTest {
             runtime.forget { done.countDown() }
             assertTrue("Disconnect cleanup did not finish", done.await(30, TimeUnit.SECONDS))
             scenario?.close()
+            TagRuntime.unregister(db)
+            tagStore.close()
             LibraryRepository.forgetSessionForTest()
             db.close()
             LibraryBindingStore.deleteForDatabase(binding)
@@ -111,7 +118,7 @@ class AiLiveRelayAndroidTest {
     @Test fun optionalRealPublicUrlExtraction() {
         val url = InstrumentationRegistry.getArguments().getString("qa_public_url").orEmpty()
         assumeTrue("Network extraction smoke test is opt-in", url.isNotEmpty())
-        check(BuildConfig.APPLICATION_ID == "org.schabi.newpipe.debug.featureaicontrol")
+        check(BuildConfig.APPLICATION_ID in setOf("org.schabi.newpipe.debug.featureaicontrol", "org.schabi.newpipe.debug.featuretagginguispike"))
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60)
         val resolved = AiNativeUrlResolver { error ->
             val chain = generateSequence<Throwable>(error) { it.cause }.take(8).joinToString(" -> ") { it.javaClass.name }

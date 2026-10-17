@@ -40,20 +40,37 @@ class TagScaleTest {
                 try {
                     for (index in 0 until 20000) {
                         val uid = index + 1L
-                        insert.bindLong(1, uid); insert.bindString(2, "https://example.org/scale/$index"); insert.bindString(3, "Stream %05d".format(index)); insert.executeInsert()
-                        member.bindLong(1, libraryId); member.bindLong(2, uid); member.bindLong(3, index.toLong()); member.executeInsert()
+                        insert.bindLong(1, uid)
+                        insert.bindString(2, "https://example.org/scale/$index")
+                        insert.bindString(3, "Stream %05d".format(index))
+                        insert.executeInsert()
+                        member.bindLong(1, libraryId)
+                        member.bindLong(2, uid)
+                        member.bindLong(3, index.toLong())
+                        member.executeInsert()
                     }
-                } finally { insert.close(); member.close() }
+                } finally {
+                    insert.close()
+                    member.close()
+                }
             }
             tags.transaction { sql ->
                 val insert = sql.compileStatement("INSERT INTO assignment(service_id,url,tag_id) VALUES(0,?,?)")
                 try {
                     for (index in 0 until 20000) {
                         insert.bindString(1, "https://example.org/scale/$index")
-                        if (index % 2 == 0) { insert.bindLong(2, even); insert.executeInsert() }
-                        if (index % 3 == 0) { insert.bindLong(2, thirds); insert.executeInsert() }
+                        if (index % 2 == 0) {
+                            insert.bindLong(2, even)
+                            insert.executeInsert()
+                        }
+                        if (index % 3 == 0) {
+                            insert.bindLong(2, thirds)
+                            insert.executeInsert()
+                        }
                     }
-                } finally { insert.close() }
+                } finally {
+                    insert.close()
+                }
             }
             val start = SystemClock.elapsedRealtime()
             val snapshot = repository.snapshot()
@@ -69,8 +86,11 @@ class TagScaleTest {
             assertEquals(20000, TagFilter(untagged = true).select(repository.snapshot().items).size)
             assertTrue(repository.definitions().tags.isEmpty())
         } finally {
-            TagRuntime.unregister(db); tags.close(); db.close()
-            LibraryBindingStore.deleteForDatabase(bindingPath); LibraryRepository.forgetSessionForTest()
+            TagRuntime.unregister(db)
+            tags.close()
+            db.close()
+            LibraryBindingStore.deleteForDatabase(bindingPath)
+            LibraryRepository.forgetSessionForTest()
         }
     }
 }

@@ -20,6 +20,15 @@ internal object AiLocalTagPlayback {
         check()
         val streams = repository.resolveSnapshot(keys)
         val refs = streams.map { AiStreamRef(it.uid, NewPipe.getService(it.serviceId).serviceInfo.name, it.url) }
-        AiAndroidPlaybackPort(context).execute(if (append) AiCatalogCommand.AppendQueue(refs) else AiCatalogCommand.PlayItems(refs), check)
+        // Local user-selected saved content follows native playback eligibility. The
+        // default remote AiSavedMediaReader keeps its stricter host policy unchanged.
+        val local = localLookup(repository, keys)
+        AiAndroidPlaybackPort(context, local).execute(if (append) AiCatalogCommand.AppendQueue(refs) else AiCatalogCommand.PlayItems(refs), check)
+    }
+    internal fun localLookup(repository: TagRepository, keys: List<StreamKey>): AiSavedMediaLookup = AiSavedMediaLookup { items, checkActive ->
+        checkActive()
+        val current = repository.resolveSnapshot(keys)
+        check(current.map { AiStreamRef(it.uid, NewPipe.getService(it.serviceId).serviceInfo.name, it.url) } == items) { "Selected Library content changed" }
+        current.map { it.toStreamInfoItem() }.also { checkActive() }
     }
 }

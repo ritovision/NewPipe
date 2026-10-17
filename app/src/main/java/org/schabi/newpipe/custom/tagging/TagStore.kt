@@ -130,12 +130,14 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
         result
     }
 
-    fun renameCategory(id: Long, name: String) = transaction { db ->
+    fun renameCategory(id: Long, name: String, expectedRevision: Long? = null) = transaction { db ->
+        check(expectedRevision == null || expectedRevision == version()) { "Tag definitions changed while this form was open. Review the current values before retrying; this draft has not been saved." }
         check(db.update("category", nameValues(name), "id=?", arrayOf(id.toString())) == 1) { "Category no longer exists" }
         changed(db)
     }
 
-    fun editTag(id: Long, name: String, categoryId: Long?) = transaction { db ->
+    fun editTag(id: Long, name: String, categoryId: Long?, expectedRevision: Long? = null) = transaction { db ->
+        check(expectedRevision == null || expectedRevision == version()) { "Tag definitions changed while this form was open. Review the current values before retrying; this draft has not been saved." }
         val values = nameValues(name)
         if (categoryId == null) values.putNull("category_id") else values.put("category_id", categoryId)
         check(db.update("tag", values, "id=?", arrayOf(id.toString())) == 1) { "Tag no longer exists" }

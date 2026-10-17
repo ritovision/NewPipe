@@ -3,7 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { z } from 'zod';
 import { account, CLIENT, ControlError, device, Env, Principal } from './shared';
 import { TOOLS } from './tools';
-const destructive=new Set(['delete_playlist','remove_library_items','remove_from_playlist','move_items_between_playlists']);
+const destructive=new Set(['delete_playlist','remove_library_items','remove_from_playlist','move_items_between_playlists','delete_tag','delete_tag_category','set_item_tags']);
 
 type AuthContext = ExecutionContext & {props:{ownerId:string;clientId:string;clientName:string};auth:{scope:string[]}};
 const output=(data:Record<string,unknown>, isError=false)=>({content:[{type:'text' as const,text:JSON.stringify(data)}],structuredContent:data,isError});

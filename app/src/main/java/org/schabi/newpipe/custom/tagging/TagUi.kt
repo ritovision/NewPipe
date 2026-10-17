@@ -112,6 +112,12 @@ internal class TagUi(val context: Context) {
         }
         dialog.setContentView(scroll)
         dialog.setOnShowListener {
+            dialog.window?.let { window ->
+                androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = light
+                    isAppearanceLightNavigationBars = light
+                }
+            }
             dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.let { container ->
                 container.background = shape(dialogBackground, 16)
                 container.layoutParams.height = (context.resources.displayMetrics.heightPixels * 0.85).toInt()

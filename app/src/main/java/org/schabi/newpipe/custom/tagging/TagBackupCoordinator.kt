@@ -229,7 +229,11 @@ object TagBackupCoordinator {
                 zip.closeEntry()
             }
         } finally {
-            try { directory?.let(CatalogFileSwap::deleteTree) } finally { inProgress.set(false) }
+            try {
+                directory?.let(CatalogFileSwap::deleteTree)
+            } finally {
+                inProgress.set(false)
+            }
         }
     }
 
@@ -327,11 +331,11 @@ object TagBackupCoordinator {
     }
 
     private fun structure(query: (String) -> Cursor): Map<String, List<String>> {
-        val names = query("SELECT name,type FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND name!='android_metadata' ORDER BY name").use { c ->
+        val names = query("SELECT name,type FROM sqlite_master ORDER BY name").use { c ->
             buildList {
                 while (c.moveToNext()) {
                     check(c.getString(1) in setOf("table", "index")) { "Unexpected executable schema in backup" }
-                    if (c.getString(1) == "table") add(c.getString(0))
+                    if (c.getString(1) == "table" && c.getString(0) != "android_metadata" && !c.getString(0).startsWith("sqlite_")) add(c.getString(0))
                 }
             }
         }

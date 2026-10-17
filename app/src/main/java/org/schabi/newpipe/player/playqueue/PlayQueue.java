@@ -307,6 +307,31 @@ public abstract class PlayQueue implements Serializable {
     }
 
     /**
+     * Append an explicitly ordered result snapshot without shuffling the incoming suffix.
+     * Existing queue order and shuffle state remain intact; unshuffle also retains this suffix.
+     *
+     * @param items exact ordered items selected by a native or AI action
+     */
+    public synchronized void appendInOrder(@NonNull final List<PlayQueueItem> items) {
+        final List<PlayQueueItem> incoming = new ArrayList<>(items);
+        if (incoming.isEmpty()) {
+            return;
+        }
+        if (!streams.isEmpty() && streams.get(streams.size() - 1).isAutoQueued()
+                && !incoming.get(0).isAutoQueued()) {
+            final PlayQueueItem removed = streams.remove(streams.size() - 1);
+            if (backup != null) {
+                backup.remove(removed);
+            }
+        }
+        if (isShuffled()) {
+            backup.addAll(incoming);
+        }
+        streams.addAll(incoming);
+        broadcast(new AppendEvent(incoming.size()));
+    }
+
+    /**
      * Add the given item after the current stream.
      *
      * @param item item to add.

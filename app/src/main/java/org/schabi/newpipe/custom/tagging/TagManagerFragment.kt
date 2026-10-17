@@ -59,8 +59,8 @@ class TagManagerFragment : BottomSheetDialogFragment() {
         content.addView(status, ui.params())
         ui.space(content)
         val create = ui.row()
-        create.addView(ui.button("+ Category") { TagForms.category(ui, repository, disposables) { refresh() } }, LinearLayout.LayoutParams(0, -2, 1f))
-        create.addView(ui.button("+ Tag", true) { TagForms.tag(ui, repository, definitions, disposables) { refresh() } }, LinearLayout.LayoutParams(0, -2, 1f))
+        create.addView(ui.button("+ Category") { TagForms.category(this, definitions) }, LinearLayout.LayoutParams(0, -2, 1f))
+        create.addView(ui.button("+ Tag", true) { TagForms.tag(this, definitions) }, LinearLayout.LayoutParams(0, -2, 1f))
         content.addView(create, ui.params())
         ui.space(content)
         val toggles = ui.row()
@@ -86,6 +86,7 @@ class TagManagerFragment : BottomSheetDialogFragment() {
         ui.space(content)
         content.addView(ui.button("Done", true) { dismiss() }, ui.params())
         ui.prepareSheet(dialog, content)
+        TagForms.listen(this) { _, _, _ -> refresh() }
         refresh()
         return dialog
     }
@@ -131,7 +132,7 @@ class TagManagerFragment : BottomSheetDialogFragment() {
                 ui.button("⋮") {
                     ui.dialog().setTitle(category.name).setItems(arrayOf("Rename", "Delete category")) { _, choice ->
                         if (choice == 0) {
-                            TagForms.category(ui, repository, disposables, category) { refresh() }
+                            TagForms.category(this, definitions, category)
                         } else {
                             confirmDeletion(category.id, true, category.name)
                         }
@@ -149,7 +150,7 @@ class TagManagerFragment : BottomSheetDialogFragment() {
                     ui.button("Edit") {
                         ui.dialog().setTitle(tag.name).setItems(arrayOf("Rename or move", "Delete tag")) { _, action ->
                             if (action == 0) {
-                                TagForms.tag(ui, repository, definitions, disposables, tag) { refresh() }
+                                TagForms.tag(this, definitions, tag)
                             } else {
                                 confirmDeletion(tag.id, false, tag.name)
                             }
@@ -167,7 +168,7 @@ class TagManagerFragment : BottomSheetDialogFragment() {
                 for (tag in active) {
                     chips.addView(
                         ui.button((if (tag.id in included) "+ " else "− ") + tag.name) {
-                            TagForms.tag(ui, repository, definitions, disposables, tag) { refresh() }
+                            TagForms.tag(this, definitions, tag)
                         },
                         android.view.ViewGroup.MarginLayoutParams(-2, -2).apply {
                             rightMargin = ui.dp(7)

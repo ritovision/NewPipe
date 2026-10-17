@@ -67,3 +67,50 @@ describe('optional device tagging integration',()=>{
   }finally{ws.close();}
  });
 });
+
+describe('tag result fidelity and destructive metadata',()=>{
+ test('creation replay and receipt lookup retain IDs and catalog revisions but never names',async()=>{
+  const grant=await h.oauth(scopes);
+  const device=await h.pairedDevice();let count=0;
+  const ws=await h.connectDevice(device,(frame,socket)=>{
+   count++;
+   socket.send(JSON.stringify({type:'result',connection_id:frame.connection_id,client_id:frame.client_id,result:{request_id:frame.request.request_id,device_id:device.id,outcome:'COMMITTED',code:'OK',data:{tag_id:23,category_id:9,catalog_revision:17,name:'DO_NOT_PERSIST_PRIVATE_TAG_NAME'}}}));
+   return false;
+  },{capabilities,permissions:scopes.slice(1)});
+  try{
+   const args={...mutation(device.id),name:'temporary synthetic name',category_id:9};
+   const first=await h.call(grant.access_token,'create_tag',args);
+   expect(first.data.tag_id).toBeUndefined();
+   expect(first.data.data.tag_id).toBe(23);
+   const second=await h.call(grant.access_token,'create_tag',args);
+   expect(second.data.replayed).toBe(true);
+   expect(second.data.data).toEqual({tag_id:23,category_id:9,catalog_revision:17});
+   const receipt=await h.call(grant.access_token,'get_command_result',{device_id:device.id,original_request_id:args.request_id});
+   expect(receipt.data.data.tag_id??receipt.data.data.result?.tag_id).toBe(23);
+   expect(JSON.stringify(receipt)).not.toContain('DO_NOT_PERSIST_PRIVATE_TAG_NAME');
+   expect(count).toBe(1);
+  }finally{ws.close();}
+ });
+ test('set-item replay preserves bounded tag IDs and revision',async()=>{
+  const grant=await h.oauth(scopes);
+  const device=await h.pairedDevice();
+  const ws=await h.connectDevice(device,(frame,socket)=>{
+   socket.send(JSON.stringify({type:'result',connection_id:frame.connection_id,client_id:frame.client_id,result:{request_id:frame.request.request_id,device_id:device.id,outcome:'COMMITTED',code:'OK',data:{tag_ids:[2,8,19],revision:12}}}));return false;
+  },{capabilities,permissions:scopes.slice(1)});
+  try{
+   const args={...mutation(device.id),item:{stream_id:1,service:'YouTube',url:'https://www.youtube.com/watch?v=synthetic'},tag_ids:[2,8,19],expected_revision:11};
+   await h.call(grant.access_token,'set_item_tags',args);
+   const retry=await h.call(grant.access_token,'set_item_tags',args);
+   expect(retry.data.data).toEqual({tag_ids:[2,8,19],revision:12});expect(retry.data.replayed).toBe(true);
+  }finally{ws.close();}
+ });
+});
+
+
+test('MCP accurately labels tag deletion and assignment replacement as destructive',async()=>{
+ const grant=await h.oauth(scopes);
+ const result=await h.rpc(grant.access_token,'tools/list',{});
+ const entries=new Map(result.value.result.tools.map(t=>[t.name,t]));
+ for(const name of ['delete_tag','delete_tag_category','set_item_tags']) expect(entries.get(name).annotations.destructiveHint).toBe(true);
+ expect(entries.get('list_tags').annotations.destructiveHint).toBe(false);
+});

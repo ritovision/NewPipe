@@ -74,14 +74,11 @@ class TagEditorFragment : BottomSheetDialogFragment() {
         content.addView(choices, ui.params())
         newTagButton = ui.button("+ New tag") {
             snapshot?.let { old ->
-                TagForms.tag(ui, repository, old.definitions, disposables) { id ->
-                    chosen.add(id)
-                    reloadDefinitions()
-                }
+                TagForms.tag(this, old.definitions)
             }
         }.apply { isEnabled = false }
         newCategoryButton = ui.button("+ New category") {
-            TagForms.category(ui, repository, disposables) { reloadDefinitions() }
+            snapshot?.let { TagForms.category(this, it.definitions) }
         }.apply { isEnabled = false }
         content.addView(newTagButton, ui.params())
         ui.space(content)
@@ -103,6 +100,10 @@ class TagEditorFragment : BottomSheetDialogFragment() {
             override fun afterTextChanged(s: Editable?) = Unit
         })
         ui.prepareSheet(sheet, content)
+        TagForms.listen(this) { category, created, id ->
+            if (!category && created) chosen.add(id)
+            reloadDefinitions()
+        }
         saveState.result.observe(this) { renderSaveState(it) }
         load()
         return sheet

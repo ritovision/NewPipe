@@ -55,6 +55,20 @@ class AiPlaybackAndroidTest {
         assertNotEquals(old, restored.stateRevisionToken)
     }
 
+    @Test fun explicitSnapshotAppendPreservesOrderThroughShuffleAndUnshuffle() {
+        val queue = queue()
+        queue.shuffle()
+        val prefix = queue.streams.toList()
+        val incoming = queue().streams.toList()
+        val previousRevision = queue.stateRevisionToken
+        queue.appendInOrder(incoming)
+        assertEquals(prefix, queue.streams.take(prefix.size))
+        assertEquals(incoming, queue.streams.drop(prefix.size))
+        assertNotEquals(previousRevision, queue.stateRevisionToken)
+        queue.unshuffle()
+        assertEquals(incoming, queue.streams.drop(prefix.size))
+    }
+
     @Test fun playerReadDoesNotStartAService() {
         val result = AiAndroidPlaybackPort(ApplicationProvider.getApplicationContext()).execute(AiCatalogCommand.NowPlaying) {}
         assertEquals("false", result.getValue("active").jsonPrimitive.content)

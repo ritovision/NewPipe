@@ -219,5 +219,33 @@ class TagBackupIntegrationTest {
         }
     }
 
+    @Test fun executableTriggerCannotHideBehindASqliteLikeNameInAnImport() {
+        val tag = repository.createTag("Keep", null)
+        val media = item("preserved", tag)
+        val source = exported()
+        val evilTags = directory.resolve("trigger-tag.db")
+        ZipFile(source.toFile()).use { input ->
+            input.getInputStream(input.getEntry(TagStore.FILE_NAME)).use { Files.copy(it, evilTags) }
+        }
+        android.database.sqlite.SQLiteDatabase.openDatabase(evilTags.toString(), null, 0).use { db ->
+            db.execSQL("CREATE TRIGGER sqliteXerase AFTER INSERT ON tag BEGIN DELETE FROM assignment; END")
+        }
+        val target = directory.resolve("trigger-backup.zip")
+        ZipFile(source.toFile()).use { input ->
+            ZipOutputStream(Files.newOutputStream(target)).use { output ->
+                for (entry in input.entries().toList()) {
+                    output.putNextEntry(ZipEntry(entry.name))
+                    if (entry.name == TagStore.FILE_NAME) Files.copy(evilTags, output) else input.getInputStream(entry).use { it.copyTo(output) }
+                    output.closeEntry()
+                }
+            }
+        }
+        assertThrows(IllegalStateException::class.java) { TagBackupCoordinator.prepare(context, file(target)) }
+        assertFalse(TagRuntime.restoring)
+        assertEquals(setOf(tag), repository.editor(key(media)).assigned)
+        repository.createTag("Still safe", null)
+        assertEquals(setOf(tag), repository.editor(key(media)).assigned)
+    }
+
     private class SyntheticDeath : Error()
 }

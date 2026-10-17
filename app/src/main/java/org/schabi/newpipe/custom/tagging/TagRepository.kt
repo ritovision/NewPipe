@@ -96,8 +96,8 @@ class TagRepository(
 
     fun createCategory(name: String): Long = access { store.createCategory(name).also { TagRuntime.changed() } }
     fun createTag(name: String, categoryId: Long?): Long = access { store.createTag(name, categoryId).also { TagRuntime.changed() } }
-    fun renameCategory(id: Long, name: String) = access { store.renameCategory(id, name).also { TagRuntime.changed() } }
-    fun editTag(id: Long, name: String, categoryId: Long?) = access { store.editTag(id, name, categoryId).also { TagRuntime.changed() } }
+    fun renameCategory(id: Long, name: String, expectedRevision: Long? = null) = access { store.renameCategory(id, name, expectedRevision).also { TagRuntime.changed() } }
+    fun editTag(id: Long, name: String, categoryId: Long?, expectedRevision: Long? = null) = access { store.editTag(id, name, categoryId, expectedRevision).also { TagRuntime.changed() } }
     fun deletionPlan(id: Long, category: Boolean): TagDeletePlan = access { store.deletionPlan(id, category) }
     fun delete(plan: TagDeletePlan) = access { store.delete(plan).also { TagRuntime.changed() } }
 

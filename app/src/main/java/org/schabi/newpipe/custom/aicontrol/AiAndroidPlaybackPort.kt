@@ -95,7 +95,7 @@ internal class AiAndroidPlaybackPort(context: Context, private val media: AiSave
                     if (queue.size() + items.size > 10_000) throw AiFailure("QUEUE_TOO_LARGE", AiOutcome.NOT_EXECUTED)
                     checkActive()
                     val added = org.schabi.newpipe.player.playqueue.SinglePlayQueue(items, 0).streams
-                    queue.append(added)
+                    queue.appendInOrder(added)
                     buildJsonObject {
                         put("appended_items", added.size)
                         put("queue_size", queue.size())

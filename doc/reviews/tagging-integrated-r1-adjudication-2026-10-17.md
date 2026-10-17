@@ -1,0 +1,22 @@
+# Integrated source review R1 — coordinator adjudication
+
+Reviewed frozen merge commit `6a10bd5417f1fca95071d7cc3a8b12c6ac5d3bd9`, two independent fresh Astra Max sessions, read-only. Both returned HOLD. Claude remained unavailable. These are real findings accepted by the coordinator, not waived as UI polish.
+
+## Data safety
+1. **Library repair lock inversion (P1): ACCEPT/FIX.** rebindIfStillUnbound acquires TagRuntime before the Library monitor and calls the already-locked repair implementation. Added a concurrent native lock-order probe that keeps TagRuntime occupied and requires Library monitor availability.
+2. **Executable schema hiding behind sqlite LIKE wildcard (P1): ACCEPT/FIX.** Inspect every sqlite_master row and reject triggers/views before filtering exact system table names. No SQL LIKE wildcard filters suppress executable objects. Added real ZIP/tag-database malicious-trigger regression using `sqliteXerase`, requiring unchanged installed data and no restore fence.
+3. **Binding read before recovery (P1): ACCEPT/FIX.** First force the guarded Room open to finish any journal replay before reading Library binding in initialization. Actual-process-death fixtures now use differing canonical IDs (old 1/new 7) with a same-named old ordinary playlist at 7; recovery verification invokes normal NewPipeDatabase/Library initialization rather than calling the recovery helper directly.
+
+## Native UI / AI semantics
+1. **Stale native tag/category rename or move clobbering AI changes (P2): ACCEPT/FIX.** Native forms carry observed catalog revisions; TagRepository/TagStore check under mutation/writer barriers before updating. AI writes already had revision checks. Added native conflicting rename/move regressions.
+2. **Definition form lifetime/draft loss (P2): ACCEPT/FIX.** Replaced raw AlertDialog callbacks with child DialogFragments plus retained ViewModel tasks, persisted draft/category/error state, and one-shot FragmentResult delivery to the surviving editor/manager. Added delayed-save rotation with automatic tag selection, and conflicting edit draft/error rotation regressions.
+3. **Append shuffling the requested result suffix (P2): ACCEPT/FIX.** New explicit `PlayQueue.appendInOrder` preserves incoming order/duplicates and keeps shuffle backup bookkeeping correct; both native and AI verified append paths call it. Existing generic append remains unchanged. Added shuffle/unshuffle exact-order test.
+4. **Gateway retry losing tag IDs/revisions/counts (P2): ACCEPT/FIX.** Durable replies retain bounded safe tag/category identifiers, revisions, affected counts and bounded tag ID lists, not private labels. Added actual MCP relay first reply/retry/get_command_result assertions.
+5. **Native controls applying remote host restrictions (P2): ACCEPT/FIX.** Local tag playback passes a native exact-saved-snapshot lookup to the existing player adapter. Remote default lookup retains strict host policy. Added a saved former PeerTube-instance eligibility versus remote-host-denial regression.
+6. **MCP destructive annotations (P3): ACCEPT/FIX.** Tag deletion, category deletion and assignment replacement advertise destructiveHint=true. Added tools/list annotation tests.
+
+## Current evidence boundary
+- R5 native run: all data/tag/backup/Library tests, the 20k scale test and dark/light/black native UI checks passed. One existing playback-dispatch test refused the newtest package due to a hardcoded old QA-package guard; it never exercised runtime functionality. This test-only guard now admits both explicit QA identities, never main custom/dev or F-Droid.
+- Measured R5 20,000-item full snapshot plus AND/OR/NOT/Untagged/sort checks: 3,806 ms on owned API34 emulator. 20,000 items were not truncated. Real screenshot evidence was captured and visually inspected; modal/system bar contrast and singular labels received small follow-up corrections.
+- Corrected R7 source compiled both APKs with Java/Kotlin style checks and full JVM suite passing. Gateway after result/annotation fixes: **54/54 tests PASS**, including backward compatibility and old-permission/capability checks.
+- Corrected native suite, delayed form tests and the three actual host-kill recovery checkpoints are pending execution at this commit. A simulated injected exception is not counted as process termination. A separate final source review and live relay acceptance are still required before claiming full release closure.

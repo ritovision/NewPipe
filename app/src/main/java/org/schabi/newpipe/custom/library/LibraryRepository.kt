@@ -3,8 +3,6 @@
  */
 package org.schabi.newpipe.custom.library
 
-import kotlin.concurrent.withLock
-
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -17,6 +15,7 @@ import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import java.util.concurrent.Callable
+import kotlin.concurrent.withLock
 import org.schabi.newpipe.NewPipeDatabase
 import org.schabi.newpipe.custom.tagging.TagRuntime
 import org.schabi.newpipe.database.AppDatabase
@@ -99,6 +98,9 @@ object LibraryRepository {
     @Synchronized
     private fun initializeLocked(db: AppDatabase, store: LibraryBindingStore): Long {
         current(db)?.let { return it.id }
+        // The guarded open completes any interrupted multi-file restore BEFORE reading
+        // the binding. A cached pre-recovery binding could select another Library ID.
+        db.openHelper.writableDatabase
 
         val binding = try {
             store.read()
@@ -216,11 +218,17 @@ object LibraryRepository {
     }
 
     /** A repair dialog may have opened before a different canonical ID finished binding. */
-    @Synchronized
-    internal fun rebindIfStillUnbound(db: AppDatabase, store: LibraryBindingStore, playlistId: Long): Boolean {
-        current(db)?.let { return it.id == playlistId }
-        rebindExisting(db, store, playlistId)
-        return true
+    internal fun rebindIfStillUnbound(db: AppDatabase, store: LibraryBindingStore, playlistId: Long): Boolean = TagRuntime.lock.withLock {
+        TagRuntime.assertAvailable()
+        synchronized(this) {
+            val current = current(db)
+            if (current != null) {
+                current.id == playlistId
+            } else {
+                rebindExistingLocked(db, store, playlistId)
+                true
+            }
+        }
     }
 
     @JvmStatic

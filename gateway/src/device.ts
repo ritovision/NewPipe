@@ -236,7 +236,8 @@ export class DeviceRoom extends DurableObject<Env> {
       if(record?.connectionId===p.connectionId) {
         // Persist only compact counts/identifiers, not titles, URLs, search results, or credentials.
         const safe:Record<string,unknown>={};
-        for(const [k,v] of Object.entries(reply.data)) if(/^(playlist_id|library_id|added_items|affected_memberships|removed_library_items|removed_memberships|removed_playlists|added_memberships|source_revision|target_revision|revision)$/.test(k) && (typeof v==='number' || typeof v==='boolean' || (typeof v==='string' && /^[0-9a-f-]{1,64}$/.test(v)))) safe[k]=v;
+        for(const [k,v] of Object.entries(reply.data)) if(/^(playlist_id|library_id|tag_id|category_id|catalog_revision|deleted_tags|deleted_assignments|deleted_categories|added_items|affected_memberships|removed_library_items|removed_memberships|removed_playlists|added_memberships|source_revision|target_revision|revision)$/.test(k) && (typeof v==='number' || typeof v==='boolean' || (typeof v==='string' && /^[0-9a-f-]{1,64}$/.test(v)))) safe[k]=v;
+        if(Array.isArray(reply.data.tag_ids) && reply.data.tag_ids.length<=500 && reply.data.tag_ids.every(v=>typeof v==='number' && Number.isSafeInteger(v) && v>0)) safe.tag_ids=reply.data.tag_ids;
         await this.ctx.storage.put(p.key,{...record,reply:{...reply,data:safe}});
       }
     } } catch { reply=result(p.deviceId,p.requestId,'OUTCOME_UNKNOWN','RELAY_RECEIPT_FAILURE'); }
