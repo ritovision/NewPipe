@@ -13,6 +13,7 @@ import androidx.sqlite.db.SupportSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteStatement
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import java.nio.file.Path
+import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
@@ -65,10 +66,13 @@ internal class CatalogOpenHelperFactory(private val directory: Path) : SupportSQ
 
         private fun acquire() {
             operations.readLock().lock()
-            val draining = transactionDepth.get() > 0
+            val draining = (transactionDepth.get() ?: 0) > 0
             if (!draining && (frozen || TagRuntime.restoring || generation != TagRuntime.generation)) {
                 operations.readLock().unlock()
-                error("This Library is being replaced. Restart before making changes.")
+                // Expected lifecycle cancellation, not an uncaught programming error:
+                // Room may schedule an invalidation transaction while restore is draining.
+                // It must stop normally rather than reach the app's crash handler.
+                throw CancellationException("This Library is being replaced. Restart before making changes.")
             }
         }
         private inline fun <T> operation(block: () -> T): T {
@@ -83,7 +87,7 @@ internal class CatalogOpenHelperFactory(private val directory: Path) : SupportSQ
             acquire()
             try {
                 block()
-                transactionDepth.set(transactionDepth.get() + 1)
+                transactionDepth.set((transactionDepth.get() ?: 0) + 1)
             } catch (error: Throwable) {
                 operations.readLock().unlock()
                 throw error
@@ -91,7 +95,7 @@ internal class CatalogOpenHelperFactory(private val directory: Path) : SupportSQ
             // Keep this read lease for the entire transaction, including gaps between SQL.
         }
         fun freeze() {
-            check(transactionDepth.get() == 0) { "Cannot replace Library within a transaction" }
+            check((transactionDepth.get() ?: 0) == 0) { "Cannot replace Library within a transaction" }
             check(operations.writeLock().tryLock(3, TimeUnit.SECONDS)) { "Database work is still active. Import stopped before replacement; restart and retry." }
             try {
                 frozen = true
@@ -102,15 +106,15 @@ internal class CatalogOpenHelperFactory(private val directory: Path) : SupportSQ
         override fun beginTransaction() = begin { db.beginTransaction() }
         override fun beginTransactionNonExclusive() = begin { db.beginTransactionNonExclusive() }
         override fun beginTransactionReadOnly() = begin { db.beginTransactionReadOnly() }
-        override fun beginTransactionWithListener(listener: SQLiteTransactionListener) = begin { db.beginTransactionWithListener(listener) }
-        override fun beginTransactionWithListenerNonExclusive(listener: SQLiteTransactionListener) = begin { db.beginTransactionWithListenerNonExclusive(listener) }
-        override fun beginTransactionWithListenerReadOnly(listener: SQLiteTransactionListener) = begin { db.beginTransactionWithListenerReadOnly(listener) }
+        override fun beginTransactionWithListener(transactionListener: SQLiteTransactionListener) = begin { db.beginTransactionWithListener(transactionListener) }
+        override fun beginTransactionWithListenerNonExclusive(transactionListener: SQLiteTransactionListener) = begin { db.beginTransactionWithListenerNonExclusive(transactionListener) }
+        override fun beginTransactionWithListenerReadOnly(transactionListener: SQLiteTransactionListener) = begin { db.beginTransactionWithListenerReadOnly(transactionListener) }
         override fun endTransaction() {
             try {
                 db.endTransaction()
             } finally {
-                if (transactionDepth.get() > 0) {
-                    transactionDepth.set(transactionDepth.get() - 1)
+                if ((transactionDepth.get() ?: 0) > 0) {
+                    transactionDepth.set((transactionDepth.get() ?: 0) - 1)
                     operations.readLock().unlock()
                 }
             }
