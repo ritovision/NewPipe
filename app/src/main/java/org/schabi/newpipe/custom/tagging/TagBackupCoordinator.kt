@@ -181,6 +181,10 @@ object TagBackupCoordinator {
                 val directory = context.getDatabasePath(DB).toPath().parent
                 Files.createDirectories(directory)
                 TagRuntime.freezeForRestore()
+                CatalogOpenHelperFactory.drain(repository.library.openHelper)
+                // The new-open fence is active, but already-admitted Room transactions
+                // may still finish on their owning thread. Drain BEFORE closing their DB.
+                awaitClosedCheckpoint(context.getDatabasePath(DB).toPath())
                 NewPipeDatabase.close()
                 awaitClosedCheckpoint(context.getDatabasePath(DB).toPath())
                 LibraryRepository.suspendForRestore()
@@ -383,7 +387,7 @@ object TagBackupCoordinator {
         check(android.os.StatFs(directory.toString()).availableBytes > reserve) { "Not enough free storage to stage and safely recover this import. No installed data or AI pairing was changed." }
     }
 
-    /** Closed Room can have leased connections. Refuse replacement unless they release WAL. */
+    /** Refuse close/replacement unless already-admitted transactions release the WAL. */
     internal fun awaitClosedCheckpoint(path: Path, timeoutMs: Long = 3000) {
         if (!Files.exists(path)) return
         val deadline = android.os.SystemClock.elapsedRealtime() + timeoutMs

@@ -326,14 +326,14 @@ class TagBackupIntegrationTest {
         val connection = db.openHelper.writableDatabase
         val writer = Thread {
             try {
-                connection.beginTransactionNonExclusive()
+                db.beginTransaction()
                 try {
                     connection.execSQL("INSERT INTO subscriptions(uid,service_id,url,name,notification_mode) VALUES(78,0,'https://example.org/inflight','In-flight commit',0)")
                     held.countDown()
                     check(release.await(10, TimeUnit.SECONDS))
-                    connection.setTransactionSuccessful()
+                    db.setTransactionSuccessful()
                 } finally {
-                    connection.endTransaction()
+                    db.endTransaction()
                 }
             } catch (error: Throwable) {
                 failure.set(error)
@@ -413,6 +413,25 @@ class TagBackupIntegrationTest {
                 assertTrue(it.moveToFirst())
                 assertEquals("keep", it.getString(0))
             }
+        }
+    }
+
+    @Test fun cachedRoomStatementAndOldHandleCannotWriteAfterReplacement() {
+        repository.createTag("Keep", null)
+        val backup = exported()
+        val old = db.openHelper.writableDatabase
+        val cached = old.compileStatement("INSERT INTO subscriptions(uid,service_id,url,name,notification_mode) VALUES(79,0,'https://example.org/stale','Stale',0)")
+        try {
+            TagBackupCoordinator.prepare(context, file(backup)).use { TagBackupCoordinator.installWithShutdown(context, it) {} }
+            assertThrows(IllegalStateException::class.java) { cached.executeInsert() }
+            assertThrows(IllegalStateException::class.java) { old.beginTransaction() }
+            reopen()
+            db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM subscriptions WHERE uid=79").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(0, it.getInt(0))
+            }
+        } finally {
+            cached.close()
         }
     }
 

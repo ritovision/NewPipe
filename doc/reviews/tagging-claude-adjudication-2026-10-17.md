@@ -40,3 +40,11 @@ Original reports preserved unchanged in `tagging-claude-data-max-2026-10-17.md` 
 No tests are inferred from source: results are captured separately. First correction build passed JVM/style and app/test compilation, gateway56/56. Its actual native run exposed Android restrictions in two new preflight lines (Files.getFileStore permission; execSQL on a result-bearing PRAGMA); corrected to Android StatFs and rawQuery. These were development regressions caught before any phone rollout. Native rerun pending at this checkpoint.
 
 No main customdev/F-Droid application data was cleared. No AI credentials, pairing, consent or gateway deployment are changed by adjudicating these reviews. Main Room remains NP9/RV1=9001; tag DB remains independently versioned2. Review closure and installed-device acceptance are recorded only after execution.
+
+## Follow-up: restore admission ordering
+
+The corrected Android preflight rerun passed 11/12 backup tests, including genuine upstream4 -> NP9/RV1 import and re-export, expression-default rejection, invalid-binding export preservation, and busy-WAL refusal. The remaining held-writer test reproduced a concrete lifecycle failure: closing Room before draining prevented an already-admitted transaction from completing (`attempt to re-open an already-closed object`). This is not evidence that silent corruption occurred, but it proves a post-close checkpoint alone is insufficient.
+
+Correction: the live Room open helper now wraps transaction and statement execution with a bounded admission/drain gate. An admitted transaction holds a read lease through its matching end; restore fences new work and drains those leases BEFORE close. Existing transaction owners can finish; new transactions and cached statements cannot start after the fence. A bounded raw checkpoint still verifies WAL state before/after close. Getter/state inspection needed to finish Room's legacy endTransaction path can use the cached proxy without reopening the database. Added a stale cached statement/handle regression. No global queue or database framework was introduced, and main Room schema is still9001.
+
+This specific helper change and runtime regression require focused data-review closure. The whole feature is not declared finished based only on these source changes.
