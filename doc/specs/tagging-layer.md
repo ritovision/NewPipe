@@ -35,7 +35,7 @@ Tags overlap with playlists when filtering by a single tag, but become substanti
 4. Removing a stream from one ordinary playlist leaves Library membership and tag assignments untouched.
 5. **Removing a stream from Library removes it from every ordinary playlist AND deletes its stream–tag associations** in our metadata database.
 6. **Deleting a stream does not delete the tag definitions.** Tags are allowed to exist with zero assigned streams.
-7. Deleting a tag definition should remove that tag's associations; category-deletion behavior remains open.
+7. **Deleting a tag definition deletes its stream–tag assignments but never deletes Library streams or ordinary playlist memberships. Deleting a category deletes that category AND all tag definitions inside it, including their assignments.** Category deletion is an explicit, confirmed destructive action; show the number of tags and affected assignments before proceeding. Do **not** move those tags to Uncategorized. Tags in other categories and the videos/songs themselves remain untouched. Any Library stream losing its last assigned tag becomes eligible for the **Untagged** filter.
 8. Saving from anywhere (video screen, long-press menu, tag editor, filtered-result action, import, future MCP/cloud flow) must obey the same Library rules.
 9. Tags apply to the specific saved stream/upload identity, not automatically to every upload that appears to be the same song. Cross-service equivalence is a separate, later feature.
 
@@ -70,6 +70,7 @@ Provide a directly accessible **Tags** destination in NewPipe's main navigation/
 - Create, rename and manage optional **tag categories**; view category-grouped tags or a flat uncategorized list.
 - Search **saved Library** streams by textual metadata such as title/uploader.
 - Select multiple tags with **AND / OR** matching and exclude selected tags (**NOT**); show a result count.
+- Offer an **Untagged** filter for saved Library streams with zero tag assignments, regardless of category. This is a computed filter, **not** a tag definition; it updates when tags are added, removed or deleted.
 - Filter and sort the **current results**. Exact sort options TBD; at minimum a deterministic order and a title-based option.
 - See the matching stream list, inspect a stream and edit its tags.
 - **Play Results** — replace current NewPipe playback queue with the matching streams in current sort order.
@@ -97,6 +98,10 @@ There is no requirement to tag content returned by a provider search before it i
 **Keep a curated snapshot:** Apply filters → **Save as Playlist** → name it `Workout Mix`. Later tag changes do not silently rewrite that ordinary playlist.
 
 **Remove a saved item entirely:** Delete from Library → remove its memberships from every local playlist and remove its tag assignments. Keep the `Hip-Hop` and `Energetic` tag definitions for future videos.
+
+**Delete a category:** Delete `Genre` → confirm removal of the category, its tags and their assignments. Videos remain in Library and in all ordinary playlists. Those with no other assigned tags now appear in **Untagged**.
+
+**Find unorganized Library videos:** Choose **Untagged** → see only saved videos/songs with zero assigned tags; adding any tag removes a video from this result set.
 
 ## Proposed data layer (isolated from upstream)
 
@@ -145,12 +150,12 @@ Implement safe ordering and failure recovery (e.g., ensure Library save succeeds
 ## Core acceptance criteria
 
 1. Any saved NewPipe stream from supported services can be tagged; no artificial songs-only path.
-2. Categories optional, flat tags supported, unused tag definitions persist.
+2. Categories optional, flat tags supported, unused tag definitions persist. Deleting a category explicitly deletes its tags and associations, **never streams or playlists**, after a destructive-action confirmation.
 3. Video-details Tags action and playlist long-press Edit Tags invoke one reusable editor.
 4. Assigning a tag to an unsaved item automatically saves it to Library exactly once.
 5. Removing the last tag leaves the stream saved; removing it from Library deletes its tag associations and playlist memberships but retains definitions.
 6. Tags page is directly accessible in the main navigation and supports creating/managing tags and categories.
-7. Text search, multi-tag AND/OR, exclusion, sorting and result counts work on the saved Library; unaffected by ordinary provider-search changes.
+7. Text search, multi-tag AND/OR, exclusion, **Untagged**, sorting and result counts work on the saved Library; unaffected by ordinary provider-search changes.
 8. Play Results / Add to Queue use NewPipe's existing player with the exact current result set/order; neither implicitly creates a playlist.
 9. Save as Playlist creates a regular NewPipe playlist snapshot; subsequent tag changes do not mutate that saved playlist.
 10. Offline use works. Interrupted writes, imports/restores and failed operations do not silently corrupt the canonical Library or leave permanently inconsistent tag associations.
@@ -159,7 +164,7 @@ Implement safe ordering and failure recovery (e.g., ensure Library save succeeds
 ## Open implementation / UX choices
 
 1. Names and tag uniqueness: global uniqueness or names scoped to category? Can the same label appear in multiple categories?
-2. Category deletion: move contained tags to Uncategorized (suggested) or delete tags and associations with explicit confirmation?
+2. **RESOLVED (2026-10-16):** category deletion also deletes all contained tag definitions and stream–tag assignments after confirmation; never deletes streams or playlist memberships. No move-to-Uncategorized fallback.
 3. Editing UX: checkbox list versus chips; save immediately or explicit Apply; create tag/category from bottom sheet or separate form?
 4. Fifth details action layout on smaller screens, landscape and accessibility text sizing.
 5. Exact filter grammar: global AND/OR plus excluded tags initially versus grouped expressions by category (Genre OR Genre, AND Mood, NOT Live).
@@ -167,7 +172,7 @@ Implement safe ordering and failure recovery (e.g., ensure Library save succeeds
 7. Does Play Results replace current playback immediately or offer an optional confirmation? Queue behavior when already playing.
 8. Save as Playlist: creation of empty playlists, duplicate streams, static order, whether to append to an existing playlist too.
 9. Saved filter presets/dynamic smart playlists: attractive future option but not required in first build.
-10. Should streams without any tags be filterable through a special `Untagged` facet?
+10. **RESOLVED (2026-10-16):** include an `Untagged` facet for saved Library streams having zero tag assignments. It is a derived filter, not a real tag.
 11. How to efficiently get the canonical Library stream set at 20,000+ items; indexing/cache invalidation strategy.
 12. URL/service identity reconciliation across upstream upgrades, database imports and multiple devices.
 13. Whether bulk tag edits are included initially or delivered afterward.
@@ -175,6 +180,8 @@ Implement safe ordering and failure recovery (e.g., ensure Library save succeeds
 
 ## Priority / implementation boundary
 
-**Document only for now.** Implement canonical Library automation first. The agreed first tagging milestone is the separate metadata layer, tag/category management, reusable tagging sheet, Tags page with text/AND/OR/exclusion/sort, and **Play Results / Add to Queue / Save as Playlist**.
+**UI-first validation gate (2026-10-17):** Library v1 is complete. Before building the tag metadata layer, build a **disposable native NewPipe tagging UI prototype**, inside a dedicated isolated `feature/tagging-ui-spike` worktree. The prototype uses synthetic, in-memory data only: no changes to the real Library, playback queue, SQLite schema, export/import, or AI Control. Validate page information architecture, tag editor, category/tag management, Boolean filtering, Untagged results and playback/playlist action placements through actual Android interactions. `Play Results`, `Add to Queue` and `Save as Playlist` must explicitly say *demo only* until connected to real adapters. Revise the UI with user feedback before implementing persistent architecture. See [Tagging UI Spike](../architecture/tagging-ui-spike.md).
+
+**After UX sign-off:** Implement the separate metadata layer, tag/category management, reusable tagging sheet, Tags page with text/AND/OR/exclusion/Untagged/sort, and **Play Results / Add to Queue / Save as Playlist**.
 
 Deep integration into upstream global search, a completely separate player, persisted dynamic smart-playlist subscriptions, cloud sync and MCP are later decisions. Do not add them implicitly during initial tagging work.
