@@ -105,4 +105,4 @@ When the phone is available, on the separate `org.schabi.newpipe.debug.featureai
 
 **Automated short reliability acceptance: PASS for all covered gateway/relay paths.**
 
-**Final physical background-reliability acceptance: PENDING / optionally waived by the owner**, because it could not be executed with a reachable Android target in this session. A long soak is separately deferred at the owner's request. Do not label hardware sleep, cellular handoff or Android service Stop as verified based on simulated WebSocket closes.
+**Final physical background-reliability acceptance: PARTIAL PASS — screen lock and Stop/Start PASS, cellular handoff FAIL / NEEDS FOLLOW-UP; see `ai-control-physical-reliability-2026-10-17.md`. No owner waiver recorded.**, because it could not be executed with a reachable Android target in this session. A long soak is separately deferred at the owner's request. Do not label hardware sleep, cellular handoff or Android service Stop as verified based on simulated WebSocket closes.
