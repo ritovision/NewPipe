@@ -11,7 +11,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import org.schabi.newpipe.custom.aicontrol.AiCommandReceipt
 import org.schabi.newpipe.custom.aicontrol.AiCommandReceiptDao
-import org.schabi.newpipe.custom.aicontrol.AiDatabaseMigration
+import org.schabi.newpipe.custom.aicontrol.RitoVisionDatabaseVersion
 import org.schabi.newpipe.database.feed.dao.FeedDAO
 import org.schabi.newpipe.database.feed.dao.FeedGroupDAO
 import org.schabi.newpipe.database.feed.model.FeedEntity
@@ -37,7 +37,7 @@ import org.schabi.newpipe.database.subscription.SubscriptionEntity
 
 @TypeConverters(Converters::class)
 @Database(
-    version = AiDatabaseMigration.VERSION,
+    version = RitoVisionDatabaseVersion.CURRENT,
     entities = [
         SubscriptionEntity::class,
         SearchHistoryEntry::class,

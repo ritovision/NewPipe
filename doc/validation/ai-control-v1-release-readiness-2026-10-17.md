@@ -1,5 +1,8 @@
 # AI Control v1 — final integration and release record
 
+
+> **Subsequent versioning decision (2026-10-17):** The schema 9 → 10 installation described below is historical. The owner explicitly made all experimental custom-app data disposable and adopted `NP9/RV1` / Room `9001` with **no old fork-10 migration**. See `rv-schema9001-clean-cutover-2026-10-17.md` for the new cutover. Keep the historical test record intact.
+
 **Date:** October 17, 2026 EDT
 **Baseline:** `custom/dev` at `b9a8f28d3` (completed Library polish)
 **Source candidate:** `feature/ai-control` at `8147902d6`, incorporated in `integration/ai-control-v1-20261017`

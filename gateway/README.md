@@ -32,7 +32,7 @@ On the separate QA app (or the verified and intentionally installed main `custom
 
 Configure the private ChatGPT plugin/app with the MCP resource above and OAuth. OAuth discovery and dynamic client registration are implemented; consent includes only the requested scopes. Destructive scopes are off until deliberately granted. Local Android permissions and the OAuth grant must both allow an operation. Every device operation requires its exact device ID; discovery is the exception.
 
-Do not install an AI QA APK over the existing `custom/dev` or stock/F-Droid installation. AI-era schema-10 exports cannot be imported into older schema-9 NewPipe builds. Keep pre-upgrade backups separate.
+Do not install an AI QA APK over main `custom/dev` or stock/F-Droid NewPipe. The current RitoVision schema is `NP9/RV1` (`9001`). Legacy experimental fork-10 data is deliberately discarded, not migrated. See `../doc/architecture/ritovision-schema-versioning.md`.
 
 ## OAuth scope discovery and reauthorization
 

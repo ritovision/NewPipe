@@ -1,5 +1,8 @@
 # AI Control — local catalog foundation
 
+
+> **Historical note (2026-10-17):** This earlier checkpoint used fork-local schema 10. The owner later authorized a disposable-data clean break to namespaced `NP9/RV1` / Room `9001`, with no old-fork migration. See `ritovision-schema-versioning.md`. Dated original evidence below is unchanged.
+
 **CURRENT CHECKPOINT:** Local catalog foundation implemented and reviewed. Latest code passes **237 JVM tests and 92 tests on the physical Pixel 7**, all with zero failures. The 92 device tests comprise 54 new AI/migration cases, 35 existing Library cases and 3 legacy migration cases. Application/test APKs compile and signatures are verified. Read-only Claude/Astra reviews and author adjudication are in `doc/reviews/ai-control-foundation-*`.
 
 **NOT A COMPLETE AI CONTROL RELEASE:** No main-menu AI page, background service, persisted pairing/Keystore grants, restore-session/epoch wiring, playback adapter, new URL extraction or Cloudflare/OAuth/WSS gateway is active or implemented yet. The command engine currently operates only through controlled local tests.

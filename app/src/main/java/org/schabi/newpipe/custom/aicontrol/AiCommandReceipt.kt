@@ -47,14 +47,18 @@ interface AiCommandReceiptDao {
 }
 
 /**
- * This fork's v10 adds only the receipt table. Catalog edits and their receipt use ONE Room
- * transaction, not a separately committed sidecar. On a future upstream v10 merge this fork
- * version must be explicitly reconciled; never silently reuse another migration's number.
+ * Adds the receipt table to canonical upstream NP9, producing NP9/RV1 (9001).
+ *
+ * The user approved a clean reset of installed experimental fork data. There
+ * is deliberately no migration from the discarded fork-local v10 to 9001.
+ * Keep this NP9 import path so officially versioned upstream 9 backups still
+ * have a supported route into the fork, without reusing upstream version 10.
  */
 object AiDatabaseMigration {
-    const val VERSION = 10
-
-    val FROM_UPSTREAM_9 = Migration(9, VERSION) { db ->
+    val FROM_UPSTREAM_9 = Migration(
+        RitoVisionDatabaseVersion.UPSTREAM_SCHEMA,
+        RitoVisionDatabaseVersion.CURRENT
+    ) { db ->
         db.execSQL(
             """
             CREATE TABLE IF NOT EXISTS `rv_ai_command_receipts` (

@@ -24,7 +24,7 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito
 import org.mockito.Mockito.`when`
-import org.schabi.newpipe.custom.aicontrol.AiDatabaseMigration
+import org.schabi.newpipe.custom.aicontrol.RitoVisionDatabaseVersion
 import org.schabi.newpipe.settings.export.BackupFileLocator
 import org.schabi.newpipe.settings.export.ImportExportManager
 import org.schabi.newpipe.streams.io.StoredFileHelper
@@ -218,11 +218,37 @@ class LibraryBackupRestoreTest {
     @Test
     fun futureSchemaBackupIsRejectedBeforeAnyInstalledFilesChange() {
         val future = validDb.copyOf()
-        ByteBuffer.wrap(future).order(ByteOrder.BIG_ENDIAN).putInt(60, AiDatabaseMigration.VERSION + 1)
+        ByteBuffer.wrap(future).order(ByteOrder.BIG_ENDIAN).putInt(60, RitoVisionDatabaseVersion.CURRENT + 1)
         val oldBinding = "playlist_id=44\nname=Library\n".toByteArray()
         Files.write(bindingFile, oldBinding)
         rejectsBeforeWrite(BackupFileLocator.FILE_NAME_DB to future)
         assertArrayEquals(oldBinding, Files.readAllBytes(bindingFile))
+    }
+
+    @Test
+    fun discardedExperimentalForkSchema10IsRejectedBeforeAnyInstalledFilesChange() {
+        val oldFork = validDb.copyOf()
+        ByteBuffer.wrap(oldFork).order(ByteOrder.BIG_ENDIAN).putInt(60, 10)
+        rejectsBeforeWrite(BackupFileLocator.FILE_NAME_DB to oldFork)
+    }
+
+    @Test
+    fun unknownForkNamespaceVersionIsRejectedBeforeAnyInstalledFilesChange() {
+        val unknown = validDb.copyOf()
+        ByteBuffer.wrap(unknown).order(ByteOrder.BIG_ENDIAN).putInt(60, 9000)
+        rejectsBeforeWrite(BackupFileLocator.FILE_NAME_DB to unknown)
+    }
+
+    @Test
+    fun currentForkSchemaBackupPassesHeaderValidation() {
+        val current = validDb.copyOf()
+        ByteBuffer.wrap(current).order(ByteOrder.BIG_ENDIAN)
+            .putInt(60, RitoVisionDatabaseVersion.CURRENT)
+        val zip = makeZip(BackupFileLocator.FILE_NAME_DB to current)
+
+        assertTrue(LibraryBackupRestore.extractDbAndBinding(stored(zip), locator))
+        assertArrayEquals(current, Files.readAllBytes(dbFile))
+        assertNoStagingFiles()
     }
 
     @Test

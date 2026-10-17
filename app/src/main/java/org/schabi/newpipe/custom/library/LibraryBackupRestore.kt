@@ -11,7 +11,7 @@ import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.util.Properties
 import java.util.zip.ZipInputStream
 import kotlin.io.path.deleteIfExists
-import org.schabi.newpipe.custom.aicontrol.AiDatabaseMigration
+import org.schabi.newpipe.custom.aicontrol.RitoVisionDatabaseVersion
 import org.schabi.newpipe.settings.export.BackupFileLocator
 import org.schabi.newpipe.streams.io.SharpInputStream
 import org.schabi.newpipe.streams.io.StoredFileHelper
@@ -144,10 +144,12 @@ object LibraryBackupRestore {
             "Invalid backup: bad or truncated SQLite database header"
         }
         // SQLite file header: the application user_version is big-endian at bytes 60..63.
-        // Reject a future schema BEFORE replacing the live files, not at the next app restart.
+        // The fork's version namespace is not a continuous upstream version range.
+        // Refuse unsupported schemas (including obsolete experimental fork v10)
+        // BEFORE replacing the installed DB, not when Room next opens it.
         val schemaVersion = ByteBuffer.wrap(header).order(ByteOrder.BIG_ENDIAN).getInt(60)
-        check(schemaVersion in 0..AiDatabaseMigration.VERSION) {
-            "This backup requires a newer version of the app"
+        check(RitoVisionDatabaseVersion.supportsImportSchema(schemaVersion)) {
+            "Unsupported NewPipe/RitoVision backup database version"
         }
     }
 
