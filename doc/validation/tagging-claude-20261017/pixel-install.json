@@ -1,0 +1,15 @@
+{
+  "package": "org.schabi.newpipe.debug.featuretagginguispike",
+  "apk_sha256": "c17acc3697a79c6644229f98dc0764990178de6291107d81d4623bb94f76829f",
+  "install": "Success",
+  "metadata": [
+    "versionCode=1015 minSdk=23 targetSdk=35",
+    "versionName=0.29.1",
+    "lastUpdateTime=2026-10-17 13:55:02"
+  ],
+  "untouched_packages_present": [
+    "org.schabi.newpipe.debug.customdev",
+    "org.schabi.newpipe"
+  ],
+  "clear_or_uninstall": false
+}

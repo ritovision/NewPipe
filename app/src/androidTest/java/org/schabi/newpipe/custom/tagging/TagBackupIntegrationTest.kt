@@ -357,8 +357,12 @@ class TagBackupIntegrationTest {
         }
         try {
             TagBackupCoordinator.prepare(context, file(backup)).use { prepared ->
-                releaser.start()
-                assertThrows(Exception::class.java) { TagBackupCoordinator.installWithShutdown(context, prepared) {} }
+                assertThrows(java.io.IOException::class.java) {
+                    TagBackupCoordinator.installWithShutdown(context, prepared) {
+                        assertEquals(1L, finished.count)
+                        releaser.start()
+                    }
+                }
             }
         } finally {
             release.countDown()
@@ -377,6 +381,7 @@ class TagBackupIntegrationTest {
             assertTrue(it.moveToFirst())
             assertEquals("In-flight commit", it.getString(0))
         }
+        assertTrue("The rollback regression must actually publish the swap before failing", published)
         println("LEASED_ROOM_WRITE_ROLLBACK_PUBLISHED=$published")
     }
 
@@ -423,8 +428,8 @@ class TagBackupIntegrationTest {
         val cached = old.compileStatement("INSERT INTO subscriptions(uid,service_id,url,name,notification_mode) VALUES(79,0,'https://example.org/stale','Stale',0)")
         try {
             TagBackupCoordinator.prepare(context, file(backup)).use { TagBackupCoordinator.installWithShutdown(context, it) {} }
-            assertThrows(IllegalStateException::class.java) { cached.executeInsert() }
-            assertThrows(IllegalStateException::class.java) { old.beginTransaction() }
+            assertThrows(java.util.concurrent.CancellationException::class.java) { cached.executeInsert() }
+            assertThrows(java.util.concurrent.CancellationException::class.java) { old.beginTransaction() }
             reopen()
             db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM subscriptions WHERE uid=79").use {
                 assertTrue(it.moveToFirst())

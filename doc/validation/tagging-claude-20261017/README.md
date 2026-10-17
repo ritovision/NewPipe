@@ -1,16 +1,34 @@
-# Tagging + AI: Claude adjudication and execution evidence
+# Tagging + AI — reviewed source and QA acceptance
 
-Runtime source candidate: `c8041a26911e174887c5e6ce540a70627943b979`.
-Branch: `integration/tagging-ai-20261017`.
+**Implementation and source-review work completed.** Production main-app installation and a live authorized AI-tag command remain separate rollout gates; neither is inferred from tests.
 
-- Main Room remains **NP9/RV1 (9001)**. Independent tag database version **2**; category deletion never removes Library items or ordinary playlists.
-- **308 JVM tests PASS**, **56 gateway tests PASS**, Java/Kotlin style and both APK builds PASS.
-- **153 native Android tests PASS** on owned API34 `emulator-5574`, all synthetic data. Includes real upstream4 import/re-export, stale popup/draft conflicts, predictable AI rejections, pending Room-writer rollback, cached statement fencing, native themed UI, player queue regressions and 20,000-item filtering.
-- **5/5 real host force-stop recovery checkpoints PASS**: before first replacement (prepared journal), after main DB, after tag DB, after binding, after commit marker. Each verification launches a new process, uses normal Room/Library startup, checks database consistency and correct old/new binding/content. No physical user app was force-stopped for destructive tests.
-- **Claude Opus Max UI/API closure: PASS WITH NONBLOCKERS**. Original reports and adjudications are in `doc/reviews/tagging-claude-*`. Data-helper closure is still pending at this checkpoint; do not substitute a unit-test pass for that independent verdict.
-- **Gateway deployed** with existing bindings, secrets and grants preserved. Version `75645ddd-3e81-4c9e-b4d0-a04f517a9b4c`. Public live smoke requests from the test HTTP client received Cloudflare edge error **1010 / HTTP403** (browser-signature denial), not a verified MCP command result. No attempt was made to bypass it or fabricate a live command pass. New tag permissions still require normal explicit consent, and the target installation must advertise the new capabilities.
-- Production customdev and stock/F-Droid APKs/data are not modified. Newtest QA install acceptance is recorded separately after verification.
+## Evidence
 
-`candidate.json` pins exact APK hashes/sizes. `native-full-r5.log`, `process-death-results.log` and the per-checkpoint logs are actual primary-machine output, copied only after completion. Build/gateway logs are actual build-machine output. Earlier failing development iterations remain privately available in `.work/claude-fixes` / primary coordinator cache and are explained in the adjudication; none is relabeled a pass.
+| Check | Executed result |
+| --- | --- |
+| JVM unit tests | 308/308 PASS |
+| Gateway tests | 56/56 PASS |
+| Native Android integration/regression suite | 153/153 PASS on owned API34 emulator-5574 |
+| Strengthened backup assertions | 13/13 PASS; same backup cases rerun, not extra unique tests |
+| Actual host force-stop/restart recovery | 5/5 PASS: prepared, main DB, tag DB, binding, commit marker |
+| Claude Opus Max UI/API closure | PASS WITH NONBLOCKERS |
+| Claude Opus Max data closure | PASS WITH NONBLOCKERS; runtime follow-up tests passed |
+| Newtest Pixel installation | Success, same package and signer, no uninstall/data clear |
+| Pixel smoke | Cold start succeeded; real persistent Tags page rendered |
+| Gateway rollout | Deployed version 75645ddd-3e81-4c9e-b4d0-a04f517a9b4c, existing vars/secrets/grants retained |
 
-Remaining completion gates at this checkpoint: data-review closure, newtest physical smoke check, and live authorized AI tag commands. No credentials, tokens or synthetic permission grants are created to bypass normal connection consent.
+Runtime source candidate: `c8041a26911e174887c5e6ce540a70627943b979`. Later commits strengthen test assertions and preserve these records without changing the shipped runtime bytes. `candidate.json` pins both the full-suite and strengthened-test APK hashes/sizes.
+
+Main Room stays **NP9/RV1 / 9001**; tag metadata stays independently versioned **2**. The schema4 legacy backup regression imports through the real pipeline, verifies its subscription and version, then exports/revalidates. The held-writer regression now requires the injected IOException AFTER the swap journal was published, proves the writer was still admitted at shutdown, and verifies rollback includes its committed record. Cached statement tests require the gate's CancellationException, not a generic closed-pool error. No user data was used in destructive tests.
+
+## Rollout boundary
+
+The installed **newtest** is no longer the synthetic-data prototype: its Tags page reads/writes that installation's real Library. Its Library is separate from production customdev and stock/F-Droid. Those production packages and their data were not replaced, uninstalled or cleared. Destructive native tests ran exclusively on the owned emulator.
+
+The reviewed gateway extension is deployed. A direct HTTP smoke client was refused by Cloudflare's edge with **1010 / HTTP403** (browser-signature denial); no bypass or security-setting change was attempted. The existing authorized **newpipe1** connection successfully performed account-level device discovery afterward. Its paired **Pixel 7 was offline**. No actual live tag write through ChatGPT has been demonstrated in this turn. Existing grants were not widened and newtest was not silently paired or activated. The next live acceptance check needs an online paired installation advertising tags and explicit tag read/write/delete permission approval through the normal connection flow.
+
+## Source provenance
+
+Original reviews, follow-up closure reports and issue-by-issue dispositions are in `doc/reviews/tagging-claude-*`. Raw successful build, gateway, native and process-stop output lives beside this file. Earlier failing development iterations are documented in adjudication and preserved privately in the coordinator cache; none is relabeled as a successful run.
+
+The original Library-only tagging branch and earlier UI spike remain recovery points. All integrated source is preserved on `integration/tagging-ai-20261017`; current Git refs show whether main has been fast-forwarded to this reviewed source.

@@ -1,3 +1,5 @@
+> **Latest acceptance (October 17, 2026):** Integrated native tagging, optional AI command support and backup/recovery are implemented and independently reviewed. 308 JVM / 56 gateway / 153 native tests and 5 real process-stop checkpoints passed; strengthened rollback tests also passed. Newtest is installed on the Pixel; production customdev/F-Droid apps remain untouched. Gateway extension deployed; live authorized AI tag-write acceptance still needs the paired device online and explicit tag grants. See `../validation/tagging-claude-20261017/README.md` and `../reviews/tagging-claude-adjudication-2026-10-17.md`. Earlier milestone notes below are historical.
+
 # Production Tagging — execution contract
 
 Date: 2026-10-17. Authorized: finish production tagging, independent Astra and Claude read-only milestone reviews. Based on approved native UI at `0bd2e1854`; no AI Control merge.

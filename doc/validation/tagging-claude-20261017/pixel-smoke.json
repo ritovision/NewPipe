@@ -1,0 +1,8 @@
+{
+  "package": "org.schabi.newpipe.debug.featuretagginguispike",
+  "main_cold_start": "Status ok, 2326ms",
+  "tags_page_observed": true,
+  "visible_state": "0 saved videos; persistent Tags, Manage, Untagged, filters, playback/queue/playlist actions rendered",
+  "manager_followup": "Not attempted because user left the Tags page before the follow-up; no input sent to another app",
+  "data_writes_or_clear": false
+}

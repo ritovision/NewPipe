@@ -50,5 +50,50 @@
       "detail": "The site owner has blocked access based on your browser's signature."
     }
   },
-  "live_ai_tag_command_acceptance": "NOT VERIFIED: test HTTP client denied at Cloudflare edge (1010); no credentials, consent, device pairing or security rules changed"
+  "live_ai_tag_command_acceptance": "NOT YET VERIFIED: existing authorized connection can list devices, but paired Pixel is offline and newtest is not paired/granted tag capabilities. No consent or pairing was bypassed.",
+  "claude_ui_closure": {
+    "verdict": "PASS WITH NONBLOCKERS",
+    "source_commit": "c8041a26911e174887c5e6ce540a70627943b979",
+    "report": "doc/reviews/tagging-claude-ui-closure-r2-2026-10-17.md"
+  },
+  "claude_data_closure": {
+    "verdict": "PASS WITH NONBLOCKERS",
+    "source_commit": "54ed35ae6bf41e927099e78d042ab91587a5e34a",
+    "report": "doc/reviews/tagging-claude-data-closure-2026-10-17.md",
+    "runtime_followup": "13 backup tests rerun with strict IOException/published/CancellationException assertions: PASS"
+  },
+  "newtest_pixel_install": {
+    "package": "org.schabi.newpipe.debug.featuretagginguispike",
+    "apk_sha256": "c17acc3697a79c6644229f98dc0764990178de6291107d81d4623bb94f76829f",
+    "install": "Success",
+    "metadata": [
+      "versionCode=1015 minSdk=23 targetSdk=35",
+      "versionName=0.29.1",
+      "lastUpdateTime=2026-10-17 13:55:02"
+    ],
+    "untouched_packages_present": [
+      "org.schabi.newpipe.debug.customdev",
+      "org.schabi.newpipe"
+    ],
+    "clear_or_uninstall": false
+  },
+  "newtest_pixel_smoke": {
+    "package": "org.schabi.newpipe.debug.featuretagginguispike",
+    "main_cold_start": "Status ok, 2326ms",
+    "tags_page_observed": true,
+    "visible_state": "0 saved videos; persistent Tags, Manage, Untagged, filters, playback/queue/playlist actions rendered",
+    "manager_followup": "Not attempted because user left the Tags page before the follow-up; no input sent to another app",
+    "data_writes_or_clear": false
+  },
+  "strengthened_backup_test_apk": {
+    "sha256": "fbccd591aa65c0f02e159b5da5b50bd27fa5e2bbf7e303dbf1feacf97a500323",
+    "bytes": 2452322,
+    "result": "13/13 PASS (same cases rerun, not counted as additional unique native tests)"
+  },
+  "authorized_connector_check": {
+    "list_devices": "successful through existing newpipe1 connection",
+    "paired_device_name": "Pixel 7",
+    "online": false,
+    "tag_commands_executed": false
+  }
 }
