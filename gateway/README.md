@@ -10,23 +10,25 @@ MCP resource: `https://ritovision-newpipe-ai-control.matthewjpellerito.workers.d
 
 Owner setup: `https://ritovision-newpipe-ai-control.matthewjpellerito.workers.dev/setup`
 
-The Worker and Durable Object bindings have been deployed. Its origin is configured, but every route deliberately returns `503 SERVER_NOT_CONFIGURED` until both authentication secrets are installed. This is not a working ChatGPT integration yet.
+**Current deployment status (2026-10-17):** The Worker, Durable Object bindings and owner authentication secrets have been configured. An authorized ChatGPT MCP client has reached the paired isolated QA Pixel via the live gateway. `SERVER_NOT_CONFIGURED` / HTTP 503 remains its intentional fail-closed behavior only if configuration secrets are missing; that is not the current normal deployment state. The October 17 source checks used only Wrangler **dry-run**, not a replacement production deployment.
 
-An attempted tool-mediated secret installation was blocked by OpenAI. The owner can perform the one-time installation in the secondary computer's WSL terminal:
+**Fresh-gateway setup/disaster recovery only:** From inside this `gateway/` directory, the owner-secret script is:
 
 ```bash
-python3 /home/rito/techstuff/ritoverse/newpipe-ai-control/gateway/scripts/configure-owner-secrets.py
+python3 scripts/configure-owner-secrets.py
 ```
+
+Do not rerun the script just to update NewPipe on Android. It changes only gateway secrets and is unnecessary for the already configured Worker.
 
 The script uses the existing Wrangler login, reads the owner-only file `~/.local/share/newpipe-ai-control/owner-credentials.json`, and uploads only `OWNER_KEY_HASH` and `SESSION_SECRET`. It does not print their values. The raw owner key remains in that private file, outside this repository. Do not commit it, expose it in a screenshot, or place it in a URL.
 
 After installation, initial owner setup and client OAuth consent use that owner key. The setup page can issue an expiring one-time pairing code, show authorized grants, revoke a device/client, and remove an emergency client block. This setup is separate from individual AI actions: once granted, catalog deletions execute directly without an extra approval page.
 
-Before regular use, complete the live integration test and final review gate recorded in `../doc/architecture/ai-control-integration.md`.
+QA live integration and independent source reviews have been performed; see `../doc/validation/ai-control-v1-release-readiness-2026-10-17.md` for current evidence and limitations.
 
 ## Android enrollment and ChatGPT connection
 
-On the separate QA NewPipe installation, open **AI Control** from the main menu. Enter the gateway HTTPS origin, a friendly device name, and an owner-issued one-time pairing code. Select the local permission ceiling, pair, then explicitly start AI Control. A foreground-service notification provides Stop. The Android private key never leaves Keystore, and pairing/settings do not enter NewPipe backups.
+On the separate QA app (or the verified and intentionally installed main `custom/dev` build), open **AI Control** from the main menu. Enter the gateway HTTPS origin, a friendly device name, and an owner-issued one-time pairing code. Select the local permission ceiling, pair, then explicitly start AI Control. A foreground-service notification provides Stop. The Android private key never leaves Keystore, and pairing/settings do not enter NewPipe backups.
 
 Configure the private ChatGPT plugin/app with the MCP resource above and OAuth. OAuth discovery and dynamic client registration are implemented; consent includes only the requested scopes. Destructive scopes are off until deliberately granted. Local Android permissions and the OAuth grant must both allow an operation. Every device operation requires its exact device ID; discovery is the exception.
 

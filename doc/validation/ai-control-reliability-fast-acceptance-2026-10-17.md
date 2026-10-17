@@ -105,4 +105,4 @@ When the phone is available, on the separate `org.schabi.newpipe.debug.featureai
 
 **Automated short reliability acceptance: PASS for all covered gateway/relay paths.**
 
-**Final physical background-reliability acceptance: PARTIAL PASS — screen lock and Stop/Start PASS, cellular handoff FAIL / NEEDS FOLLOW-UP; see `ai-control-physical-reliability-2026-10-17.md`. No owner waiver recorded.**, because it could not be executed with a reachable Android target in this session. A long soak is separately deferred at the owner's request. Do not label hardware sleep, cellular handoff or Android service Stop as verified based on simulated WebSocket closes.
+**Later physical acceptance (2026-10-17): PARTIAL PASS.** Pixel screen-lock reads and real notification Stop/Start PASSED. Wi-Fi/LTE handoff FAILED even on direct public IP/DNS/TCP with no VPN; the owner explicitly **waived this environment-limited gate for v1**, without calling it a PASS. See `ai-control-physical-reliability-2026-10-17.md` and `ai-control-no-vpn-cellular-2026-10-17.md`. The multihour soak and deep Doze remain deferred. Synthetic gateway reliability PASS covers only its documented paths.

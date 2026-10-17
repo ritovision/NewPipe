@@ -1,5 +1,9 @@
 # AI Control — Android activation and Cloudflare integration
 
+
+> **Latest checkpoint — 2026-10-17 (supersedes dated October 16 milestones below):** The Cloudflare owner secrets are configured and the live ChatGPT plugin operated against a paired isolated QA Pixel. Integrated gateway 45/45, native JVM 290/290, app/test builds, Android short screen-lock and Stop/Start passed. A failed LTE handoff (general cellular IP, DNS and TCP probes, with and without Tailscale) is an **owner-accepted environmental limitation for v1**, not a passing mobility test. Independent final integration review returned PASS WITH NONBLOCKERS. Consult `doc/validation/ai-control-v1-release-readiness-2026-10-17.md` for current state and installation gates; the historical notes below remain dated.
+
+
 Date: 2026-10-16. Branch: feature/ai-control. All source/fixes written by the main assistant; independent reviewers only inspect.
 
 ## Implemented Android candidate
