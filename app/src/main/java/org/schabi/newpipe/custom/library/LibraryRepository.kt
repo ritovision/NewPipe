@@ -16,6 +16,7 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import java.util.concurrent.Callable
 import org.schabi.newpipe.NewPipeDatabase
+import org.schabi.newpipe.custom.tagging.TagRuntime
 import org.schabi.newpipe.database.AppDatabase
 import org.schabi.newpipe.database.playlist.model.PlaylistEntity
 import org.schabi.newpipe.database.playlist.model.PlaylistStreamEntity
@@ -60,7 +61,7 @@ object LibraryRepository {
     fun start(context: Context) {
         val appContext = context.applicationContext
         Completable.fromAction {
-            initialize(NewPipeDatabase.getInstance(appContext), LibraryBindingStore(appContext))
+            TagRuntime.get(appContext).definitions()
         }.subscribeOn(Schedulers.io()).subscribe(
             { Log.i(TAG, "Library initialized") },
             { error ->
@@ -198,7 +199,7 @@ object LibraryRepository {
     fun ensureInitialized(context: Context): Completable {
         val appContext = context.applicationContext
         return Completable.fromAction {
-            initialize(NewPipeDatabase.getInstance(appContext), LibraryBindingStore(appContext))
+            TagRuntime.get(appContext).definitions()
         }.subscribeOn(Schedulers.io())
     }
 
@@ -344,11 +345,14 @@ object LibraryRepository {
         val appContext = context.applicationContext
         return Completable.fromAction {
             val db = NewPipeDatabase.getInstance(appContext)
-            val verifiedId = initialize(db, LibraryBindingStore(appContext))
-            check(verifiedId == playlistId) {
-                "Library identity changed; removal was not performed"
+            val tagging = TagRuntime.lookup(db)
+            if (tagging != null) {
+                tagging.removeEverywhere(playlistId, streamId)
+            } else {
+                val verifiedId = initialize(db, LibraryBindingStore(appContext))
+                check(verifiedId == playlistId) { "Library identity changed; removal was not performed" }
+                removeEverywhere(db, playlistId, streamId)
             }
-            removeEverywhere(db, playlistId, streamId)
         }.subscribeOn(Schedulers.io())
     }
 

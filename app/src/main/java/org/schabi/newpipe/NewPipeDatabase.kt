@@ -9,6 +9,7 @@ package org.schabi.newpipe
 import android.content.Context
 import androidx.room.Room.databaseBuilder
 import kotlin.concurrent.Volatile
+import org.schabi.newpipe.custom.tagging.TagRuntime
 import org.schabi.newpipe.database.AppDatabase
 import org.schabi.newpipe.database.Migrations.MIGRATION_1_2
 import org.schabi.newpipe.database.Migrations.MIGRATION_2_3
@@ -48,8 +49,10 @@ object NewPipeDatabase {
             synchronized(NewPipeDatabase::class.java) {
                 result = databaseInstance
                 if (result == null) {
-                    databaseInstance = getDatabase(context)
-                    result = databaseInstance
+                    val created = getDatabase(context)
+                    TagRuntime.attach(context, created)
+                    databaseInstance = created
+                    result = created
                 }
             }
         }

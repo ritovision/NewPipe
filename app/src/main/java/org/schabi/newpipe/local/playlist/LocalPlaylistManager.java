@@ -3,6 +3,7 @@ package org.schabi.newpipe.local.playlist;
 import androidx.annotation.Nullable;
 
 import org.schabi.newpipe.custom.library.LibraryRepository;
+import org.schabi.newpipe.custom.tagging.TagRuntime;
 import org.schabi.newpipe.database.AppDatabase;
 import org.schabi.newpipe.database.playlist.PlaylistDuplicatesEntry;
 import org.schabi.newpipe.database.playlist.PlaylistMetadataEntry;
@@ -46,7 +47,8 @@ public class LocalPlaylistManager {
         // Save to the database directly.
         // Make sure the new playlist is always on the top of bookmark.
         // The index will be reassigned to non-negative number in BookmarkFragment.
-        return Maybe.fromCallable(() -> database.runInTransaction(() -> {
+        return Maybe.fromCallable(() -> TagRuntime.mutate(database,
+                () -> database.runInTransaction(() -> {
                     final List<Long> streamIds = streamTable.upsertAll(streams);
                     final PlaylistEntity newPlaylist = new PlaylistEntity(name, false,
                             streamIds.get(0), -1);
@@ -54,12 +56,13 @@ public class LocalPlaylistManager {
                     return insertJoinEntities(playlistTable.insert(newPlaylist),
                             streamIds, 0);
                 }
-        )).subscribeOn(Schedulers.io());
+        ))).subscribeOn(Schedulers.io());
     }
 
     public Maybe<List<Long>> appendToPlaylist(final long playlistId,
                                               final List<StreamEntity> streams) {
-        return Maybe.fromCallable(() -> database.runInTransaction(() -> {
+        return Maybe.fromCallable(() -> TagRuntime.mutate(database,
+                () -> database.runInTransaction(() -> {
             final List<Long> streamIds = streamTable.upsertAll(streams);
             if (LibraryRepository.isLibrary(database, playlistId)) {
                 return LibraryRepository.appendDirectly(database, playlistId, streamIds);
@@ -67,7 +70,7 @@ public class LocalPlaylistManager {
             // Derive the next position *inside* the same transaction as insertion.
             return insertJoinEntities(playlistId, streamIds,
                     LibraryRepository.nextJoinIndex(database, playlistId));
-        })).subscribeOn(Schedulers.io());
+        }))).subscribeOn(Schedulers.io());
     }
 
     private List<Long> insertJoinEntities(final long playlistId, final List<Long> streamIds,
@@ -90,7 +93,8 @@ public class LocalPlaylistManager {
 
     public Completable updateJoin(final long playlistId, final List<Long> streamIds,
                                   final boolean refreshAutomaticThumbnail) {
-        return Completable.fromRunnable(() -> database.runInTransaction(() -> {
+        return Completable.fromRunnable(() -> TagRuntime.runMutation(database,
+                () -> database.runInTransaction(() -> {
             // updateJoin also handles reorder, watched-removal and duplicate cleanup.
             // Never infer a global Library deletion from a rewritten editor list.
             if (!LibraryRepository.rewriteLibraryWithoutRemoving(database, playlistId,
@@ -110,7 +114,7 @@ public class LocalPlaylistManager {
                     LibraryRepository.refreshAutomaticThumbnail(database, playlistId);
                 }
             }
-        })).subscribeOn(Schedulers.io());
+        }))).subscribeOn(Schedulers.io());
     }
 
     public Completable updatePlaylists(final List<PlaylistMetadataEntry> updateItems,
@@ -119,7 +123,8 @@ public class LocalPlaylistManager {
         for (final PlaylistMetadataEntry item : updateItems) {
             items.add(new PlaylistEntity(item));
         }
-        return Completable.fromRunnable(() -> database.runInTransaction(() -> {
+        return Completable.fromRunnable(() -> TagRuntime.runMutation(database,
+                () -> database.runInTransaction(() -> {
             for (final Long uid : deletedItems) {
                 LibraryRepository.requireNotLibrary(database, uid);
                 playlistTable.deletePlaylist(uid);
@@ -131,7 +136,7 @@ public class LocalPlaylistManager {
                         item.getUid(), item.getName());
                 playlistTable.upsertPlaylist(item);
             }
-        })).subscribeOn(Schedulers.io());
+        }))).subscribeOn(Schedulers.io());
     }
 
     public Flowable<List<PlaylistStreamEntry>> getDistinctPlaylistStreams(final long playlistId) {
@@ -206,7 +211,7 @@ public class LocalPlaylistManager {
                         playlist.setThumbnailStreamId(thumbnailStreamId);
                         playlist.setThumbnailPermanent(isPermanent);
                     }
-                    return playlistTable.update(playlist);
+                    return TagRuntime.mutate(database, () -> playlistTable.update(playlist));
                 }).subscribeOn(Schedulers.io());
     }
 

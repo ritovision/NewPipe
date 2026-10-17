@@ -12,6 +12,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
 
 import org.schabi.newpipe.R;
+import org.schabi.newpipe.custom.tagging.TagEditorFragment;
 import org.schabi.newpipe.database.stream.model.StreamEntity;
 import org.schabi.newpipe.download.DownloadDialog;
 import org.schabi.newpipe.error.ErrorInfo;
@@ -85,6 +86,9 @@ public enum StreamDialogDefaultEntry {
         throw new UnsupportedOperationException("This needs to be implemented manually "
                 + "by using InfoItemDialog.Builder.setAction()");
     }),
+
+    EDIT_TAGS(R.string.rv_edit_tags, (fragment, item) ->
+            TagEditorFragment.show(fragment.getParentFragmentManager(), new StreamEntity(item))),
 
     DELETE(R.string.delete, (fragment, item) -> {
         throw new UnsupportedOperationException("This needs to be implemented manually "
