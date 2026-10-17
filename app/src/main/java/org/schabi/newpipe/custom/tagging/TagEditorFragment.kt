@@ -12,10 +12,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatCheckBox
 import androidx.fragment.app.FragmentManager
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
-import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.schedulers.Schedulers
@@ -49,11 +50,15 @@ class TagEditorFragment : BottomSheetDialogFragment() {
     private var snapshot: TagEditSnapshot? = null
     private var search = ""
     private var restored: Bundle? = null
+    private lateinit var saveState: TagEditorSaveState
+    private var completed = false
 
     @Suppress("DEPRECATION")
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         stream = requireArguments().getSerializable("stream") as StreamEntity
         restored = savedInstanceState
+        completed = savedInstanceState?.getBoolean("save_completed") == true
+        saveState = ViewModelProvider(this)[TagEditorSaveState::class.java]
         ui = TagUi(requireContext())
         repository = TagRuntime.get(requireContext())
         val sheet = BottomSheetDialog(requireContext(), ThemeHelper.getDialogTheme(requireContext()))
@@ -98,6 +103,7 @@ class TagEditorFragment : BottomSheetDialogFragment() {
             override fun afterTextChanged(s: Editable?) = Unit
         })
         ui.prepareSheet(sheet, content)
+        saveState.result.observe(this) { renderSaveState(it) }
         load()
         return sheet
     }
@@ -121,6 +127,7 @@ class TagEditorFragment : BottomSheetDialogFragment() {
                     newTagButton.isEnabled = true
                     newCategoryButton.isEnabled = true
                     renderChoices()
+                    renderSaveState(saveState.result.value ?: TagEditorSaveState.Result.Idle)
                 }, { error -> message.text = ui.errorMessage(error) })
         )
     }
@@ -164,31 +171,51 @@ class TagEditorFragment : BottomSheetDialogFragment() {
     private fun applySelection() {
         val state = snapshot ?: return
         val selected = chosen.toSet()
-        applyButton.isEnabled = false
-        newTagButton.isEnabled = false
-        newCategoryButton.isEnabled = false
-        cancelButton.isEnabled = false
-        for (i in 0 until choices.childCount) choices.getChildAt(i).isEnabled = false
-        isCancelable = false
-        message.text = "Saving…"
-        disposables.add(
-            Completable.fromAction { repository.apply(stream, selected, state.revision) }
-                .subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe({
-                    if (isAdded) dismiss()
-                }, { error ->
-                    isCancelable = true
-                    cancelButton.isEnabled = true
-                    for (i in 0 until choices.childCount) choices.getChildAt(i).isEnabled = true
-                    applyButton.isEnabled = true
-                    newTagButton.isEnabled = true
-                    newCategoryButton.isEnabled = true
-                    message.text = ui.errorMessage(error)
-                })
-        )
+        // Capture only value objects/repository, never this Fragment, in the retained task.
+        val targetRepository = repository
+        val targetStream = stream.copy()
+        saveState.apply { targetRepository.apply(targetStream, selected, state.revision) }
+    }
+
+    private fun renderSaveState(result: TagEditorSaveState.Result) {
+        if (!::applyButton.isInitialized) return
+        if (result == TagEditorSaveState.Result.Saved) completed = true
+        val busy = result == TagEditorSaveState.Result.Saving || completed
+        applyButton.isEnabled = !busy && snapshot != null
+        newTagButton.isEnabled = !busy && snapshot != null
+        newCategoryButton.isEnabled = !busy && snapshot != null
+        cancelButton.isEnabled = !busy
+        for (i in 0 until choices.childCount) choices.getChildAt(i).isEnabled = !busy
+        isCancelable = !busy
+        when {
+            completed -> {
+                message.text = "Saved"
+                dismissWhenResumed()
+            }
+
+            result == TagEditorSaveState.Result.Saving -> message.text = "Saving…"
+
+            result is TagEditorSaveState.Result.Failed -> message.text = ui.errorMessage(result.error)
+        }
+    }
+
+    private fun dismissWhenResumed() {
+        if (completed && isAdded && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
+            !parentFragmentManager.isStateSaved
+        ) {
+            dismiss()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Fragment's RESUMED event is dispatched after onResume returns.
+        message.post { dismissWhenResumed() }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putBoolean("save_completed", completed)
         snapshot?.let {
             outState.putBoolean("loaded", true)
             outState.putLongArray("selected", chosen.toLongArray())

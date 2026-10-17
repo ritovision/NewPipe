@@ -1,6 +1,8 @@
 package org.schabi.newpipe.local.playlist;
 
 import androidx.annotation.Nullable;
+import androidx.sqlite.db.SupportSQLiteStatement;
+import androidx.sqlite.db.SimpleSQLiteQuery;
 
 import org.schabi.newpipe.custom.library.LibraryRepository;
 import org.schabi.newpipe.custom.tagging.TagRuntime;
@@ -134,7 +136,11 @@ public class LocalPlaylistManager {
                 // rename the protected canonical list.
                 LibraryRepository.requireUnchangedLibraryName(database,
                         item.getUid(), item.getName());
-                playlistTable.upsertPlaylist(item);
+                // Bookmark drag-reorder changes ordering only. A stale UI entity must
+                // not restore deleted playlists, old names, or removed thumbnails.
+                database.getOpenHelper().getWritableDatabase().execSQL(
+                        "UPDATE playlists SET display_index = ? WHERE uid = ?",
+                        new Object[]{item.getDisplayIndex(), item.getUid()});
             }
         }))).subscribeOn(Schedulers.io());
     }
@@ -199,20 +205,43 @@ public class LocalPlaylistManager {
                                           @Nullable final String name,
                                           final long thumbnailStreamId,
                                           final boolean isPermanent) {
-        return playlistTable.getPlaylist(playlistId)
-                .firstElement()
-                .filter(playlistEntities -> !playlistEntities.isEmpty())
-                .map(playlistEntities -> {
-                    final PlaylistEntity playlist = playlistEntities.get(0);
+        return Maybe.fromCallable(() -> TagRuntime.mutate(database,
+                () -> database.runInTransaction(() -> {
                     if (name != null) {
-                        playlist.setName(name);
+                        LibraryRepository.requireNotLibrary(database, playlistId);
+                        try (SupportSQLiteStatement statement = database.getOpenHelper()
+                                .getWritableDatabase().compileStatement(
+                                        "UPDATE playlists SET name = ? WHERE uid = ?")) {
+                            statement.bindString(1, name);
+                            statement.bindLong(2, playlistId);
+                            return statement.executeUpdateDelete();
+                        }
                     }
-                    if (thumbnailStreamId != THUMBNAIL_ID_LEAVE_UNCHANGED) {
-                        playlist.setThumbnailStreamId(thumbnailStreamId);
-                        playlist.setThumbnailPermanent(isPermanent);
+                    if (thumbnailStreamId == THUMBNAIL_ID_LEAVE_UNCHANGED) {
+                        return 0;
                     }
-                    return TagRuntime.mutate(database, () -> playlistTable.update(playlist));
-                }).subscribeOn(Schedulers.io());
+                    if (thumbnailStreamId >= 0) {
+                        try (android.database.Cursor cursor = database.getOpenHelper()
+                                .getReadableDatabase().query(new SimpleSQLiteQuery(
+                                        "SELECT 1 FROM playlist_stream_join "
+                                                + "WHERE stream_id = ? LIMIT 1",
+                                        new Object[]{thumbnailStreamId}))) {
+                            if (!cursor.moveToFirst()) {
+                                throw new IllegalStateException(
+                                        "The selected thumbnail is no longer in Library");
+                            }
+                        }
+                    }
+                    try (SupportSQLiteStatement statement = database.getOpenHelper()
+                            .getWritableDatabase().compileStatement(
+                                    "UPDATE playlists SET thumbnail_stream_id = ?, "
+                                            + "is_thumbnail_permanent = ? WHERE uid = ?")) {
+                        statement.bindLong(1, thumbnailStreamId);
+                        statement.bindLong(2, isPermanent ? 1 : 0);
+                        statement.bindLong(3, playlistId);
+                        return statement.executeUpdateDelete();
+                    }
+                }))).subscribeOn(Schedulers.io());
     }
 
     public Maybe<Boolean> hasPlaylists() {

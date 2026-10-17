@@ -210,6 +210,52 @@ class TagRepositoryTest {
         assertEquals(setOf(tag), repository.editor(key(item)).assigned)
     }
 
+    @Test
+    fun applyingTagsPreservesExistingMetadataFromNewerLibraryRow() {
+        val old = media().copy(title = "Old title", viewCount = 12)
+        append(libraryId, old)
+        val latest = media().copy(title = "Refreshed title", viewCount = 999, thumbnailUrl = "https://example.org/latest.jpg")
+        db.streamDAO().upsert(latest)
+        val tag = repository.createTag("Jazz", null)
+        apply(old.copy(viewCount = -1), setOf(tag))
+        val stored = repository.snapshot().items.single().stream
+        assertEquals("Refreshed title", stored.title)
+        assertEquals(999L, stored.viewCount)
+        assertEquals("https://example.org/latest.jpg", stored.thumbnailUrl)
+    }
+
+    @Test
+    fun renameAfterPendingRemovalDoesNotRestoreOldThumbnail() {
+        val a = media()
+        val b = media("https://example.org/b")
+        val manager = LocalPlaylistManager(db)
+        manager.createPlaylist("List", listOf(a, b)).blockingGet()
+        val playlistId = manager.playlists.blockingFirst().single { it.orderingName == "List" }.uid
+        store.beginRemoval(key(a), libraryId)
+        manager.renamePlaylist(playlistId, "Renamed").blockingGet()
+        val result = db.playlistDAO().getPlaylist(playlistId).blockingFirst().single()
+        assertEquals("Renamed", result.name)
+        assertEquals(repository.currentUid(key(b)), result.thumbnailStreamId)
+        assertEquals(1, playlistCount(playlistId))
+    }
+
+    @Test
+    fun bookmarkReorderCannotOverwriteARepairedThumbnailOrNewerName() {
+        val a = media()
+        val b = media("https://example.org/b")
+        val manager = LocalPlaylistManager(db)
+        manager.createPlaylist("List", listOf(a, b)).blockingGet()
+        val old = manager.playlists.blockingFirst().single { it.orderingName == "List" }
+        manager.renamePlaylist(old.uid, "Updated name").blockingGet()
+        store.beginRemoval(key(a), libraryId)
+        old.displayIndex = 10
+        manager.updatePlaylists(listOf(old), emptyList()).blockingAwait()
+        val result = db.playlistDAO().getPlaylist(old.uid).blockingFirst().single()
+        assertEquals("Updated name", result.name)
+        assertEquals(repository.currentUid(key(b)), result.thumbnailStreamId)
+        assertEquals(10L, result.displayIndex)
+    }
+
     @Test fun tagDatabasePersistsAfterCloseAndReopen() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val name = "tag-test-${System.nanoTime()}.db"

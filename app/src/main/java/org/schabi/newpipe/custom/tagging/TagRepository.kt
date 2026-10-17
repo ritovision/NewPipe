@@ -9,7 +9,9 @@ import kotlin.concurrent.withLock
 import org.schabi.newpipe.custom.library.LibraryBindingStore
 import org.schabi.newpipe.custom.library.LibraryRepository
 import org.schabi.newpipe.database.AppDatabase
+import org.schabi.newpipe.database.Converters
 import org.schabi.newpipe.database.stream.model.StreamEntity
+import org.schabi.newpipe.extractor.stream.StreamType
 
 /** One concrete coordinator for the independently versioned tag and canonical Library stores. */
 class TagRepository(
@@ -57,8 +59,9 @@ class TagRepository(
         store.verifyEdit(key, expectedRevision, tagIds)
         if (tagIds.isNotEmpty()) {
             library.runInTransaction {
-                val saved = stream.copy(uid = 0)
-                val uid = library.streamDAO().upsert(saved)
+                // Tag edits must not overwrite an existing stream with a sparse/stale
+                // details-screen snapshot (for example losing its known view count).
+                val uid = currentUid(key) ?: library.streamDAO().upsert(stream.copy(uid = 0))
                 LibraryRepository.appendDirectly(library, libraryId, listOf(uid))
             }
         }
@@ -94,15 +97,45 @@ class TagRepository(
     fun snapshot(): Snapshot = access { libraryId ->
         val definitions = store.definitions()
         val assignments = store.allAssignments()
-        val rows = library.playlistStreamDAO().getOrderedStreamsOf(libraryId).blockingFirst()
+        val rows = readLibraryStreams(libraryId)
         val keys = HashSet<StreamKey>()
-        val items = rows.mapNotNull { row ->
-            val key = StreamKey(row.streamEntity.serviceId, row.streamEntity.url)
-            if (!keys.add(key)) null else Item(row.streamEntity.copy(), assignments[key] ?: emptySet())
+        val items = rows.mapNotNull { stream ->
+            val key = StreamKey(stream.serviceId, stream.url)
+            if (!keys.add(key)) null else Item(stream, assignments[key] ?: emptySet())
         }
         // An imported stock Library may omit streams. Retain associations, but never expose
         // missing streams as Library content or silently purge their recoverable metadata.
         Snapshot(definitions, items, assignments.filterKeys { it !in keys }.values.sumOf { it.size })
+    }
+
+    /** Direct cursor avoids waiting for a Room query-executor task while holding our lock. */
+    internal fun readLibraryStreams(libraryId: Long): List<StreamEntity> = library.openHelper.readableDatabase.query(
+        SimpleSQLiteQuery("SELECT s.* FROM streams s JOIN playlist_stream_join j ON j.stream_id=s.uid WHERE j.playlist_id=? ORDER BY j.join_index", arrayOf(libraryId))
+    ).use { cursor ->
+        val names = cursor.columnNames.withIndex().associate { it.value to it.index }
+        fun text(name: String): String? = names.getValue(name).let { if (cursor.isNull(it)) null else cursor.getString(it) }
+        fun number(name: String): Long? = names.getValue(name).let { if (cursor.isNull(it)) null else cursor.getLong(it) }
+        buildList {
+            while (cursor.moveToNext()) {
+                add(
+                    StreamEntity(
+                        uid = number(StreamEntity.STREAM_ID)!!,
+                        serviceId = number(StreamEntity.STREAM_SERVICE_ID)!!.toInt(),
+                        url = text(StreamEntity.STREAM_URL)!!,
+                        title = text(StreamEntity.STREAM_TITLE)!!,
+                        streamType = StreamType.valueOf(text(StreamEntity.STREAM_TYPE)!!),
+                        duration = number(StreamEntity.STREAM_DURATION)!!,
+                        uploader = text(StreamEntity.STREAM_UPLOADER)!!,
+                        uploaderUrl = text(StreamEntity.STREAM_UPLOADER_URL),
+                        thumbnailUrl = text(StreamEntity.STREAM_THUMBNAIL_URL),
+                        viewCount = number(StreamEntity.STREAM_VIEWS),
+                        textualUploadDate = text(StreamEntity.STREAM_TEXTUAL_UPLOAD_DATE),
+                        uploadDate = Converters().offsetDateTimeFromTimestamp(number(StreamEntity.STREAM_UPLOAD_DATE)),
+                        isUploadDateApproximation = number(StreamEntity.STREAM_IS_UPLOAD_DATE_APPROXIMATION)?.let { it != 0L }
+                    )
+                )
+            }
+        }
     }
 
     internal fun currentUid(key: StreamKey): Long? = library.openHelper.readableDatabase.query(
