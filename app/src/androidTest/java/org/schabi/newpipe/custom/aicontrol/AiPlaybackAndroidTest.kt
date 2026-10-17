@@ -12,6 +12,8 @@ import java.io.ObjectOutputStream
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.schabi.newpipe.database.stream.model.StreamEntity
@@ -67,6 +69,45 @@ class AiPlaybackAndroidTest {
         assertNotEquals(previousRevision, queue.stateRevisionToken)
         queue.unshuffle()
         assertEquals(incoming, queue.streams.drop(prefix.size))
+    }
+
+    @Test fun orderedAppendNeverReplacesTheSelectedAutomaticTail() {
+        for (shuffled in listOf(false, true)) {
+            val queue = queue()
+            if (shuffled) queue.shuffle()
+            queue.setIndex(queue.streams.lastIndex)
+            val playing = queue.item!!
+            playing.isAutoQueued = true
+            val prefix = queue.streams.toList()
+            val incoming = queue().streams.toList()
+            queue.appendInOrder(incoming)
+            assertSame(playing, queue.item)
+            assertEquals(prefix, queue.streams.take(prefix.size))
+            assertEquals(incoming, queue.streams.drop(prefix.size))
+            if (shuffled) {
+                queue.unshuffle()
+                assertSame(playing, queue.item)
+                assertEquals(incoming, queue.streams.takeLast(incoming.size))
+            }
+        }
+    }
+
+    @Test fun orderedAppendReplacesOnlyAFutureSuggestionAndRemovesItFromShuffleBackup() {
+        val queue = queue()
+        queue.shuffle()
+        queue.setIndex(0)
+        val playing = queue.item!!
+        val suggestion = queue.streams.last()
+        suggestion.isAutoQueued = true
+        val remaining = queue.streams.dropLast(1)
+        val incoming = queue().streams.toList()
+        queue.appendInOrder(incoming)
+        assertSame(playing, queue.item)
+        assertEquals(remaining + incoming, queue.streams)
+        queue.unshuffle()
+        assertSame(playing, queue.item)
+        assertFalse(queue.streams.any { it === suggestion })
+        assertEquals(incoming, queue.streams.takeLast(incoming.size))
     }
 
     @Test fun playerReadDoesNotStartAService() {

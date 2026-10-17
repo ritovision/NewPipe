@@ -317,7 +317,9 @@ public abstract class PlayQueue implements Serializable {
         if (incoming.isEmpty()) {
             return;
         }
-        if (!streams.isEmpty() && streams.get(streams.size() - 1).isAutoQueued()
+        // Replace only a future auto-suggestion, never the item already selected/playing.
+        if (!streams.isEmpty() && streams.size() - 1 > getIndex()
+                && streams.get(streams.size() - 1).isAutoQueued()
                 && !incoming.get(0).isAutoQueued()) {
             final PlayQueueItem removed = streams.remove(streams.size() - 1);
             if (backup != null) {

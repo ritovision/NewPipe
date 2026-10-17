@@ -1,0 +1,17 @@
+**PASS_WITH_NONBLOCKERS** — source-only review of frozen `ac12df5df0efb4125a304c6a7c0561a70c23d871`. Both R1 documents were read completely. **No remaining concrete high/medium source blocker found.**
+
+1. **Library lock inversion — CLOSED.** [LibraryRepository.kt:221](/home/rito/techstuff/ritoverse/newpipe-tag-review-data/app/src/main/java/org/schabi/newpipe/custom/library/LibraryRepository.kt:221) acquires TagRuntime before the Library monitor, retaining the still-unbound check through rebinding. It cannot hold that monitor while waiting for TagRuntime.
+
+2. **Hidden executable schema — CLOSED.** [TagBackupCoordinator.kt:333](/home/rito/techstuff/ritoverse/newpipe-tag-review-data/app/src/main/java/org/schabi/newpipe/custom/tagging/TagBackupCoordinator.kt:333) examines every schema row and rejects triggers/views before name exclusions. Neither `sqliteX…` nor `android_metadata` can conceal them. The malicious-trigger ZIP regression checks rejection, preserved assignments, and continued safe writes.
+
+3. **Binding read before recovery — CLOSED.** [LibraryRepository.kt:103](/home/rito/techstuff/ritoverse/newpipe-tag-review-data/app/src/main/java/org/schabi/newpipe/custom/library/LibraryRepository.kt:103) completes the guarded Room open before reading the binding; tag storage follows initialization. [TagProcessDeathTest.kt:56](/home/rito/techstuff/ritoverse/newpipe-tag-review-data/app/src/androidTest/java/org/schabi/newpipe/custom/tagging/TagProcessDeathTest.kt:56) now exercises normal initialization with old canonical ID **1**, new canonical ID **7**, and an old ordinary `Library` at **7**. Its assertions expose the original wrong-ID recovery.
+
+Surrounding ordering remains sound:
+
+- [Receipt execution](/home/rito/techstuff/ritoverse/newpipe-tag-review-data/app/src/main/java/org/schabi/newpipe/custom/aicontrol/AiCatalogExecutor.kt:71) returns existing receipts before staging deletion. [Recovery](/home/rito/techstuff/ritoverse/newpipe-tag-review-data/app/src/main/java/org/schabi/newpipe/custom/tagging/TagRepository.kt:43) settles pending cleanup before re-adds and receipt pruning; absent Room receipts discard rolled-back AI intents without deleting tags.
+- Incoming database, binding, tag-schema, and selected-settings validation precede AI shutdown. Rejection touches staging only. [Installation](/home/rito/techstuff/ritoverse/newpipe-tag-review-data/app/src/main/java/org/schabi/newpipe/custom/tagging/TagBackupCoordinator.kt:156) drains AI before taking TagRuntime, closes helpers before replacement, and retains fencing. Generation checks prevent old Room helpers reopening replacement files.
+- Main Room remains **NP9/RV1 = 9001**; TagStore independently migrates **1→2**. Discarded fork10 remains intentionally unsupported.
+
+One nonblocking test limitation: [the lock-order probe](/home/rito/techstuff/ritoverse/newpipe-tag-review-data/app/src/androidTest/java/org/schabi/newpipe/custom/aicontrol/AiTagIntegrationTest.kt:225) uses a 100 ms scheduling delay, so its interleaving is not deterministic. The source fix itself is clear.
+
+Reported R7 compile/style, **307 JVM**, and **54 gateway** passes are acknowledged. Corrected R7 native results and all three actual process-death checkpoints remain **pending evidence**, not identified code defects. Only read-only inspection was performed; this verdict does not approve unrun tests or a production phone installation.
