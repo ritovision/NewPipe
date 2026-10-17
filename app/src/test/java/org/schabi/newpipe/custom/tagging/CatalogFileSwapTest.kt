@@ -89,4 +89,17 @@ class CatalogFileSwapTest {
         assertTrue(Files.exists(dir.resolve(CatalogFileSwap.JOURNAL)))
         assertArrayEquals("new-newpipe.db".toByteArray(), Files.readAllBytes(dir.resolve("newpipe.db")))
     }
+
+    @Test fun startupCleansInertStagingAndRetiredCopiesButNotUnknownFolders() {
+        val orphan = Files.createDirectories(dir.resolve(".rv-swap-staging-dead"))
+        val retired = Files.createDirectories(dir.resolve(".rv-swap-retired-dead"))
+        val unrelated = Files.createDirectories(dir.resolve("do-not-touch"))
+        Files.write(orphan.resolve("old.db"), byteArrayOf(1))
+        Files.write(retired.resolve("new.db"), byteArrayOf(2))
+        CatalogFileSwap.recover(dir)
+        assertFalse(Files.exists(orphan))
+        assertFalse(Files.exists(retired))
+        assertTrue(Files.exists(unrelated))
+        oldSet()
+    }
 }

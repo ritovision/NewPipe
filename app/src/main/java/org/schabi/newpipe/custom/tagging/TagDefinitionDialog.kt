@@ -31,14 +31,12 @@ class TagDefinitionDialog : DialogFragment() {
     private lateinit var ui: TagUi
     private var categoryForm = false
     private var existingId = 0L
-    private var revision = 0L
     private var categoryChoice: Spinner? = null
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val args = requireArguments()
         categoryForm = args.getBoolean("category")
         existingId = args.getLong("id")
-        revision = args.getLong("revision")
         ui = TagUi(requireContext())
         model = ViewModelProvider(this)[TagDefinitionState::class.java]
         if (!model.initialized) {
@@ -46,6 +44,12 @@ class TagDefinitionDialog : DialogFragment() {
             model.name = savedInstanceState?.getString("draft") ?: args.getString("name").orEmpty()
             model.categoryId = (savedInstanceState?.getLong("chosen_category") ?: args.getLong("category_id")).takeIf { it > 0 }
             model.error = savedInstanceState?.getString("error")
+            model.revision = savedInstanceState?.getLong("revision") ?: args.getLong("revision")
+            model.current = savedInstanceState?.getString("current")
+            model.targetMissing = savedInstanceState?.getBoolean("target_missing") ?: false
+            val ids = savedInstanceState?.getLongArray("category_ids") ?: args.getLongArray("category_ids") ?: longArrayOf()
+            val names = savedInstanceState?.getStringArray("category_names") ?: args.getStringArray("category_names") ?: emptyArray()
+            model.categories = ids.mapIndexed { index, id -> TagCategory(id, names.getOrElse(index) { "Category $id" }) }
             if (savedInstanceState?.getBoolean("was_saving") == true) {
                 model.error = "The prior save was interrupted and may have finished. Check existing definitions before retrying. Your draft is retained."
             }
@@ -65,20 +69,10 @@ class TagDefinitionDialog : DialogFragment() {
         if (!categoryForm) {
             ui.space(body)
             body.addView(ui.text("Category (optional)", 12f, color = ui.secondary), ui.params())
-            val ids = args.getLongArray("category_ids") ?: longArrayOf()
-            val names = args.getStringArray("category_names")?.toList().orEmpty()
-            val categories = Spinner(requireContext()).apply {
-                adapter = ui.spinnerAdapter(listOf("Uncategorized") + names)
-                setSelection(ids.indexOf(model.categoryId ?: 0) + 1)
-                onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                        model.categoryId = ids.getOrNull(position - 1)
-                    }
-                    override fun onNothingSelected(parent: AdapterView<*>?) = Unit
-                }
-            }
+            val categories = Spinner(requireContext())
             categoryChoice = categories
             body.addView(categories, ui.params())
+            updateCategoryChoices()
         }
         feedback = ui.text(model.error.orEmpty(), 12f, color = ui.secondary)
         body.addView(feedback, ui.params())
@@ -107,7 +101,8 @@ class TagDefinitionDialog : DialogFragment() {
         input.error = null
         val repository = TagRuntime.get(requireContext())
         val id = existingId
-        val expected = revision
+        if (model.targetMissing) return
+        val expected = model.revision
         val categoryId = model.categoryId
         val category = categoryForm
         model.apply {
@@ -136,12 +131,34 @@ class TagDefinitionDialog : DialogFragment() {
         input.isEnabled = !busy
         categoryChoice?.isEnabled = !busy
         (dialog as? AlertDialog)?.apply {
-            getButton(AlertDialog.BUTTON_POSITIVE)?.isEnabled = !busy
+            getButton(AlertDialog.BUTTON_POSITIVE)?.isEnabled = !busy && !model.targetMissing
             getButton(AlertDialog.BUTTON_NEGATIVE)?.isEnabled = !busy
         }
         when (state) {
             is TagDefinitionState.Result.Failed -> {
-                model.error = ui.errorMessage(state.error)
+                if (state.error is TagDefinitionConflict) {
+                    val current = state.error.current
+                    model.revision = current.version
+                    model.categories = current.categories
+                    val actual = if (categoryForm) {
+                        current.categories.firstOrNull { it.id == existingId }?.name
+                    } else {
+                        current.tags.firstOrNull { it.id == existingId }?.let { tag ->
+                            tag.name + " · " + (current.categories.firstOrNull { it.id == tag.categoryId }?.name ?: "Uncategorized")
+                        }
+                    }
+                    model.targetMissing = actual == null
+                    model.current = if (actual == null) {
+                        "This definition was deleted. Your draft is retained; cancel to return to Manage."
+                    } else {
+                        "Currently saved: $actual. Your draft has not been saved. Review it, then press Save to apply it to this version."
+                    }
+                    updateCategoryChoices()
+                    model.error = model.current
+                    (dialog as? AlertDialog)?.getButton(AlertDialog.BUTTON_POSITIVE)?.isEnabled = !model.targetMissing
+                } else {
+                    model.error = ui.errorMessage(state.error)
+                }
                 input.error = model.error
                 feedback.text = model.error
             }
@@ -154,6 +171,21 @@ class TagDefinitionDialog : DialogFragment() {
             }
 
             else -> feedback.text = model.error.orEmpty()
+        }
+    }
+
+    private fun updateCategoryChoices() {
+        val spinner = categoryChoice ?: return
+        val missing = model.categoryId?.takeIf { id -> model.categories.none { it.id == id } }
+        val choices = model.categories + (missing?.let { listOf(TagCategory(it, "Removed category ($it) — choose another")) } ?: emptyList())
+        spinner.onItemSelectedListener = null
+        spinner.adapter = ui.spinnerAdapter(listOf("Uncategorized") + choices.map { it.name })
+        spinner.setSelection(choices.indexOfFirst { it.id == model.categoryId } + 1)
+        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                model.categoryId = choices.getOrNull(position - 1)?.id
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
         }
     }
 
@@ -180,6 +212,11 @@ class TagDefinitionDialog : DialogFragment() {
     }
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putLong("revision", model.revision)
+        outState.putString("current", model.current)
+        outState.putBoolean("target_missing", model.targetMissing)
+        outState.putLongArray("category_ids", model.categories.map { it.id }.toLongArray())
+        outState.putStringArray("category_names", model.categories.map { it.name }.toTypedArray())
         outState.putString("draft", model.name)
         outState.putLong("chosen_category", model.categoryId ?: 0)
         outState.putString("error", model.error)
@@ -199,6 +236,10 @@ class TagDefinitionState : ViewModel() {
     var name = ""
     var categoryId: Long? = null
     var error: String? = null
+    var revision = 0L
+    var current: String? = null
+    var targetMissing = false
+    var categories = emptyList<TagCategory>()
     var delivered = false
     private var task: Disposable? = null
     fun apply(operation: () -> Long) {

@@ -29,7 +29,6 @@ import net.newpipe.app.extensions.ContextKt;
 import net.newpipe.app.navigation.Destination;
 
 import org.schabi.newpipe.MainActivity;
-import org.schabi.newpipe.NewPipeDatabase;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.RouterActivity;
 import org.schabi.newpipe.database.feed.model.FeedGroupEntity;
@@ -767,8 +766,8 @@ public final class NavigationHelper {
      * @param activity the activity to finish
      */
     public static void restartApp(final Activity activity) {
-        NewPipeDatabase.close();
-
+        // Process termination releases SQLite handles; do not block the UI waiting for
+        // an export/import barrier just to restart (also used by the panic-exit path).
         ProcessPhoenix.triggerRebirth(activity.getApplicationContext());
     }
 }

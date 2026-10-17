@@ -14,6 +14,8 @@ import kotlinx.serialization.json.put
 import org.schabi.newpipe.custom.library.LibraryRepository
 import org.schabi.newpipe.custom.tagging.StreamKey
 import org.schabi.newpipe.custom.tagging.TagFilter
+import org.schabi.newpipe.custom.tagging.TagNames
+import org.schabi.newpipe.custom.tagging.TagReceiptCapacityException
 import org.schabi.newpipe.custom.tagging.TagRepository
 import org.schabi.newpipe.custom.tagging.TagRuntime
 import org.schabi.newpipe.custom.tagging.TagSort
@@ -48,7 +50,11 @@ internal class AiTagExecutor(private val repository: TagRepository, private val 
         }
         // Tag-only effects + deduplication receipt commit together in the independent tag DB.
         return repository.store.transaction {
-            repository.store.pruneReceipts(clock())
+            try {
+                repository.store.pruneReceipts(clock())
+            } catch (_: TagReceiptCapacityException) {
+                throw AiFailure("RECEIPT_CAPACITY", AiOutcome.NOT_EXECUTED)
+            }
             val data = run(command)
             val result = AiResult(request.requestId, request.deviceId, AiOutcome.COMMITTED, data = data)
             val encoded = AiProtocol.json.encodeToString(result)
@@ -64,6 +70,54 @@ internal class AiTagExecutor(private val repository: TagRepository, private val 
         val definitions = repository.definitions()
         fun verifyRevision(expected: Long) {
             if (expected != definitions.version) throw AiFailure("TAG_CONFLICT")
+        }
+        fun categoryExists(id: Long?) {
+            if (id != null && definitions.categories.none { it.id == id }) throw AiFailure("CATEGORY_NOT_FOUND")
+        }
+        fun tagExists(id: Long) {
+            if (definitions.tags.none { it.id == id }) throw AiFailure("TAG_NOT_FOUND")
+        }
+        fun availableName(name: String, category: Boolean, excluding: Long? = null) {
+            val key = try {
+                TagNames.key(name)
+            } catch (_: IllegalArgumentException) {
+                throw AiFailure("INVALID_NAME")
+            }
+            val taken = if (category) {
+                definitions.categories.any { it.id != excluding && TagNames.key(it.name) == key }
+            } else {
+                definitions.tags.any { it.id != excluding && TagNames.key(it.name) == key }
+            }
+            if (taken) throw AiFailure(if (category) "CATEGORY_NAME_EXISTS" else "TAG_NAME_EXISTS")
+        }
+        // Predictable domain rejections occur before any mutation. Storage/commit failures
+        // remain OUTCOME_UNKNOWN; they must never be mislabeled as a safe rejection.
+        when (command) {
+            is AiTagCommand.CreateCategory -> availableName(command.name, true)
+
+            is AiTagCommand.CreateTag -> {
+                categoryExists(command.categoryId)
+                availableName(command.name, false)
+            }
+
+            is AiTagCommand.RenameCategory -> {
+                categoryExists(command.categoryId)
+                verifyRevision(command.expectedRevision)
+                availableName(command.name, true, command.categoryId)
+            }
+
+            is AiTagCommand.UpdateTag -> {
+                tagExists(command.tagId)
+                categoryExists(command.categoryId)
+                verifyRevision(command.expectedRevision)
+                availableName(command.name, false, command.tagId)
+            }
+
+            is AiTagCommand.DeleteCategory -> categoryExists(command.categoryId)
+
+            is AiTagCommand.DeleteTag -> tagExists(command.tagId)
+
+            else -> Unit
         }
         fun result(id: Long, category: Boolean) = buildJsonObject {
             put(if (category) "category_id" else "tag_id", id)
@@ -194,7 +248,7 @@ internal class AiTagExecutor(private val repository: TagRepository, private val 
             }
         )
         val rows = filter.select(snapshot.items)
-        val revision = AiProtocol.digest(AiProtocol.json.encodeToString(command.copy(offset = 0, expectedRevision = null)) + ":" + snapshot.definitions.version + ":" + AiProtocol.json.encodeToString(rows.map { listOf(it.stream.uid.toString(), it.stream.serviceId.toString(), it.stream.url, it.stream.title, it.stream.uploader) }))
+        val revision = AiProtocol.digest(AiProtocol.json.encodeToString(command.copy(offset = 0, limit = 50, included = command.included.sorted(), excluded = command.excluded.sorted(), expectedRevision = null)) + ":" + snapshot.definitions.version + ":" + AiProtocol.json.encodeToString(rows.map { listOf(it.stream.uid.toString(), it.stream.serviceId.toString(), it.stream.url, it.stream.title, it.stream.uploader) }))
         if (command.expectedRevision != null && command.expectedRevision != revision) throw AiFailure("TAG_RESULTS_CHANGED")
         return buildJsonObject {
             put("revision", revision)

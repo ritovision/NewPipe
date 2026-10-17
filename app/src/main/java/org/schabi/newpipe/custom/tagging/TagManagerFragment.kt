@@ -15,7 +15,9 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.schedulers.Schedulers
+import java.util.concurrent.TimeUnit
 import org.schabi.newpipe.util.ThemeHelper
 
 /** Native management sheet. Categories own tags; deletion never removes saved media. */
@@ -91,11 +93,34 @@ class TagManagerFragment : BottomSheetDialogFragment() {
         return dialog
     }
 
+    private var reading = false
+    private var refreshAgain = false
+    private var observation: Disposable? = null
+
+    override fun onStart() {
+        super.onStart()
+        observation = TagRuntime.observeChanges().debounce(80, TimeUnit.MILLISECONDS)
+            .observeOn(AndroidSchedulers.mainThread()).subscribe({ refresh() }, { status.text = ui.errorMessage(it) })
+        refresh()
+    }
+
+    override fun onStop() {
+        observation?.dispose()
+        observation = null
+        super.onStop()
+    }
+
     private fun refresh() {
+        if (reading) {
+            refreshAgain = true
+            return
+        }
+        reading = true
         status.text = "Loading…"
         disposables.add(
             Single.fromCallable { repository.definitions() }
                 .subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe({ loaded ->
+                    reading = false
                     if (!isAdded) return@subscribe
                     definitions = loaded
                     if (firstLoad) {
@@ -104,7 +129,14 @@ class TagManagerFragment : BottomSheetDialogFragment() {
                     }
                     status.text = "${loaded.tags.size} tags · ${loaded.categories.size} categories"
                     render()
-                }, { status.text = ui.errorMessage(it) })
+                    if (refreshAgain) {
+                        refreshAgain = false
+                        refresh()
+                    }
+                }, {
+                    reading = false
+                    status.text = ui.errorMessage(it)
+                })
         )
     }
 

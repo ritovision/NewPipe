@@ -72,7 +72,10 @@ internal object CatalogFileSwap {
     @Synchronized
     fun recover(directory: Path) {
         val journal = directory.resolve(JOURNAL)
-        if (!Files.exists(journal)) return
+        if (!Files.exists(journal)) {
+            cleanupInert(directory)
+            return
+        }
         check(Files.isDirectory(journal) && !Files.isSymbolicLink(journal)) { "Invalid catalog recovery directory" }
         val manifest = Properties().also { p -> Files.newInputStream(journal.resolve("manifest")).use { p.load(it) } }
         val count = manifest.getProperty("count")?.toIntOrNull() ?: error("Invalid catalog recovery manifest")
@@ -91,6 +94,19 @@ internal object CatalogFileSwap {
         }
         apply(directory, journal, manifest, side)
         retire(directory, journal)
+        cleanupInert(directory)
+    }
+
+    private fun cleanupInert(directory: Path) {
+        if (!Files.isDirectory(directory)) return
+        Files.list(directory).use { paths ->
+            paths.filter { !Files.isSymbolicLink(it) && Files.isDirectory(it) && (it.fileName.toString().startsWith(".rv-swap-staging-") || it.fileName.toString().startsWith(".rv-swap-retired-")) }
+                .forEach {
+                    try {
+                        deleteTree(it)
+                    } catch (_: Exception) { /* Retry inert cleanup at next open. */ }
+                }
+        }
     }
 
     private fun snapshot(manifest: Properties, stage: Path, index: Int, side: String, source: Path?) {

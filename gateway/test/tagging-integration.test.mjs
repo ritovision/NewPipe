@@ -114,3 +114,26 @@ test('MCP accurately labels tag deletion and assignment replacement as destructi
  for(const name of ['delete_tag','delete_tag_category','set_item_tags']) expect(entries.get(name).annotations.destructiveHint).toBe(true);
  expect(entries.get('list_tags').annotations.destructiveHint).toBe(false);
 });
+
+
+test('predictable Android tag rejection stays rejected in the cached MCP reply',async()=>{
+ const grant=await h.oauth(scopes);
+ const device=await h.pairedDevice();let count=0;
+ const ws=await h.connectDevice(device,(frame,socket)=>{
+  count++;
+  socket.send(JSON.stringify({type:'result',connection_id:frame.connection_id,client_id:frame.client_id,result:{request_id:frame.request.request_id,device_id:device.id,outcome:'REJECTED',code:'TAG_NAME_EXISTS',data:{}}}));return false;
+ },{capabilities,permissions:scopes.slice(1)});
+ try{
+  const args={...mutation(device.id),name:'Duplicate'};
+  const first=await h.call(grant.access_token,'create_tag',args);
+  const retry=await h.call(grant.access_token,'create_tag',args);
+  expect(first.data.outcome).toBe('REJECTED');expect(first.data.code).toBe('TAG_NAME_EXISTS');
+  expect(retry.data.outcome).toBe('REJECTED');expect(retry.data.code).toBe('TAG_NAME_EXISTS');expect(count).toBe(1);
+ }finally{ws.close();}
+});
+
+test('tag and category name schemas reject invisible format and control characters',()=>{
+ const schema=TOOL_MAP.get('create_tag').schema;
+ for(const name of ['Invisible\u200e','Misleading\u202e','Control\u0001']) expect(schema.safeParse({...mutation(randomUUID()),name}).success).toBe(false);
+ expect(schema.safeParse({...mutation(randomUUID()),name:'Jazz 🎵'}).success).toBe(true);
+});

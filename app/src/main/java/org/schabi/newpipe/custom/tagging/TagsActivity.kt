@@ -34,6 +34,7 @@ class TagsActivity : AppCompatActivity() {
     private lateinit var filterGroups: LinearLayout
     private lateinit var results: LinearLayout
     private lateinit var status: TextView
+    private lateinit var actionStatus: TextView
     private lateinit var count: TextView
     private lateinit var all: TextView
     private lateinit var untagged: TextView
@@ -55,12 +56,22 @@ class TagsActivity : AppCompatActivity() {
         model.action.observe(this) { action ->
             dispatching = action.busy
             updateActions()
-            action.message?.let { status.text = it }
+            actionStatus.text = action.message.orEmpty()
+            actionStatus.visibility = if (action.message == null) View.GONE else View.VISIBLE
         }
         model.state.observe(this) { state ->
             shown = state
             render(state)
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        model.startObserving()
+    }
+    override fun onStop() {
+        model.stopObserving()
+        super.onStop()
     }
 
     override fun onResume() {
@@ -102,6 +113,8 @@ class TagsActivity : AppCompatActivity() {
             setOnClickListener { model.refresh() }
         }
         content.addView(status, ui.params())
+        actionStatus = ui.text("", 13f, color = ui.foreground).apply { visibility = View.GONE }
+        content.addView(actionStatus, ui.params())
         val search = ui.input("Search videos or uploaders").apply {
             setText(model.filter.query)
             background = ui.shape(ui.surface)
@@ -196,7 +209,7 @@ class TagsActivity : AppCompatActivity() {
         operator.text = if (model.filter.matchAll) "AND" else "OR"
         operator.isEnabled = !model.filter.untagged
         renderGroups()
-        count.text = "${state.matching.size} videos"
+        count.text = "${state.matching.size} ${if (state.matching.size == 1) "video" else "videos"}"
         renderResults()
         updateActions()
         scroll.post { scroll.scrollTo(0, previous) }
@@ -211,7 +224,7 @@ class TagsActivity : AppCompatActivity() {
     }
 
     private fun isExpanded(id: Long): Boolean = model.expandedGroups[id]
-        ?: (id == shown.snapshot?.definitions?.categories?.firstOrNull()?.id)
+        ?: (id == (shown.snapshot?.definitions?.categories?.firstOrNull()?.id ?: 0L))
 
     private fun expandAll(expanded: Boolean) {
         shown.snapshot?.definitions?.categories?.forEach { model.expandedGroups[it.id] = expanded }
@@ -383,7 +396,16 @@ class TagsActivity : AppCompatActivity() {
     private fun playlistDialog() {
         if (shown.busy || shown.error != null || shown.matching.isEmpty() || dispatching) return
         val keys = capturedKeys()
-        val name = ui.input("Playlist name").apply { setText(model.playlistName) }
+        val name = ui.input("Playlist name").apply {
+            setText(model.playlistName)
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    model.playlistName = s?.toString().orEmpty()
+                }
+                override fun afterTextChanged(s: Editable?) = Unit
+            })
+        }
         val body = ui.column().apply {
             setPadding(ui.dp(20), 0, ui.dp(20), 0)
             addView(ui.text("Save a static snapshot of ${keys.size} videos in this order.", 13f, color = ui.secondary), ui.params())

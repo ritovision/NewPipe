@@ -106,6 +106,7 @@ object TagBackupCoordinator {
             validateRoomCopy(context, prepared.directory.resolve(DB))
             validateBinding(prepared.directory.resolve(BINDING), prepared.directory.resolve(DB))
             if (TagStore.FILE_NAME in seen) sanitizeTagCopy(context, prepared.directory.resolve(TagStore.FILE_NAME))
+            preflightInstall(context, prepared)
             return prepared
         } catch (error: Throwable) {
             prepared.close()
@@ -159,6 +160,7 @@ object TagBackupCoordinator {
         try {
             TagRuntime.assertAvailable()
             check(prepared.generation == TagRuntime.generation) { "The Library changed since import preparation" }
+            preflightInstall(context, prepared)
             prepared.consume()
             // No TagRuntime lock while waiting for the authorization writer/command drain.
             shutdown()
@@ -166,6 +168,9 @@ object TagBackupCoordinator {
                 TagRuntime.assertAvailable()
                 check(prepared.generation == TagRuntime.generation) { "The Library was already replaced" }
                 val repository = TagRuntime.get(context)
+                // Complete same-catalog recovery before retaining missing tag metadata.
+                // If identity itself needs repair, only receipt-backed AI cleanup is safe.
+                repository.beforeLibraryMutation()
                 val tags = prepared.directory.resolve(TagStore.FILE_NAME)
                 if (!Files.exists(tags)) {
                     // A stock backup does not authorize deleting recoverable unmatched tags.
@@ -177,6 +182,7 @@ object TagBackupCoordinator {
                 Files.createDirectories(directory)
                 TagRuntime.freezeForRestore()
                 NewPipeDatabase.close()
+                awaitClosedCheckpoint(context.getDatabasePath(DB).toPath())
                 LibraryRepository.suspendForRestore()
                 val files = linkedMapOf<String, Path?>(DB to prepared.directory.resolve(DB), TagStore.FILE_NAME to tags, BINDING to prepared.directory.resolve(BINDING).takeIf { Files.exists(it) })
                 for (name in listOf(DB, TagStore.FILE_NAME)) {
@@ -214,6 +220,7 @@ object TagBackupCoordinator {
                 if (Files.exists(binding)) Files.copy(binding, stage.resolve(BINDING))
             }
             validateRoomCopy(context, stage.resolve(DB))
+            validateBinding(stage.resolve(BINDING), stage.resolve(DB))
             sanitizeTagCopy(context, stage.resolve(TagStore.FILE_NAME))
             ZipOutputStream(SharpOutputStream(file.openAndTruncateStream()).buffered()).use { zip ->
                 for (name in listOf(DB, TagStore.FILE_NAME, BINDING)) {
@@ -273,6 +280,7 @@ object TagBackupCoordinator {
         val header = Files.newInputStream(path).use { it.readNBytes(64) }
         check(header.size == 64 && String(header.copyOfRange(0, 16), Charsets.US_ASCII) == "SQLite format 3\u0000") { "Invalid SQLite backup header" }
         check(RitoVisionDatabaseVersion.supportsImportSchema(ByteBuffer.wrap(header).order(ByteOrder.BIG_ENDIAN).getInt(60))) { "Unsupported NewPipe/RitoVision backup schema" }
+        rejectExecutableSchema(path)
         // Room migrates/validates ONLY this private staged copy, never the installed database.
         val copy = NewPipeDatabase.openStagedCopy(context, path)
         val expected = Room.inMemoryDatabaseBuilder(context.applicationContext, AppDatabase::class.java).build()
@@ -292,6 +300,7 @@ object TagBackupCoordinator {
         val header = Files.newInputStream(path).use { it.readNBytes(64) }
         check(header.size == 64 && String(header.copyOfRange(0, 16), Charsets.US_ASCII) == "SQLite format 3\u0000") { "Invalid tag backup header" }
         check(ByteBuffer.wrap(header).order(ByteOrder.BIG_ENDIAN).getInt(60) in 1..2) { "Unsupported tag database version" }
+        rejectExecutableSchema(path)
         val copy = TagStore(context.applicationContext, path.toAbsolutePath().toString())
         val expected = TagStore(context.applicationContext, null)
         try {
@@ -330,6 +339,72 @@ object TagBackupCoordinator {
         query("PRAGMA foreign_key_check").use { check(!it.moveToFirst()) { "Backup contains invalid database references" } }
     }
 
+    private fun columnStructure(table: String, query: (String) -> Cursor): List<String> = query("PRAGMA table_info('${table.replace("'", "''")}')").use { cursor ->
+        buildList {
+            while (cursor.moveToNext()) {
+                val legacyDefault = table == "subscriptions" && cursor.getString(1) == "notification_mode" && cursor.getString(4) == "0"
+                add(
+                    (1 until cursor.columnCount).joinToString("|") { column ->
+                        if (cursor.isNull(column) || column == 4 && legacyDefault) {
+                            "NULL"
+                        } else {
+                            cursor.getString(column).lowercase().replace("`", "").replace("\"", "")
+                        }
+                    }
+                )
+            }
+        }.sorted()
+    }
+
+    private fun rejectExecutableSchema(path: Path) {
+        SQLiteDatabase.openDatabase(path.toString(), null, SQLiteDatabase.OPEN_READONLY).use { db ->
+            db.rawQuery("SELECT name,type FROM sqlite_master", null).use { cursor ->
+                while (cursor.moveToNext()) check(cursor.getString(1) in setOf("table", "index")) { "Backup contains unsupported executable schema" }
+            }
+        }
+    }
+
+    private fun preflightInstall(context: Context, prepared: Prepared) {
+        if (!Files.exists(prepared.directory.resolve(TagStore.FILE_NAME))) {
+            SQLiteDatabase.create(null).use { db ->
+                requireSnapshotSupport(
+                    db.rawQuery("SELECT sqlite_version()", null).use {
+                        it.moveToFirst()
+                        it.getString(0)
+                    }
+                )
+            }
+        }
+        val directory = context.getDatabasePath(DB).toPath().parent
+        Files.createDirectories(directory)
+        val oldBytes = Files.list(directory).use { paths -> paths.filter { Files.isRegularFile(it) }.mapToLong { Files.size(it) }.sum() }
+        val newBytes = Files.list(prepared.directory).use { paths -> paths.filter { Files.isRegularFile(it) }.mapToLong { Files.size(it) }.sum() }
+        val reserve = 2L * (oldBytes + newBytes) + 16L * 1024 * 1024
+        check(android.os.StatFs(directory.toString()).availableBytes > reserve) { "Not enough free storage to stage and safely recover this import. No installed data or AI pairing was changed." }
+    }
+
+    /** Closed Room can have leased connections. Refuse replacement unless they release WAL. */
+    internal fun awaitClosedCheckpoint(path: Path, timeoutMs: Long = 3000) {
+        if (!Files.exists(path)) return
+        val deadline = android.os.SystemClock.elapsedRealtime() + timeoutMs
+        SQLiteDatabase.openDatabase(path.toString(), null, SQLiteDatabase.OPEN_READWRITE).use { db ->
+            db.rawQuery("PRAGMA busy_timeout=100", null).use { it.moveToFirst() }
+            while (true) {
+                val complete = try {
+                    db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { c ->
+                        check(c.moveToFirst() && c.columnCount == 3) { "Checkpoint did not return a verifiable result" }
+                        c.getInt(0) == 0 && ((c.getInt(1) == 0 && c.getInt(2) == 0) || (c.getInt(1) == -1 && c.getInt(2) == -1))
+                    }
+                } catch (_: android.database.sqlite.SQLiteDatabaseLockedException) {
+                    false
+                }
+                if (complete) return
+                check(android.os.SystemClock.elapsedRealtime() < deadline) { "Existing database operations are still active. Import was stopped before replacement; restart and retry." }
+                Thread.sleep(25)
+            }
+        }
+    }
+
     private fun structure(query: (String) -> Cursor): Map<String, List<String>> {
         val names = query("SELECT name,type FROM sqlite_master ORDER BY name").use { c ->
             buildList {
@@ -344,7 +419,7 @@ object TagBackupCoordinator {
         }
         return names.associateWith { name ->
             val escaped = name.replace("'", "''")
-            rows("PRAGMA table_info('$escaped')", setOf(0)) + rows("PRAGMA foreign_key_list('$escaped')", setOf(0, 1)) +
+            columnStructure(name, query) + rows("PRAGMA foreign_key_list('$escaped')", setOf(0, 1)) +
                 query("PRAGMA index_list('$escaped')").use { c ->
                     buildList {
                         while (c.moveToNext()) {

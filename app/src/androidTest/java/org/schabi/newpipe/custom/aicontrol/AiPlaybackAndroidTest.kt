@@ -11,9 +11,9 @@ import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertSame
-import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.schabi.newpipe.database.stream.model.StreamEntity

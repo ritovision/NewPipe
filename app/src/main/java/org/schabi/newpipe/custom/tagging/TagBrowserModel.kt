@@ -45,7 +45,13 @@ class TagBrowserModel(application: Application) : AndroidViewModel(application) 
         mutableAction.value = Action(true, "Working…")
         actionTask = Single.fromCallable(operation).subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread()).subscribe({ mutableAction.value = Action(false, it) }, {
-                mutableAction.value = Action(false, it.message ?: "The operation failed. Refresh before retrying.")
+                val message = when (it.message) {
+                    "NO_ACTIVE_QUEUE" -> "Nothing is playing. Use Play results to start a queue first."
+                    "PLAYER_UNAVAILABLE" -> "The player is unavailable. Try Play results again."
+                    "QUEUE_CHANGED" -> "The queue changed before this request completed. Review it before retrying."
+                    else -> it.message ?: "The operation failed. Refresh before retrying."
+                }
+                mutableAction.value = Action(false, message)
             })
     }
 
@@ -63,8 +69,12 @@ class TagBrowserModel(application: Application) : AndroidViewModel(application) 
     private var queryGeneration = 0L
     private var readGeneration = 0L
     private var reading = false
+    private var refreshAgain = false
+    private var active = false
 
-    init {
+    fun startObserving() {
+        if (active) return
+        active = true
         // Invalidation has no SQL callback on the writer thread: debounce onto a scheduler.
         disposables.add(
             io.reactivex.rxjava3.core.Observable.create<Unit> { emitter ->
@@ -84,12 +94,21 @@ class TagBrowserModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
+    fun stopObserving() {
+        active = false
+        refreshAgain = false
+        disposables.clear()
+    }
+
     fun refresh() {
+        if (reading) {
+            refreshAgain = true
+            return
+        }
         val generation = ++readGeneration
         ++queryGeneration
         matching?.dispose()
         reading = true
-        read?.dispose()
         mutableState.value = (mutableState.value ?: State()).copy(busy = true, error = null)
         read = Single.fromCallable { repository.snapshot() }
             .subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe({ loaded ->
@@ -99,7 +118,16 @@ class TagBrowserModel(application: Application) : AndroidViewModel(application) 
                 val valid = loaded.definitions.tags.mapTo(HashSet()) { it.id }
                 filter = filter.copy(included = filter.included.intersect(valid), excluded = filter.excluded.intersect(valid))
                 render()
-            }, { error -> if (generation == readGeneration) showError(error) })
+                if (refreshAgain && active) {
+                    refreshAgain = false
+                    refresh()
+                }
+            }, { error ->
+                if (generation == readGeneration) {
+                    refreshAgain = false
+                    showError(error)
+                }
+            })
     }
 
     fun setFilter(value: TagFilter) {

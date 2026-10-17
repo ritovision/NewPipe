@@ -131,13 +131,13 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
     }
 
     fun renameCategory(id: Long, name: String, expectedRevision: Long? = null) = transaction { db ->
-        check(expectedRevision == null || expectedRevision == version()) { "Tag definitions changed while this form was open. Review the current values before retrying; this draft has not been saved." }
+        if (expectedRevision != null && expectedRevision != version()) throw TagDefinitionConflict(definitions())
         check(db.update("category", nameValues(name), "id=?", arrayOf(id.toString())) == 1) { "Category no longer exists" }
         changed(db)
     }
 
     fun editTag(id: Long, name: String, categoryId: Long?, expectedRevision: Long? = null) = transaction { db ->
-        check(expectedRevision == null || expectedRevision == version()) { "Tag definitions changed while this form was open. Review the current values before retrying; this draft has not been saved." }
+        if (expectedRevision != null && expectedRevision != version()) throw TagDefinitionConflict(definitions())
         val values = nameValues(name)
         if (categoryId == null) values.putNull("category_id") else values.put("category_id", categoryId)
         check(db.update("tag", values, "id=?", arrayOf(id.toString())) == 1) { "Tag no longer exists" }
@@ -217,7 +217,7 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
             it.moveToFirst()
             it.getLong(0)
         }
-        check(count < 10000) { "Tag command history is full; retry after old receipts expire" }
+        if (count >= 10000) throw TagReceiptCapacityException()
     }
 
     internal data class AiRemoval(val device: String, val epoch: String, val client: String, val request: String, val fingerprint: String, val libraryId: Long, val key: StreamKey)

@@ -6,11 +6,15 @@ package org.schabi.newpipe.custom.tagging
 import android.content.Context
 import android.content.ContextWrapper
 import android.net.Uri
+import androidx.room.testing.MigrationTestHelper
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
@@ -21,6 +25,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.schabi.newpipe.NewPipeDatabase
 import org.schabi.newpipe.custom.library.LibraryBindingStore
@@ -32,6 +37,7 @@ import org.schabi.newpipe.streams.io.StoredFileHelper
 
 /** File-backed Android SQLite tests in per-test private cache directories; never user databases. */
 class TagBackupIntegrationTest {
+    @get:Rule val migration = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
     private lateinit var directory: Path
     private lateinit var context: Context
     private lateinit var repository: TagRepository
@@ -143,7 +149,7 @@ class TagBackupIntegrationTest {
         }
         reopen()
         assertEquals(1, repository.snapshot().items.size)
-        assertEquals(setOf(tag), repository.editor(key(original)).assigned)
+        assertTrue(repository.editor(key(original)).assigned.isEmpty())
         assertEquals(setOf(tag), repository.editor(key(unmatched)).assigned)
         assertEquals(1, repository.snapshot().orphanedAssignments)
         assertTrue(repository.store.pendingRemovals().isEmpty())
@@ -245,6 +251,169 @@ class TagBackupIntegrationTest {
         assertEquals(setOf(tag), repository.editor(key(media)).assigned)
         repository.createTag("Still safe", null)
         assertEquals(setOf(tag), repository.editor(key(media)).assigned)
+    }
+
+    @Test fun upstreamV4MigrationImportsAndReexportsWithoutRejectingLegacyDefaults() {
+        val name = "tag-v4-${UUID.randomUUID()}.db"
+        val targetContext = ApplicationProvider.getApplicationContext<Context>()
+        val filePath = targetContext.getDatabasePath(name).toPath()
+        try {
+            migration.createDatabase(name, 4).use { old ->
+                old.execSQL("INSERT INTO subscriptions(uid,service_id,url,name) VALUES(42,0,'https://example.org/old-channel','Retained subscription')")
+            }
+            val source = directory.resolve("upstream4.zip")
+            ZipOutputStream(Files.newOutputStream(source)).use { output ->
+                output.putNextEntry(ZipEntry("newpipe.db"))
+                Files.copy(filePath, output)
+                output.closeEntry()
+            }
+            TagBackupCoordinator.prepare(context, file(source)).use { prepared ->
+                TagBackupCoordinator.installWithShutdown(context, prepared) {}
+            }
+            reopen()
+            db.openHelper.readableDatabase.query("SELECT name,notification_mode FROM subscriptions WHERE uid=42").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("Retained subscription", cursor.getString(0))
+                assertEquals(0, cursor.getInt(1))
+            }
+            assertEquals(
+                9001,
+                db.openHelper.readableDatabase.query("PRAGMA user_version").use {
+                    it.moveToFirst()
+                    it.getInt(0)
+                }
+            )
+            val roundTrip = exported()
+            TagBackupCoordinator.prepare(context, file(roundTrip)).close()
+        } finally {
+            targetContext.deleteDatabase(name)
+        }
+    }
+
+    @Test fun unknownExpressionDefaultAndTriggerAreRejectedBeforeMigration() {
+        val target = directory.resolve("expression.db")
+        TagBackupCoordinator.snapshotRoom(db.openHelper.writableDatabase, target)
+        android.database.sqlite.SQLiteDatabase.openDatabase(target.toString(), null, 0).use { raw ->
+            raw.execSQL("PRAGMA writable_schema=ON")
+            raw.execSQL("UPDATE sqlite_master SET sql=replace(sql,'notification_mode` INTEGER NOT NULL','notification_mode` INTEGER NOT NULL DEFAULT (randomblob(8))') WHERE name='subscriptions'")
+            raw.execSQL("PRAGMA writable_schema=OFF")
+        }
+        assertThrows(Exception::class.java) { TagBackupCoordinator.validateRoomCopy(context, target) }
+        assertFalse(TagRuntime.restoring)
+    }
+
+    @Test fun malformedBindingExportDoesNotOverwriteDestination() {
+        val tag = repository.createTag("Keep", null)
+        item("saved", tag)
+        val binding = LibraryBindingStore.pathForDatabase(context.getDatabasePath("newpipe.db").toPath())
+        Files.write(binding, "playlist_id=999999\nname=Library\n".toByteArray())
+        val output = directory.resolve("preexisting-backup.zip")
+        Files.write(output, "old backup preserved".toByteArray())
+        assertThrows(IllegalStateException::class.java) {
+            TagBackupCoordinator.export(context, context.getSharedPreferences("bad-binding-test", 0), file(output))
+        }
+        assertEquals("old backup preserved", String(Files.readAllBytes(output)))
+    }
+
+    @Test fun restoreRollbackWaitsForLeasedRoomWriterAndPreservesItsCommittedRow() {
+        val tag = repository.createTag("Keep", null)
+        item("saved", tag)
+        val backup = exported()
+        val held = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val finished = CountDownLatch(1)
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+        val connection = db.openHelper.writableDatabase
+        val writer = Thread {
+            try {
+                connection.beginTransactionNonExclusive()
+                try {
+                    connection.execSQL("INSERT INTO subscriptions(uid,service_id,url,name,notification_mode) VALUES(78,0,'https://example.org/inflight','In-flight commit',0)")
+                    held.countDown()
+                    check(release.await(10, TimeUnit.SECONDS))
+                    connection.setTransactionSuccessful()
+                } finally {
+                    connection.endTransaction()
+                }
+            } catch (error: Throwable) {
+                failure.set(error)
+            } finally {
+                finished.countDown()
+            }
+        }
+        writer.start()
+        assertTrue(held.await(3, TimeUnit.SECONDS))
+        val releaser = Thread {
+            Thread.sleep(300)
+            release.countDown()
+        }
+        var published = false
+        CatalogFileSwap.fault = { point ->
+            if (point == "prepared") {
+                published = true
+                assertEquals(0L, finished.count)
+            }
+            if (point == "new:newpipe.db") throw java.io.IOException("synthetic failed swap")
+        }
+        try {
+            TagBackupCoordinator.prepare(context, file(backup)).use { prepared ->
+                releaser.start()
+                assertThrows(Exception::class.java) { TagBackupCoordinator.installWithShutdown(context, prepared) {} }
+            }
+        } finally {
+            release.countDown()
+            writer.join(5000)
+            releaser.join(5000)
+            CatalogFileSwap.fault = null
+        }
+        assertEquals(null, failure.get())
+        assertFalse(writer.isAlive)
+        reopen()
+        db.openHelper.readableDatabase.query("PRAGMA quick_check").use {
+            assertTrue(it.moveToFirst())
+            assertEquals("ok", it.getString(0))
+        }
+        db.openHelper.readableDatabase.query("SELECT name FROM subscriptions WHERE uid=78").use {
+            assertTrue(it.moveToFirst())
+            assertEquals("In-flight commit", it.getString(0))
+        }
+        println("LEASED_ROOM_WRITE_ROLLBACK_PUBLISHED=$published")
+    }
+
+    @Test fun busyCheckpointAbortsBeforeSwapAndDoesNotDiscardWal() {
+        val target = directory.resolve("busy-checkpoint.db")
+        val first = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(target.toFile(), null)
+        first.enableWriteAheadLogging()
+        first.execSQL("CREATE TABLE test(id INTEGER PRIMARY KEY,value TEXT)")
+        val held = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val writer = Thread {
+            first.beginTransactionNonExclusive()
+            try {
+                first.execSQL("INSERT INTO test VALUES(1,'keep')")
+                held.countDown()
+                check(release.await(5, TimeUnit.SECONDS))
+                first.setTransactionSuccessful()
+            } finally {
+                first.endTransaction()
+            }
+        }
+        writer.start()
+        assertTrue(held.await(2, TimeUnit.SECONDS))
+        try {
+            assertThrows(Exception::class.java) { TagBackupCoordinator.awaitClosedCheckpoint(target, 200) }
+        } finally {
+            release.countDown()
+            writer.join(5000)
+            first.close()
+        }
+        TagBackupCoordinator.awaitClosedCheckpoint(target)
+        android.database.sqlite.SQLiteDatabase.openDatabase(target.toString(), null, 0).use { raw ->
+            raw.rawQuery("SELECT value FROM test", null).use {
+                assertTrue(it.moveToFirst())
+                assertEquals("keep", it.getString(0))
+            }
+        }
     }
 
     private class SyntheticDeath : Error()

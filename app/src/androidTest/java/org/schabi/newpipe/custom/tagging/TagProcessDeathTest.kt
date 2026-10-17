@@ -28,7 +28,7 @@ class TagProcessDeathTest {
     private val root get() = context.cacheDir.toPath().resolve("tag-process-death-private")
     private fun phase(): String {
         val phase = InstrumentationRegistry.getArguments().getString("tag_crash_phase")
-        assumeTrue("Only the explicit QA host can arm this fixture", phase in listOf("new:newpipe.db", "new:ritovision-library.binding", "committed"))
+        assumeTrue("Only the explicit QA host can arm this fixture", phase in listOf("prepared", "new:newpipe.db", "new:ritovision-tags.db", "new:ritovision-library.binding", "committed"))
         return phase!!
     }
 

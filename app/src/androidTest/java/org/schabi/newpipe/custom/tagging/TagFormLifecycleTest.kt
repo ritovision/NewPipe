@@ -121,6 +121,29 @@ class TagFormLifecycleTest {
             assertNotNull(input(form(activity)!!).error)
         }
         assertEquals("Concurrent AI rename", repository.definitions().tags.single().name)
+        // The retained dialog now exposes current values and uses their revision for an
+        // explicit second Save. It must not trap the draft on the original stale revision.
+        scenario.onActivity { activity -> (form(activity)!!.dialog as AlertDialog).getButton(AlertDialog.BUTTON_POSITIVE).performClick() }
+        waitFor { form(it) == null }
+        assertEquals("Local draft", repository.definitions().tags.single().name)
+    }
+
+    @Test fun managerRefreshesConcurrentDefinitionsWithoutClosingAndReopening() {
+        scenario.onActivity { activity -> editor(activity)!!.dismiss() }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        scenario.onActivity { activity -> TagManagerFragment.show(activity.supportFragmentManager, longArrayOf(), longArrayOf()) }
+        waitFor { activity -> activity.supportFragmentManager.findFragmentByTag("rv-tag-manager")?.let { (it as TagManagerFragment).dialog?.isShowing } == true }
+        repository.createCategory("Created by AI")
+        waitFor { activity ->
+            val manager = activity.supportFragmentManager.findFragmentByTag("rv-tag-manager") as? TagManagerFragment
+            manager?.dialog?.window?.decorView?.let { root -> descendants(root).filterIsInstance<TextView>().any { it.text.contains("Created by AI") } } == true
+        }
+        val category = repository.definitions().categories.single()
+        repository.renameCategory(category.id, "Renamed by AI", repository.definitions().version)
+        waitFor { activity ->
+            val manager = activity.supportFragmentManager.findFragmentByTag("rv-tag-manager") as? TagManagerFragment
+            manager?.dialog?.window?.decorView?.let { root -> descendants(root).filterIsInstance<TextView>().any { it.text.contains("Renamed by AI") } } == true
+        }
     }
 
     private fun editor(activity: TagsActivity) = activity.supportFragmentManager.findFragmentByTag("rv-persistent-tag-editor") as? TagEditorFragment

@@ -19,10 +19,15 @@ data class TagEditSnapshot(val definitions: TagDefinitions, val assigned: Set<Lo
 data class TagRemovalIntent(val key: StreamKey, val libraryId: Long)
 data class TagDeletePlan(val id: Long, val category: Boolean, val tags: Int, val assignments: Int, val version: Long)
 
+/** A stale native form can display current values and retain its draft for an explicit retry. */
+class TagDefinitionConflict(val current: TagDefinitions) : IllegalStateException("Tag definitions changed. Review the current values before saving your draft again.")
+internal class TagReceiptCapacityException : IllegalStateException("Tag command history is full; retry after old receipts expire")
+
 object TagNames {
     fun clean(value: String): String = value.trim().also {
         require(it.isNotEmpty()) { "Enter a name" }
         require(it.length <= 80) { "Use a name of 80 characters or fewer" }
+        require(it.none { ch -> ch.isISOControl() || Character.getType(ch) == Character.FORMAT.toInt() }) { "Names cannot contain invisible control or direction-changing characters" }
     }
 
     fun key(value: String): String = clean(value).lowercase(Locale.ROOT)

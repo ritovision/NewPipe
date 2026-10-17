@@ -158,6 +158,7 @@ class TagEditorFragment : BottomSheetDialogFragment() {
                     buttonTintList = ColorStateList.valueOf(ui.accent)
                     minHeight = ui.dp(48)
                     isChecked = tag.id in chosen
+                    isEnabled = saveState.result.value != TagEditorSaveState.Result.Saving && !completed
                     setOnCheckedChangeListener { _, checked ->
                         if (checked) chosen.add(tag.id) else chosen.remove(tag.id)
                         message.text = "${chosen.size} selected · Apply to save"

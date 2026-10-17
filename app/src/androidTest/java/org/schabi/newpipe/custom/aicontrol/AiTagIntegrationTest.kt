@@ -268,6 +268,70 @@ class AiTagIntegrationTest {
         assertEquals("UNTRUSTED_MEDIA_HOST", error.code)
     }
 
+    @Test fun predictableTagFailuresRejectWithSpecificCodesWithoutChangingData() {
+        val first = repo.createCategory("Genre")
+        val second = repo.createCategory("Mood")
+        val live = repo.createTag("Live", first)
+        val another = repo.createTag("Other", first)
+        val before = repo.definitions()
+        val cases = listOf(
+            AiTagCommand.CreateCategory("genre") to "CATEGORY_NAME_EXISTS",
+            AiTagCommand.CreateTag("live", second) to "TAG_NAME_EXISTS",
+            AiTagCommand.CreateTag("Missing", 999999) to "CATEGORY_NOT_FOUND",
+            AiTagCommand.UpdateTag(another, "LIVE", first, before.version) to "TAG_NAME_EXISTS",
+            AiTagCommand.UpdateTag(live, "Renamed", 999999, before.version) to "CATEGORY_NOT_FOUND",
+            AiTagCommand.UpdateTag(999999, "Renamed", first, before.version) to "TAG_NOT_FOUND",
+            AiTagCommand.RenameCategory(first, "mood", before.version) to "CATEGORY_NAME_EXISTS",
+            AiTagCommand.RenameCategory(999999, "None", before.version) to "CATEGORY_NOT_FOUND",
+            AiTagCommand.DeleteTag(999999, before.version) to "TAG_NOT_FOUND",
+            AiTagCommand.DeleteCategory(999999, before.version) to "CATEGORY_NOT_FOUND"
+        )
+        for ((command, code) in cases) {
+            val request = request(command)
+            val result = run(request)
+            assertEquals(code, result.code)
+            assertEquals(AiOutcome.REJECTED, result.outcome)
+            assertNull(tags.findReceipt(device, epoch, client, request.requestId))
+            assertEquals(before, repo.definitions())
+        }
+    }
+
+    @Test fun tagReceiptCapacityIsNotExecutedRatherThanUnknown() {
+        tags.transaction { raw ->
+            val insert = raw.compileStatement("INSERT INTO tag_command_receipt VALUES('device','epoch','client',?,'f','tags.write','{}',?)")
+            try {
+                for (index in 0 until 10000) {
+                    insert.bindString(1, "old-$index")
+                    insert.bindLong(2, now + 100000)
+                    insert.executeInsert()
+                }
+            } finally {
+                insert.close()
+            }
+        }
+        val before = repo.definitions()
+        val request = request(AiTagCommand.CreateCategory("Too much"))
+        val result = run(request)
+        assertEquals("RECEIPT_CAPACITY", result.code)
+        assertEquals(AiOutcome.NOT_EXECUTED, result.outcome)
+        assertEquals(before, repo.definitions())
+        assertNull(tags.findReceipt(device, epoch, client, request.requestId))
+    }
+
+    @Test fun paginationAllowsDifferentPageSizesAndEquivalentTagOrder() {
+        val (stream, _) = item("Alpha")
+        item("Beta")
+        item("Gamma")
+        val tag = repo.definitions().tags.single().id
+        val other = repo.createTag("Extra", null)
+        val first = run(AiTagCommand.Search(included = listOf(tag, other), matchAll = false, limit = 1))
+        val revision = first.data.getValue("revision").jsonPrimitive.content
+        val second = run(AiTagCommand.Search(included = listOf(other, tag), matchAll = false, limit = 2, offset = 1, expectedRevision = revision))
+        assertEquals(AiOutcome.COMPLETED, second.outcome)
+        assertEquals(2, (second.data.getValue("items") as JsonArray).size)
+        assertEquals(3, repo.snapshot().items.size)
+    }
+
     @Test fun nativeAndAiQueriesShareOrderAndRejectStalePagination() {
         item("Zulu")
         item("Alpha")

@@ -45,7 +45,8 @@ class TagRepository(
         check(!invalidated) { "This Library was closed or replaced. Restart the app." }
         val libraryId = LibraryRepository.initialize(library, binding)
         for (intent in store.pendingAiRemovals()) {
-            check(intent.libraryId == libraryId) { "Library identity changed; restore recovery requires a restart" }
+            // A same-database receipt proves the old deletion commit even after a user
+            // repairs Library identity. This cleanup never replays the Library deletion.
             val receipt = library.aiCommandReceiptDao().find(intent.device, intent.epoch, intent.client, intent.request)
             check(receipt == null || receipt.fingerprint == intent.fingerprint) { "Command identity mismatch during tag cleanup" }
             // No receipt means Room rolled back. Never replay an AI deletion from tag storage.
