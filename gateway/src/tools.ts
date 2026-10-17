@@ -13,7 +13,7 @@ const publicUrl=z.string().url().max(2048).refine(raw=>{
 },'Use a public HTTP(S) media URL without credentials or a private-network host.');
 const ref = z.strictObject({stream_id: id, service: z.string().min(1).max(64), url: publicUrl});
 const refs = z.array(ref).min(1).max(500);
-const name = z.string().min(1).max(200).refine(s=>s.trim().length>0 && !/[\p{Cc}\p{Cf}]/u.test(s));
+const name = z.string().min(1).max(200).refine(s=>s.trim().length>0 && !/[\p{Cc}\p{Cf}]/u.test(s.replace(/[\u200C\u200D]/gu,'')));
 const target = {device_id: uuid};
 const mutation = {...target, issued_at_ms:z.number().int().positive().max(Number.MAX_SAFE_INTEGER).describe("Use server_time_ms from a fresh device/list response. Preserve this exact timestamp on retries; do not renew it."), request_id: uuid.describe('New UUID for each intended change. Reuse only for the identical command; never change it to silently retry an uncertain action.')};
 export interface ToolSpec {
@@ -25,7 +25,7 @@ const tool = (name: string, description: string, shape: z.ZodRawShape, changes: 
   scopes: typeof scopes === 'function' ? scopes : ()=>scopes,
 });
 const read = ['library.read'], write = ['playlist.write'], save = ['library.write'], play = ['playback.control'];
-const tagName=z.string().min(1).max(80).refine(s=>s.trim().length>0&&!/[\p{Cc}\p{Cf}]/u.test(s));
+const tagName=z.string().min(1).max(80).refine(s=>s.trim().length>0&&!/[\p{Cc}\p{Cf}]/u.test(s.replace(/[\u200C\u200D]/gu,'')));
 const tagRevision=z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const tagIds=z.array(id).max(500).refine(ids=>new Set(ids).size===ids.length);
 const tagRead=['tags.read'], tagWrite=['tags.write'], tagDelete=['tags.delete'];

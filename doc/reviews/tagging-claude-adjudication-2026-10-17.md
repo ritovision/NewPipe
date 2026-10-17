@@ -50,3 +50,11 @@ Correction: the live Room open helper now wraps transaction and statement execut
 This specific helper change and runtime regression require focused data-review closure. The whole feature is not declared finished based only on these source changes.
 
 The next native run exercised the new writer gate but exposed expected lifecycle cancellation arriving as a fatal exception in Room's asynchronous invalidation coroutine. The gate now throws CancellationException for requests refused by an active restore fence. This does not suppress storage faults or allow writes: it marks a deliberately stopped coroutine as cancelled rather than reporting a programming crash. Cached statements still refuse execution, and admitted transactions still drain. Full rerun and focused source review remain required.
+
+## UI closure follow-up
+
+Claude's first UI closure review closed the original stale-form and inaccurate-AI-rejection issues, but identified two narrow regressions. Both are accepted:
+- A popup opened before a live Manage refresh could pair old values with the newly refreshed revision. Each rendered group now captures the same immutable definitions snapshot used by its popup and form values. A real popup/live-rename regression requires a conflict rather than silently undoing AI's rename. Popup references are dismissed with the parent view.
+- Re-validating every stored pre-policy name during uniqueness scanning could reject unrelated new valid names. Stored-key comparison now uses the historical trim/lowercase normalization without validating old display text. New input still validates. Native/gateway Unicode policy permits ZWNJ/ZWJ for legitimate scripts and compound emoji, iterates code points consistently, and rejects other control/format code points including supplementary tag characters. Added legacy-name and Unicode regressions.
+
+The original backup data fixes plus admission/cancellation correction now passed **13/13 actual Android backup tests**, including legacy import/re-export, malformed backup rejection, admitted Room writer rollback and cached statement refusal. Full integrated tests are still being rerun; this is not an inferred pass for unrun code.

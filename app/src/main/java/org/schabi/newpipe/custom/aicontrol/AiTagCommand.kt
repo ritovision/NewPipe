@@ -80,7 +80,7 @@ internal object AiTagProtocol {
     fun validate(command: AiTagCommand) {
         fun id(value: Long) = AiProtocol.checkInput(value > 0 && value <= 9_007_199_254_740_991L)
         fun revision(value: Long) = AiProtocol.checkInput(value >= 0 && value <= 9_007_199_254_740_991L)
-        fun name(value: String) = AiProtocol.checkInput(value.trim().isNotEmpty() && value.length <= 80 && value.none { it.isISOControl() || Character.getType(it) == Character.FORMAT.toInt() })
+        fun name(value: String) = AiProtocol.checkInput(value.trim().isNotEmpty() && value.length <= 80 && org.schabi.newpipe.custom.tagging.TagNames.validCharacters(value))
         fun page(after: Long, limit: Int) {
             revision(after)
             AiProtocol.checkInput(limit in 1..50)

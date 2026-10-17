@@ -135,5 +135,6 @@ test('predictable Android tag rejection stays rejected in the cached MCP reply',
 test('tag and category name schemas reject invisible format and control characters',()=>{
  const schema=TOOL_MAP.get('create_tag').schema;
  for(const name of ['Invisible\u200e','Misleading\u202e','Control\u0001']) expect(schema.safeParse({...mutation(randomUUID()),name}).success).toBe(false);
- expect(schema.safeParse({...mutation(randomUUID()),name:'Jazz 🎵'}).success).toBe(true);
+ for(const name of ['Jazz 🎵','👩‍💻 Code','فارسی\u200cنام']) expect(schema.safeParse({...mutation(randomUUID()),name}).success).toBe(true);
+ expect(schema.safeParse({...mutation(randomUUID()),name:'Invisible\u{E0020}'}).success).toBe(false);
 });

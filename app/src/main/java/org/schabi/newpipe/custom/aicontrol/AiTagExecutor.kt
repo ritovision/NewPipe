@@ -84,9 +84,9 @@ internal class AiTagExecutor(private val repository: TagRepository, private val 
                 throw AiFailure("INVALID_NAME")
             }
             val taken = if (category) {
-                definitions.categories.any { it.id != excluding && TagNames.key(it.name) == key }
+                definitions.categories.any { it.id != excluding && TagNames.storedKey(it.name) == key }
             } else {
-                definitions.tags.any { it.id != excluding && TagNames.key(it.name) == key }
+                definitions.tags.any { it.id != excluding && TagNames.storedKey(it.name) == key }
             }
             if (taken) throw AiFailure(if (category) "CATEGORY_NAME_EXISTS" else "TAG_NAME_EXISTS")
         }

@@ -27,10 +27,19 @@ object TagNames {
     fun clean(value: String): String = value.trim().also {
         require(it.isNotEmpty()) { "Enter a name" }
         require(it.length <= 80) { "Use a name of 80 characters or fewer" }
-        require(it.none { ch -> ch.isISOControl() || Character.getType(ch) == Character.FORMAT.toInt() }) { "Names cannot contain invisible control or direction-changing characters" }
+        require(validCharacters(it)) { "Names cannot contain invisible control or direction-changing characters" }
     }
 
     fun key(value: String): String = clean(value).lowercase(Locale.ROOT)
+
+    // Joiners are legitimate in international scripts and emoji; direction/control markers
+    // are not. Iterate code points so supplementary format characters match gateway policy.
+    fun validCharacters(value: String): Boolean = value.codePoints().allMatch { code ->
+        code == 0x200C || code == 0x200D || (Character.getType(code) != Character.CONTROL.toInt() && Character.getType(code) != Character.FORMAT.toInt())
+    }
+
+    /** Stored pre-policy names already have a normalized key and must remain readable. */
+    fun storedKey(value: String): String = value.trim().lowercase(Locale.ROOT)
 }
 
 enum class TagSort { LIBRARY, TITLE_ASC, TITLE_DESC }

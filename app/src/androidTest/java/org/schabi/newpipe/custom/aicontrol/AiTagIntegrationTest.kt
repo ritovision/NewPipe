@@ -332,6 +332,18 @@ class AiTagIntegrationTest {
         assertEquals(3, repo.snapshot().items.size)
     }
 
+    @Test fun legacyInvisibleNamesDoNotPoisonUnrelatedAiCreationAndDuplicates() {
+        tags.writableDatabase.execSQL("INSERT INTO tag(name,name_key,category_id) VALUES(?,?,NULL)", arrayOf<Any>("Legacy\u00adName", "legacy\u00adname"))
+        tags.writableDatabase.execSQL("INSERT INTO category(name,name_key) VALUES(?,?)", arrayOf<Any>("Old\u202eCategory", "old\u202ecategory"))
+        assertEquals(AiOutcome.COMMITTED, run(AiTagCommand.CreateTag("New valid tag")).outcome)
+        assertEquals("TAG_NAME_EXISTS", run(AiTagCommand.CreateTag("NEW VALID TAG")).code)
+        assertEquals(AiOutcome.COMMITTED, run(AiTagCommand.CreateCategory("New valid category")).outcome)
+        assertEquals("CATEGORY_NAME_EXISTS", run(AiTagCommand.CreateCategory("NEW VALID CATEGORY")).code)
+        assertEquals(AiOutcome.COMMITTED, run(AiTagCommand.CreateTag("👩‍💻 Code")).outcome)
+        assertEquals(AiOutcome.COMMITTED, run(AiTagCommand.CreateTag("فارسی\u200cنام")).outcome)
+        assertEquals("INVALID_ARGUMENT", run(AiTagCommand.CreateTag("Invisible\uDB40\uDC20")).code)
+    }
+
     @Test fun nativeAndAiQueriesShareOrderAndRejectStalePagination() {
         item("Zulu")
         item("Alpha")

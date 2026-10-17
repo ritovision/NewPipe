@@ -149,8 +149,14 @@ class TagManagerFragment : BottomSheetDialogFragment() {
         }
     }
 
+    internal var actionPopup: AlertDialog? = null
+        private set
+
     private fun addGroup(id: Long, name: String, category: TagCategory?) {
-        val tags = definitions.tags.filter { (it.categoryId ?: 0) == id }
+        // Popup callbacks must keep values AND revision from the same displayed snapshot.
+        // A live refresh may replace `definitions` while a popup remains open.
+        val displayed = definitions
+        val tags = displayed.tags.filter { (it.categoryId ?: 0) == id }
         if (category == null && tags.isEmpty()) return
         val header = ui.row()
         val toggle = ui.button("${if (id in expanded) "▾" else "▸"} $name (${tags.size})") {
@@ -162,9 +168,9 @@ class TagManagerFragment : BottomSheetDialogFragment() {
         if (category != null) {
             header.addView(
                 ui.button("⋮") {
-                    ui.dialog().setTitle(category.name).setItems(arrayOf("Rename", "Delete category")) { _, choice ->
+                    actionPopup = ui.dialog().setTitle(category.name).setItems(arrayOf("Rename", "Delete category")) { _, choice ->
                         if (choice == 0) {
-                            TagForms.category(this, definitions, category)
+                            TagForms.category(this, displayed, category)
                         } else {
                             confirmDeletion(category.id, true, category.name)
                         }
@@ -180,9 +186,9 @@ class TagManagerFragment : BottomSheetDialogFragment() {
                 row.addView(ui.text(tag.name, 15f), LinearLayout.LayoutParams(0, -2, 1f))
                 row.addView(
                     ui.button("Edit") {
-                        ui.dialog().setTitle(tag.name).setItems(arrayOf("Rename or move", "Delete tag")) { _, action ->
+                        actionPopup = ui.dialog().setTitle(tag.name).setItems(arrayOf("Rename or move", "Delete tag")) { _, action ->
                             if (action == 0) {
-                                TagForms.tag(this, definitions, tag)
+                                TagForms.tag(this, displayed, tag)
                             } else {
                                 confirmDeletion(tag.id, false, tag.name)
                             }
@@ -200,7 +206,7 @@ class TagManagerFragment : BottomSheetDialogFragment() {
                 for (tag in active) {
                     chips.addView(
                         ui.button((if (tag.id in included) "+ " else "− ") + tag.name) {
-                            TagForms.tag(this, definitions, tag)
+                            TagForms.tag(this, displayed, tag)
                         },
                         android.view.ViewGroup.MarginLayoutParams(-2, -2).apply {
                             rightMargin = ui.dp(7)
@@ -247,6 +253,12 @@ class TagManagerFragment : BottomSheetDialogFragment() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putLongArray("expanded", expanded.toLongArray())
+    }
+
+    override fun onDestroyView() {
+        actionPopup?.dismiss()
+        actionPopup = null
+        super.onDestroyView()
     }
 
     override fun onDestroy() {

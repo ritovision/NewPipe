@@ -146,6 +146,33 @@ class TagFormLifecycleTest {
         }
     }
 
+    @Test fun popupKeepsValuesAndRevisionFromTheSameSnapshotAcrossLiveRefresh() {
+        val original = repository.definitions().tags.single()
+        scenario.onActivity { editor(it)!!.dismiss() }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        scenario.onActivity { TagManagerFragment.show(it.supportFragmentManager, longArrayOf(), longArrayOf()) }
+        fun manager(activity: TagsActivity) = activity.supportFragmentManager.findFragmentByTag("rv-tag-manager") as? TagManagerFragment
+        fun definitionForm(activity: TagsActivity) = manager(activity)?.childFragmentManager?.findFragmentByTag(TagForms.DIALOG) as? TagDefinitionDialog
+        waitFor { activity -> manager(activity)?.dialog?.window?.decorView?.let { descendants(it).filterIsInstance<TextView>().any { text -> text.text.contains("Uncategorized") } } == true }
+        scenario.onActivity { activity ->
+            val root = manager(activity)!!.dialog!!.window!!.decorView
+            descendants(root).filterIsInstance<TextView>().first { it.text.contains("Uncategorized") }.performClick()
+            find(root, "Edit")!!.performClick()
+        }
+        waitFor { manager(it)?.actionPopup?.isShowing == true }
+        repository.editTag(original.id, "Concurrent AI rename", null, repository.definitions().version)
+        waitFor { activity -> manager(activity)?.dialog?.window?.decorView?.let { descendants(it).filterIsInstance<TextView>().any { text -> text.text.toString() == "Concurrent AI rename" } } == true }
+        scenario.onActivity { activity ->
+            val popup = manager(activity)!!.actionPopup!!
+            popup.listView.performItemClick(popup.listView.getChildAt(0), 0, 0)
+        }
+        waitFor { definitionForm(it)?.dialog?.isShowing == true }
+        scenario.onActivity { activity -> (definitionForm(activity)!!.dialog as AlertDialog).getButton(AlertDialog.BUTTON_POSITIVE).performClick() }
+        waitFor { activity -> definitionForm(activity)?.let { input(it).error != null } == true }
+        assertEquals("Concurrent AI rename", repository.definitions().tags.single().name)
+        scenario.onActivity { activity -> assertTrue(input(definitionForm(activity)!!).error.toString().contains("Currently saved")) }
+    }
+
     private fun editor(activity: TagsActivity) = activity.supportFragmentManager.findFragmentByTag("rv-persistent-tag-editor") as? TagEditorFragment
     private fun form(activity: TagsActivity) = editor(activity)?.childFragmentManager?.findFragmentByTag(TagForms.DIALOG) as? TagDefinitionDialog
     private fun descendants(view: View): List<View> = listOf(view) + if (view is ViewGroup) (0 until view.childCount).flatMap { descendants(view.getChildAt(it)) } else emptyList()
