@@ -1,5 +1,8 @@
 # Tagging + AI — reviewed source and QA acceptance
 
+**FINAL OWNER SIGN-OFF — OCTOBER 17, 2026: FEATURE ACCEPTED.** The owner waived additional manual testing and the undemonstrated live AI tagging command in order to close this development milestone. Those tests remain **not performed**, not PASS. Main-app physical installation remains a separate optional rollout. See [ACCEPTANCE.md](ACCEPTANCE.md) for the acceptance decision, evidence and boundaries.
+
+
 **Implementation and source-review work completed.** Production main-app installation and a live authorized AI-tag command remain separate rollout gates; neither is inferred from tests.
 
 ## Evidence

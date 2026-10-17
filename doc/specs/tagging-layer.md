@@ -1,7 +1,7 @@
 # Tagging Layer — Categories, Library Search and Playback Queues
 
-**Status:** Agreed core product behavior; architecture and detailed UX still subject to validation
-**Priority:** Production integration in progress on the completed AI-enabled fork; approved native prototype is preserved separately.
+**Status:** **Feature development accepted October 17, 2026**, with owner-waived hands-on and live AI tagging command verification. See [acceptance record](../validation/tagging-claude-20261017/ACCEPTANCE.md).
+**Priority:** Completed and merged into custom/dev; updating the installed main app remains an optional separate rollout.
 **Project:** Personal NewPipe fork tracking upstream `dev`
 **Created:** 2026-10-15
 
