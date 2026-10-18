@@ -122,6 +122,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     /** Used to debounce saving playlist edits to disk. */
     private DebounceSaver debounceSaver;
     private List<Long> loadedStreamIds = new ArrayList<>();
+    /** A mark changed Unavailable while the playlist editor/save queue was dirty. */
+    private boolean unavailableMarkRefreshPending;
     private PlaylistSaveQueue playlistSaveQueue;
     private long playlistSaveListenerGeneration;
     private long playlistLoadGeneration;
@@ -374,6 +376,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         }
         playlistLoadGeneration++;
         playlistSaveListenerGeneration++;
+        unavailableMarkRefreshPending = false;
         if (playlistSaveQueue != null) {
             playlistSaveQueue.setListener(null);
         }
@@ -767,11 +770,90 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                     saveImmediate();
                 }
             }
+            // Room can emit the marking change while an older editor save is
+            // still dirty, causing the observer to skip it. Refresh only after
+            // the save acknowledgment; never discard a pending reorder.
+            refreshUnavailableAfterMarkWhenSafe();
         }));
+    }
+
+    /**
+     * An Unavailable mark is an external membership change to this editor.
+     * Wait for retained edits to commit and their UI acknowledgments to settle,
+     * then re-query Room. An error/dirty editor must stay available for recovery.
+     */
+    private void refreshUnavailableAfterMarkWhenSafe() {
+        if (!unavailableMarkRefreshPending || getView() == null
+                || debounceSaver == null || debounceSaver.getIsModified()) {
+            return;
+        }
+        final long generation = playlistSaveListenerGeneration;
+        final Runnable afterIdle = () -> playlistSaveHandler.post(() -> {
+            if (!unavailableMarkRefreshPending || getView() == null
+                    || generation != playlistSaveListenerGeneration
+                    || debounceSaver == null || debounceSaver.getIsModified()) {
+                return;
+            }
+            unavailableMarkRefreshPending = false;
+            startLoading(false);
+        });
+        if (playlistSaveQueue == null) {
+            afterIdle.run();
+        } else {
+            playlistSaveQueue.whenIdle(afterIdle);
+        }
+    }
+
+    /**
+     * Sequence Unavailable marking after any outstanding drag/reorder save.
+     *
+     * @param context the active application context
+     * @param item the saved local stream to mark or unmark
+     * @param desiredMark whether the stream belongs in Unavailable
+     */
+    private void markUnavailablePreservingEdits(final Context context,
+                                                final PlaylistStreamEntry item,
+                                                final boolean desiredMark) {
+        if (disposables == null || getView() == null) {
+            return;
+        }
+        if (isUnavailable()) {
+            saveImmediate();
+        }
+        final Runnable issueMark = () -> {
+            if (disposables == null || getView() == null) {
+                return;
+            }
+            if (isUnavailable() && debounceSaver != null
+                    && debounceSaver.getIsModified()) {
+                showUiErrorSnackbar(this, "Finish saving playlist before marking",
+                        new PlaylistEditConflictException());
+                return;
+            }
+            disposables.add(UnavailableRepository
+                    .setMarked(context, item.getStreamId(), desiredMark)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(() -> {
+                        if (getView() != null && isUnavailable()) {
+                            unavailableMarkRefreshPending = true;
+                            refreshUnavailableAfterMarkWhenSafe();
+                        }
+                    }, err -> showUiErrorSnackbar(this,
+                            "Updating Unavailable mark", err)));
+        };
+        if (isUnavailable() && playlistSaveQueue != null) {
+            // The queue notifies its listener before releasing the idle observer.
+            // Both callbacks post to this same Handler: the save acknowledgment
+            // precedes the mark, so the saved editor state is never discarded.
+            playlistSaveQueue.whenIdle(() -> playlistSaveHandler.post(issueMark));
+        } else {
+            issueMark.run();
+        }
     }
 
     private void reloadAfterDiscardingEdits() {
         playlistLoadGeneration++;
+        unavailableMarkRefreshPending = false;
         final long generation = ++playlistSaveListenerGeneration;
         if (playlistSaveQueue != null) {
             playlistSaveQueue.setListener(null);
@@ -920,19 +1002,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                         ? StreamDialogDefaultEntry.MARK_AVAILABLE
                         : StreamDialogDefaultEntry.MARK_UNAVAILABLE;
                 dialogBuilder.addEntry(markAction);
-                dialogBuilder.setAction(markAction, (f, i) -> {
-                    if (disposables == null) {
-                        return;
-                    }
-                    disposables.add(UnavailableRepository
-                            .setMarked(context, item.getStreamId(), !marked)
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe(() -> {
-                                // Room's playlist observer updates the affected list.
-                                // Do not discard unrelated queued drag/reorder edits.
-                            }, err -> showUiErrorSnackbar(this,
-                                    "Updating Unavailable mark", err)));
-                });
+                dialogBuilder.setAction(markAction,
+                        (f, i) -> markUnavailablePreservingEdits(context, item, !marked));
             }
             dialogBuilder.addEntry(StreamDialogDefaultEntry.REMOVE_EVERYWHERE);
             dialogBuilder

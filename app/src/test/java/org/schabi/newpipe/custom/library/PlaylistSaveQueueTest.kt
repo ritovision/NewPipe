@@ -82,6 +82,66 @@ class PlaylistSaveQueueTest {
     }
 
     @Test
+    fun externalMarkIsSequencedAfterPendingEditorSaveAcknowledgement() {
+        val worker = ManualExecutor()
+        val ui = ArrayDeque<Runnable>()
+        var stored = listOf(1L, 2L, 3L)
+        var modified = true
+        var markRan = false
+        val reordered = listOf(3L, 2L, 1L)
+        val queue = PlaylistSaveQueue(worker) { expected, desired ->
+            assertEquals(stored, expected)
+            stored = desired.toList()
+            stored
+        }
+        queue.setListener { result ->
+            ui.add {
+                assertEquals(reordered, result.committed)
+                modified = false
+            }
+        }
+        queue.submit(stored, reordered)
+        // The user chooses Mark Available while the first reorder is running.
+        // Marking must occur after the save-result UI acknowledgment, not drop it.
+        queue.whenIdle {
+            ui.add {
+                assertFalse("Cannot mark before the pending reorder settles", modified)
+                stored = stored.filterNot { it == 2L }
+                markRan = true
+            }
+        }
+        assertFalse(markRan)
+        worker.runAll()
+        assertFalse(markRan)
+        while (ui.isNotEmpty()) ui.removeFirst().run()
+        assertTrue(markRan)
+        assertEquals(listOf(3L, 1L), stored)
+    }
+
+    @Test
+    fun failedEditorSaveCannotBecomeAnImplicitMarkOrDiscard() {
+        val worker = ManualExecutor()
+        val ui = ArrayDeque<Runnable>()
+        var modified = true
+        var marked = false
+        val queue = PlaylistSaveQueue(worker) { _, _ ->
+            throw PlaylistEditConflictException()
+        }
+        queue.setListener { result ->
+            ui.add {
+                assertTrue(result.error is PlaylistEditConflictException)
+                // Preserve dirty state so the user can explicitly review/reload.
+            }
+        }
+        queue.submit(listOf(1L, 2L), listOf(2L, 1L))
+        queue.whenIdle { ui.add { if (!modified) marked = true } }
+        worker.runAll()
+        while (ui.isNotEmpty()) ui.removeFirst().run()
+        assertFalse(marked)
+        assertTrue(modified)
+    }
+
+    @Test
     fun reloadWaitsForTheStartedCommitThenDiscardsThePendingSnapshot() {
         val tasks = ManualExecutor()
         val events = mutableListOf<String>()

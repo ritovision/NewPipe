@@ -50,3 +50,17 @@ Astra's independent **full feature-branch** review of corrective commit `10b44ad
 **Second-pass verification:** `/tmp/unavailable-post-astra-build.log` on NotCodex-2: Android debug APK, AndroidTest APK and JVM tests **BUILD SUCCESSFUL**. Physical Pixel 7 isolated QA package: **156/156 instrumented tests passed**, `~/.cache/newpipe-unavailable-qa/native-final-before-claude-20261018.log`. No main NewPipe data cleared or overwritten.
 
 **Stop point:** Run a targeted final Astra Extra High read-only review of the last correction commit. Only after adjudicating that result is the branch ready for the user to authorize Claude Opus Extra High. **Do not automatically start Claude.**
+
+
+## Third Astra Extra High targeted review and save-queue race correction
+
+Astra's read-only review of correction `12e655d97` found one further P2:
+- An Unavailable unmark racing with a pending playlist reorder could emit a Room update while `debounceSaver.getIsModified()` was true. The playlist observer skips dirty-state updates; the later save acknowledgement could clear the dirty flag without re-reading the missed Room emission, leaving stale rows and counts.
+
+**Correction:** `LocalPlaylistFragment.markUnavailablePreservingEdits()` commits any pending native reorder first, waits for the `PlaylistSaveQueue` idle callback **after the save acknowledgement** before invoking Mark Available/Unavailable on the protected list, and fails closed if the save is still dirty. On a successful Unavailable membership change, `refreshUnavailableAfterMarkWhenSafe()` waits for the last save acknowledgement and a confirmed idle queue before requesting a fresh Room read. It never invokes `discardAndWhenIdle` for non-destructive mark/unmark. View destruction invalidates the deferred refresh.
+
+**New host-JVM regression cases:** `PlaylistSaveQueueTest.externalMarkIsSequencedAfterPendingEditorSaveAcknowledgement` and `failedEditorSaveCannotBecomeAnImplicitMarkOrDiscard`, both passed. These test queue and callback ordering, not a live drag gesture.
+
+**Verification:** final Gradle `:app:assembleDebug :app:assembleDebugAndroidTest :app:testDebugUnitTest` **BUILD SUCCESSFUL** in `/tmp/unavailable-mark-refresh-build-r2.log` on NotCodex-2. The physical Pixel 7's isolated QA installation reran all seven relevant instrumentation suites, **156/156 passed**, in `~/.cache/newpipe-unavailable-qa/native-queue-refresh-final-20261018.log`. Neither emulator nor scrcpy was launched during this pass.
+
+**Next gate:** independent read-only Astra Extra High of this final correction commit, then stop **before Claude**, per the user's explicit handoff order. Do not claim a fresh native interactive drag/unmark test that was not performed.
