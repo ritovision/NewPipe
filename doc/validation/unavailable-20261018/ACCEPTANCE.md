@@ -64,3 +64,17 @@ Astra's read-only review of correction `12e655d97` found one further P2:
 **Verification:** final Gradle `:app:assembleDebug :app:assembleDebugAndroidTest :app:testDebugUnitTest` **BUILD SUCCESSFUL** in `/tmp/unavailable-mark-refresh-build-r2.log` on NotCodex-2. The physical Pixel 7's isolated QA installation reran all seven relevant instrumentation suites, **156/156 passed**, in `~/.cache/newpipe-unavailable-qa/native-queue-refresh-final-20261018.log`. Neither emulator nor scrcpy was launched during this pass.
 
 **Next gate:** independent read-only Astra Extra High of this final correction commit, then stop **before Claude**, per the user's explicit handoff order. Do not claim a fresh native interactive drag/unmark test that was not performed.
+
+## Fourth Astra review: concurrent deferred marks and recoverable save conflicts
+
+Astra's read-only review of correction f6e250685 identified two P2 issues:
+1. The PlaylistSaveQueue.whenIdle() view callback coalesced multiple user-requested marks, losing all but the last.
+2. A failed editor save could have its actionable Reload conflict snackbar replaced by a generic error-reporting snackbar.
+
+**Correction:** PlaylistSaveQueue.afterSavesForMutation() retains every deferred marking callback in FIFO order, while the existing latest-only whenIdle() view-loading callback remains unchanged. The fragment now defers mark/unmark through this separate API and preserves the Reload action by reusing showPlaylistSaveError(PlaylistEditConflictException).
+
+**Regression tests:** Two new JVM tests for multiple deferred marks and coexistence with coalesced view reloads passed. The full PlaylistSaveQueueTest JVM suite passed 21/21.
+
+**Build and Android tests:** NotCodex-2 :app:assembleDebug, :app:assembleDebugAndroidTest, and :app:testDebugUnitTest passed (log /tmp/unavailable-last-fix-build.log). Primary NotCodex's isolated QA Android package passed 156/156 instrumented tests (log ~/.cache/newpipe-unavailable-qa/native-multimark-final-20261018.log). Gateway code unchanged; prior 59/59 tests pass.
+
+**Handoff:** After Astra Extra High's read-only final correction review, start Claude Opus Max in a separate interactive terminal on the primary machine. The user expressly requested no polling once Claude begins. No additional emulator, scrcpy, or real-Library work is needed for this gate.

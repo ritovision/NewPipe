@@ -826,8 +826,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             }
             if (isUnavailable() && debounceSaver != null
                     && debounceSaver.getIsModified()) {
-                showUiErrorSnackbar(this, "Finish saving playlist before marking",
-                        new PlaylistEditConflictException());
+                // A failed reorder already displayed the actionable Reload
+                // snackbar. Preserve that recovery path rather than replacing
+                // it with the generic error-reporting snackbar.
+                showPlaylistSaveError(new PlaylistEditConflictException());
                 return;
             }
             disposables.add(UnavailableRepository
@@ -842,10 +844,11 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                             "Updating Unavailable mark", err)));
         };
         if (isUnavailable() && playlistSaveQueue != null) {
-            // The queue notifies its listener before releasing the idle observer.
-            // Both callbacks post to this same Handler: the save acknowledgment
-            // precedes the mark, so the saved editor state is never discarded.
-            playlistSaveQueue.whenIdle(() -> playlistSaveHandler.post(issueMark));
+            // The save listener notifies before mutation-idle callbacks.
+            // All requested marks are retained (not coalesced like view reloads),
+            // and the Handler observes the save acknowledgement before marking.
+            playlistSaveQueue.afterSavesForMutation(
+                    () -> playlistSaveHandler.post(issueMark));
         } else {
             issueMark.run();
         }

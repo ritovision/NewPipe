@@ -3,6 +3,7 @@
  */
 package org.schabi.newpipe.custom.library
 
+import java.util.ArrayDeque
 import java.util.concurrent.Executor
 
 /**
@@ -31,6 +32,11 @@ class PlaylistSaveQueue(private val executor: Executor, private val writer: Writ
     private var lastResult: Result? = null
     private var reload: Runnable? = null
     private var idleObserver: Runnable? = null
+
+    // The existing idleObserver intentionally keeps the *latest view reload*.
+    // Mutations cannot share that slot: two queued Mark Available requests
+    // must BOTH execute, not silently overwrite each other.
+    private val pendingMutationActions = ArrayDeque<Runnable>()
 
     /** Called only when the UI accepts a fresh unmodified database snapshot. */
     fun acceptLoadedBaseline(values: List<Long>) {
@@ -83,6 +89,23 @@ class PlaylistSaveQueue(private val executor: Executor, private val writer: Writ
             if (running) {
                 // Only the latest view/load is relevant; older callbacks carry stale generations.
                 idleObserver = action
+                false
+            } else {
+                true
+            }
+        }
+        if (immediate) action.run()
+    }
+
+    /**
+     * Run every registered mutation callback after all in-flight/queued saves.
+     * Unlike whenIdle (latest-view-wins), this must preserve every action.
+     * Callbacks may post their actual mutation to the UI handler.
+     */
+    fun afterSavesForMutation(action: Runnable) {
+        val immediate = synchronized(lock) {
+            if (running) {
+                pendingMutationActions.addLast(action)
                 false
             } else {
                 true
@@ -162,7 +185,21 @@ class PlaylistSaveQueue(private val executor: Executor, private val writer: Writ
     }
 
     private fun takeIdleObserver(): Runnable? = synchronized(lock) {
-        if (running) null else idleObserver.also { idleObserver = null }
+        if (running) {
+            null
+        } else {
+            val viewReload = idleObserver.also { idleObserver = null }
+            val mutations = pendingMutationActions.toList()
+            pendingMutationActions.clear()
+            if (viewReload == null && mutations.isEmpty()) {
+                null
+            } else {
+                Runnable {
+                    viewReload?.run()
+                    mutations.forEach { it.run() }
+                }
+            }
+        }
     }
 
     private fun notifySafely(target: Listener, result: Result) {

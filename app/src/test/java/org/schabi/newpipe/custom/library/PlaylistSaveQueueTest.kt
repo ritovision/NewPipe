@@ -103,7 +103,7 @@ class PlaylistSaveQueueTest {
         queue.submit(stored, reordered)
         // The user chooses Mark Available while the first reorder is running.
         // Marking must occur after the save-result UI acknowledgment, not drop it.
-        queue.whenIdle {
+        queue.afterSavesForMutation {
             ui.add {
                 assertFalse("Cannot mark before the pending reorder settles", modified)
                 stored = stored.filterNot { it == 2L }
@@ -134,11 +134,47 @@ class PlaylistSaveQueueTest {
             }
         }
         queue.submit(listOf(1L, 2L), listOf(2L, 1L))
-        queue.whenIdle { ui.add { if (!modified) marked = true } }
+        queue.afterSavesForMutation { ui.add { if (!modified) marked = true } }
         worker.runAll()
         while (ui.isNotEmpty()) ui.removeFirst().run()
         assertFalse(marked)
         assertTrue(modified)
+    }
+
+    @Test
+    fun twoDeferredUnavailableMarksAreBothDeliveredAfterOnePendingReorder() {
+        val worker = ManualExecutor()
+        val ui = ArrayDeque<Runnable>()
+        val events = mutableListOf<String>()
+        val queue = PlaylistSaveQueue(worker) { _, desired -> desired }
+        queue.setListener { ui.add { events.add("save acknowledged") } }
+        queue.submit(listOf(1L, 2L, 3L), listOf(3L, 2L, 1L))
+        queue.afterSavesForMutation { ui.add { events.add("mark available 1") } }
+        queue.afterSavesForMutation { ui.add { events.add("mark unavailable 2") } }
+        worker.runAll()
+        assertTrue(events.isEmpty())
+        while (ui.isNotEmpty()) ui.removeFirst().run()
+        assertEquals(
+            listOf("save acknowledged", "mark available 1", "mark unavailable 2"),
+            events
+        )
+    }
+
+    @Test
+    fun latestViewReloadCoalescesButEveryMutationSurvives() {
+        val worker = ManualExecutor()
+        val events = mutableListOf<String>()
+        val queue = PlaylistSaveQueue(worker) { _, desired -> desired }
+        queue.submit(listOf(1L, 2L), listOf(2L))
+        queue.whenIdle { events.add("old reload") }
+        queue.afterSavesForMutation { events.add("first marking") }
+        queue.whenIdle { events.add("latest reload") }
+        queue.afterSavesForMutation { events.add("second marking") }
+        worker.runAll()
+        assertEquals(
+            listOf("latest reload", "first marking", "second marking"),
+            events
+        )
     }
 
     @Test
