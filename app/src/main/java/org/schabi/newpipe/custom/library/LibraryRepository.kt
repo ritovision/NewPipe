@@ -211,6 +211,11 @@ object LibraryRepository {
             publishSession(null)
             throw error
         }
+        // Rebinding the canonical Library is also a startup path for its
+        // protected Unavailable subset. Keep Library usable on a name collision.
+        runCatching { UnavailableRepository.ensure(db, store) }.onFailure {
+            Log.w(TAG, "Unavailable needs identity repair after Library rebind", it)
+        }
         return playlistId
     }
 

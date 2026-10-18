@@ -216,12 +216,30 @@ class TagBackupIntegrationTest {
         android.database.sqlite.SQLiteDatabase.openDatabase(target.toString(), null, 0).use { old ->
             old.execSQL("DROP TABLE tag_command_receipt")
             old.execSQL("DROP TABLE ai_removal_intent")
+            old.execSQL("DROP TABLE native_bulk_intent")
             old.version = 1
         }
         TagBackupCoordinator.sanitizeTagCopy(context, target)
         TagStore(context, target.toString()).use { upgraded ->
-            assertEquals(2, upgraded.readableDatabase.version)
+            assertEquals(3, upgraded.readableDatabase.version)
             assertEquals(setOf(tag), upgraded.assigned(key(media)))
+        }
+    }
+
+    @Test fun tagV2MigrationPreservesAssignmentsAndAcceptsNewBatchTable() {
+        val tag = repository.createTag("V2 compatible", null)
+        val media = item("v2", tag)
+        val target = directory.resolve("old-v2.db")
+        TagBackupCoordinator.snapshotTag(repository.store, target)
+        android.database.sqlite.SQLiteDatabase.openDatabase(target.toString(), null, 0).use { old ->
+            old.execSQL("DROP TABLE native_bulk_intent")
+            old.version = 2
+        }
+        TagBackupCoordinator.sanitizeTagCopy(context, target)
+        TagStore(context, target.toString()).use { upgraded ->
+            assertEquals(3, upgraded.readableDatabase.version)
+            assertEquals(setOf(tag), upgraded.assigned(key(media)))
+            assertTrue(upgraded.pendingNativeBulks().isEmpty())
         }
     }
 

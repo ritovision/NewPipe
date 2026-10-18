@@ -52,6 +52,12 @@ public class LocalPlaylistManager {
         // The index will be reassigned to non-negative number in BookmarkFragment.
         return Maybe.fromCallable(() -> TagRuntime.mutate(database,
                 () -> database.runInTransaction(() -> {
+                    // The protected Unavailable name is reserved across UI and AI.
+                    if (name != null && name.trim().equalsIgnoreCase(
+                            org.schabi.newpipe.custom.library.UnavailableRepository.NAME)) {
+                        throw new IllegalArgumentException(
+                                "Unavailable is reserved for the protected playlist");
+                    }
                     final List<Long> streamIds = streamTable.upsertAll(streams);
                     final PlaylistEntity newPlaylist = new PlaylistEntity(name, false,
                             streamIds.get(0), -1);
@@ -77,8 +83,10 @@ public class LocalPlaylistManager {
                 final List<Long> missing = streamIds.stream().distinct()
                         .filter(id -> !org.schabi.newpipe.custom.library.UnavailableRepository
                                 .isMarked(database, id)).toList();
-                return insertJoinEntities(playlistId, missing,
+                final List<Long> inserted = insertJoinEntities(playlistId, missing,
                         LibraryRepository.nextJoinIndex(database, playlistId));
+                LibraryRepository.refreshAutomaticThumbnail(database, playlistId);
+                return inserted;
             }
             // Derive the next position *inside* the same transaction as insertion.
             final List<Long> inserted = insertJoinEntities(playlistId, streamIds,

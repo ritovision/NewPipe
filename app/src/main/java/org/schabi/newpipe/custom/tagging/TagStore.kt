@@ -11,7 +11,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import org.schabi.newpipe.custom.aicontrol.AiCommandReceipt
 
 /** Independently versioned metadata. No NewPipe Room table or migration is changed. */
-class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(context, name, null, 2) {
+class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(context, name, null, 3) {
     companion object {
         const val FILE_NAME = "ritovision-tags.db"
     }
@@ -31,11 +31,15 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
         db.execSQL("CREATE TABLE catalog_meta (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL)")
         db.execSQL("INSERT INTO catalog_meta VALUES(1,0)")
         createAiTables(db)
+        createNativeBulkTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        check(oldVersion == 1 && newVersion == 2) { "Unsupported tag database upgrade; existing data was not modified" }
-        createAiTables(db)
+        check(oldVersion in 1..2 && newVersion == 3) {
+            "Unsupported tag database upgrade; existing data was not modified"
+        }
+        if (oldVersion == 1) createAiTables(db)
+        createNativeBulkTable(db)
     }
 
     internal fun <T> transaction(action: (SQLiteDatabase) -> T): T {
@@ -184,29 +188,6 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
         )
     }
 
-    fun beginRemovals(keys: List<StreamKey>, libraryId: Long) = transaction { db ->
-        for (key in keys) {
-            db.insertOrThrow(
-                "removal_intent",
-                null,
-                ContentValues().apply {
-                    put("service_id", key.serviceId)
-                    put("url", key.url)
-                    put("library_id", libraryId)
-                }
-            )
-        }
-    }
-
-    fun finishRemovals(keys: List<StreamKey>) = transaction { db ->
-        for (key in keys) {
-            db.delete("assignment", "service_id=? AND url=?", key.args())
-            bumpRevision(db, key)
-            db.delete("removal_intent", "service_id=? AND url=?", key.args())
-        }
-        changed(db)
-    }
-
     fun pendingRemovals(): List<TagRemovalIntent> = readableDatabase.rawQuery(
         "SELECT service_id,url,library_id FROM removal_intent",
         null
@@ -217,6 +198,68 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
         bumpRevision(db, key)
         db.delete("removal_intent", "service_id=? AND url=?", key.args())
         changed(db)
+    }
+
+    private fun createNativeBulkTable(db: SQLiteDatabase) {
+        // Staged before the Room transaction. Unlike a single native delete,
+        // these must NEVER replay a deletion unless the whole Room batch committed.
+        db.execSQL(
+            "CREATE TABLE native_bulk_intent (" +
+                "batch_id TEXT NOT NULL, library_id INTEGER NOT NULL, " +
+                "service_id INTEGER NOT NULL, url TEXT NOT NULL, " +
+                "PRIMARY KEY(batch_id,service_id,url))"
+        )
+    }
+
+    internal data class NativeBulk(val id: String, val libraryId: Long, val keys: List<StreamKey>)
+
+    internal fun stageNativeBulk(intent: NativeBulk) = transaction { db ->
+        check(intent.keys.isNotEmpty() && intent.keys.distinct().size == intent.keys.size)
+        for (key in intent.keys) {
+            db.execSQL(
+                "INSERT INTO native_bulk_intent VALUES(?,?,?,?)",
+                arrayOf<Any>(intent.id, intent.libraryId, key.serviceId, key.url)
+            )
+        }
+    }
+
+    internal fun pendingNativeBulks(): List<NativeBulk> = readableDatabase.rawQuery(
+        "SELECT batch_id,library_id,service_id,url FROM native_bulk_intent " +
+            "ORDER BY batch_id,service_id,url",
+        null
+    ).use { cursor ->
+        val grouped = linkedMapOf<String, Pair<Long, MutableList<StreamKey>>>()
+        while (cursor.moveToNext()) {
+            val batchId = cursor.getString(0)
+            val libraryId = cursor.getLong(1)
+            val group = grouped.getOrPut(batchId) { libraryId to mutableListOf() }
+            check(group.first == libraryId) { "A pending native batch changed Library identity" }
+            group.second.add(StreamKey(cursor.getInt(2), cursor.getString(3)))
+        }
+        grouped.map { (id, value) -> NativeBulk(id, value.first, value.second) }
+    }
+
+    internal fun settleNativeBulk(intent: NativeBulk, committed: Boolean) = transaction { db ->
+        val current = db.rawQuery(
+            "SELECT COUNT(*) FROM native_bulk_intent WHERE batch_id=? AND library_id=?",
+            arrayOf(intent.id, intent.libraryId.toString())
+        ).use { cursor ->
+            check(cursor.moveToFirst())
+            cursor.getInt(0)
+        }
+        check(current == intent.keys.size) { "Native batch changed before reconciliation" }
+        if (committed) {
+            for (key in intent.keys) {
+                db.delete("assignment", "service_id=? AND url=?", key.args())
+                bumpRevision(db, key)
+            }
+            changed(db)
+        }
+        db.delete(
+            "native_bulk_intent",
+            "batch_id=? AND library_id=?",
+            arrayOf(intent.id, intent.libraryId.toString())
+        )
     }
 
     private fun createAiTables(db: SQLiteDatabase) {
@@ -266,6 +309,7 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
     internal fun discardRuntimeHistory() = transaction { db ->
         db.delete("removal_intent", null, null)
         db.delete("ai_removal_intent", null, null)
+        db.delete("native_bulk_intent", null, null)
         db.delete("tag_command_receipt", null, null)
     }
 

@@ -90,7 +90,8 @@ object UnavailableRepository {
             check(boundId(db) == null || boundId(db) == selectedId) {
                 "Another Unavailable playlist is already protected"
             }
-            check(nameOf(db, selectedId) == NAME) {
+            val name = nameOf(db, selectedId)
+            check(name?.trim()?.equals(NAME, ignoreCase = true) == true) {
                 "Only a playlist named Unavailable can be designated"
             }
             val candidates = queryIds(
@@ -105,6 +106,38 @@ object UnavailableRepository {
             val binding = store.read() ?: error("Canonical Library binding is unavailable")
             check(binding.playlistId == libraryId) {
                 "Library identity changed; reopen Bookmarked Playlists"
+            }
+            // Explicit adoption is the only path permitted to normalize name,
+            // eliminate repeated occurrences and ensure canonical Library
+            // membership. Do it atomically; never infer the identity from a name.
+            db.runInTransaction {
+                check(nameOf(db, selectedId)?.trim()?.equals(NAME, true) == true) {
+                    "The selected Unavailable playlist changed"
+                }
+                if (nameOf(db, selectedId) != NAME) {
+                    db.openHelper.writableDatabase.execSQL(
+                        "UPDATE playlists SET name=? WHERE uid=?",
+                        arrayOf<Any>(NAME, selectedId)
+                    )
+                }
+                val currentIds = queryIds(
+                    db,
+                    "SELECT stream_id FROM playlist_stream_join WHERE playlist_id=? ORDER BY join_index",
+                    selectedId
+                )
+                val unique = currentIds.distinct()
+                if (unique.size != currentIds.size) {
+                    db.playlistStreamDAO().deleteBatch(selectedId)
+                    db.playlistStreamDAO().insertAll(
+                        unique.mapIndexed { index, streamId ->
+                            PlaylistStreamEntity(selectedId, streamId, index)
+                        }
+                    )
+                }
+                // Existing ordinary membership might predate canonical Library.
+                // The user-approved designation must not create a dangling subset.
+                LibraryRepository.appendDirectly(db, libraryId, unique)
+                LibraryRepository.refreshAutomaticThumbnail(db, selectedId)
             }
             store.write(binding.copy(unavailablePlaylistId = selectedId))
             session = Session(db, selectedId)

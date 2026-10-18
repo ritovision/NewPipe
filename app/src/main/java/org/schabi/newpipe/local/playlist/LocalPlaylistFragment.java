@@ -889,58 +889,64 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         }
         disposables.add(UnavailableRepository.inspect(requireContext(), item.getStreamId())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(marked -> {
-                    if (!isAdded() || disposables == null) {
+                // A broken Unavailable identity disables only marking. It must
+                // never suppress the existing share, playback, tag or removal menu.
+                .subscribe(marked -> showInfoItemDialogWithMark(item, marked),
+                        error -> showInfoItemDialogWithMark(item, null)));
+    }
+
+    private void showInfoItemDialogWithMark(final PlaylistStreamEntry item,
+                                            @Nullable final Boolean marked) {
+        if (!isAdded() || disposables == null) {
+            return;
+        }
+        final StreamInfoItem infoItem = item.toStreamInfoItem();
+        try {
+            final Context context = requireContext();
+            final InfoItemDialog.Builder dialogBuilder =
+                    new InfoItemDialog.Builder(getActivity(), context, this, infoItem);
+            if (!isProtectedLibrary() && !isUnavailable()) {
+                dialogBuilder.addEntry(StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL);
+                dialogBuilder.addEntry(StreamDialogDefaultEntry.REMOVE_FROM_THIS_PLAYLIST);
+            }
+            dialogBuilder.addEntry(StreamDialogDefaultEntry.EDIT_TAGS);
+            if (marked != null) {
+                final StreamDialogDefaultEntry markAction = marked
+                        ? StreamDialogDefaultEntry.MARK_AVAILABLE
+                        : StreamDialogDefaultEntry.MARK_UNAVAILABLE;
+                dialogBuilder.addEntry(markAction);
+                dialogBuilder.setAction(markAction, (f, i) -> {
+                    if (disposables == null) {
                         return;
                     }
-                    final StreamInfoItem infoItem = item.toStreamInfoItem();
-                    try {
-                        final Context context = requireContext();
-                        final InfoItemDialog.Builder dialogBuilder =
-                                new InfoItemDialog.Builder(getActivity(), context, this, infoItem);
-                        if (!isProtectedLibrary() && !isUnavailable()) {
-                            dialogBuilder.addEntry(
-                                    StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL);
-                            dialogBuilder.addEntry(
-                                    StreamDialogDefaultEntry.REMOVE_FROM_THIS_PLAYLIST);
-                        }
-                        dialogBuilder.addEntry(StreamDialogDefaultEntry.EDIT_TAGS);
-                        final StreamDialogDefaultEntry markAction = marked
-                                ? StreamDialogDefaultEntry.MARK_AVAILABLE
-                                : StreamDialogDefaultEntry.MARK_UNAVAILABLE;
-                        dialogBuilder.addEntry(markAction);
-                        dialogBuilder.addEntry(StreamDialogDefaultEntry.REMOVE_EVERYWHERE);
-                        dialogBuilder
-                                .setAction(StreamDialogDefaultEntry.START_HERE_ON_BACKGROUND,
-                                        (f, i) -> NavigationHelper.playOnBackgroundPlayer(
-                                                context, getPlayQueueStartingAt(item), true))
-                                .setAction(StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL,
-                                        (f, i) -> changeThumbnailStreamId(
-                                                item.getStreamEntity().getUid(), true))
-                                .setAction(StreamDialogDefaultEntry.REMOVE_FROM_THIS_PLAYLIST,
-                                        (f, i) -> confirmRemoveFromPlaylist(item))
-                                .setAction(markAction, (f, i) -> {
-                                    if (disposables == null) {
-                                        return;
-                                    }
-                                    disposables.add(UnavailableRepository
-                                            .setMarked(context, item.getStreamId(), !marked)
-                                            .observeOn(AndroidSchedulers.mainThread())
-                                            .subscribe(() -> {
-                                                if (getView() != null) {
-                                                    reloadAfterDiscardingEdits();
-                                                }
-                                            }, err -> showUiErrorSnackbar(this,
-                                                    "Updating Unavailable mark", err)));
-                                })
-                                .setAction(StreamDialogDefaultEntry.REMOVE_EVERYWHERE,
-                                        (f, i) -> confirmRemoveEverywhere(item))
-                                .create()
-                                .show();
-                    } catch (final IllegalArgumentException error) {
-                        InfoItemDialog.Builder.reportErrorDuringInitialization(error, infoItem);
-                    }
-                }, error -> showUiErrorSnackbar(this, "Loading Unavailable mark", error)));
+                    disposables.add(UnavailableRepository
+                            .setMarked(context, item.getStreamId(), !marked)
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(() -> {
+                                if (getView() != null) {
+                                    reloadAfterDiscardingEdits();
+                                }
+                            }, err -> showUiErrorSnackbar(this,
+                                    "Updating Unavailable mark", err)));
+                });
+            }
+            dialogBuilder.addEntry(StreamDialogDefaultEntry.REMOVE_EVERYWHERE);
+            dialogBuilder
+                    .setAction(StreamDialogDefaultEntry.START_HERE_ON_BACKGROUND,
+                            (f, i) -> NavigationHelper.playOnBackgroundPlayer(
+                                    context, getPlayQueueStartingAt(item), true))
+                    .setAction(StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL,
+                            (f, i) -> changeThumbnailStreamId(
+                                    item.getStreamEntity().getUid(), true))
+                    .setAction(StreamDialogDefaultEntry.REMOVE_FROM_THIS_PLAYLIST,
+                            (f, i) -> confirmRemoveFromPlaylist(item))
+                    .setAction(StreamDialogDefaultEntry.REMOVE_EVERYWHERE,
+                            (f, i) -> confirmRemoveEverywhere(item))
+                    .create()
+                    .show();
+        } catch (final IllegalArgumentException error) {
+            InfoItemDialog.Builder.reportErrorDuringInitialization(error, infoItem);
+        }
     }
 
     private void confirmRemoveFromPlaylist(final PlaylistStreamEntry item) {
@@ -1003,11 +1009,12 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                             ? R.string.rv_unavailable_remove_all
                             : R.string.rv_unavailable_clear;
                     final int message = removeEverywhere
-                            ? R.string.rv_unavailable_remove_all_message
-                            : R.string.rv_unavailable_clear_message;
+                            ? R.plurals.rv_unavailable_remove_all_message
+                            : R.plurals.rv_unavailable_clear_message;
                     new AlertDialog.Builder(context)
                             .setTitle(title)
-                            .setMessage(getString(message, preview.getCount()))
+                            .setMessage(getResources().getQuantityString(
+                                    message, preview.getCount(), preview.getCount()))
                             .setNegativeButton(R.string.cancel, null)
                             .setPositiveButton(title, (dialog, which) -> {
                                 if (disposables == null) {

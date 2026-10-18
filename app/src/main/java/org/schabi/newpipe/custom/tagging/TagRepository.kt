@@ -4,6 +4,7 @@
 package org.schabi.newpipe.custom.tagging
 
 import androidx.sqlite.db.SimpleSQLiteQuery
+import java.util.UUID
 import java.util.concurrent.Callable
 import kotlin.concurrent.withLock
 import org.schabi.newpipe.custom.library.LibraryBindingStore
@@ -36,7 +37,7 @@ class TagRepository(
         } catch (error: LibraryRepository.IdentityRepairRequiredException) {
             // Preserve the existing ability to edit ordinary playlists while Library is unbound.
             // Pending destructive intents, however, must not run against an unverified Library.
-            if (store.pendingRemovals().isNotEmpty()) throw error
+            if (store.pendingRemovals().isNotEmpty() || store.pendingNativeBulks().isNotEmpty()) throw error
         }
     }
 
@@ -51,6 +52,23 @@ class TagRepository(
             check(receipt == null || receipt.fingerprint == intent.fingerprint) { "Command identity mismatch during tag cleanup" }
             // No receipt means Room rolled back. Never replay an AI deletion from tag storage.
             store.settleAiRemoval(intent, receipt != null)
+        }
+        // Room membership is the authority for native bulk removal.
+        // Crash before COMMIT: all items remain saved -> discard intents.
+        // Crash after COMMIT: none remains saved -> finish tag cleanup only.
+        // Never replay the native batch deletion from independent tag storage.
+        for (batch in store.pendingNativeBulks()) {
+            check(batch.libraryId == libraryId) {
+                "Library identity changed during an interrupted bulk removal"
+            }
+            val saved = readLibraryStreams(libraryId).mapTo(HashSet()) {
+                StreamKey(it.serviceId, it.url)
+            }
+            val survivors = batch.keys.count { it in saved }
+            check(survivors == 0 || survivors == batch.keys.size) {
+                "Partial native batch state detected; refusing automatic deletion or cleanup"
+            }
+            store.settleNativeBulk(batch, committed = survivors == 0)
         }
         for (intent in store.pendingRemovals()) {
             check(intent.libraryId == libraryId) { "Library identity changed during an interrupted removal. Restore the matching backup before making changes." }
@@ -132,8 +150,12 @@ class TagRepository(
             val stream = byId[id] ?: error("The marked video is no longer in Library")
             StreamKey(stream.serviceId, stream.url)
         }
-        store.beginRemovals(keys, libraryId)
-        // Interrupted work is resumed by recoverPending() before later mutations.
+        if (keys.isEmpty()) return@access
+        // Separate from legacy single-item intents, which intentionally replay.
+        val batch = TagStore.NativeBulk(UUID.randomUUID().toString(), libraryId, keys)
+        store.stageNativeBulk(batch)
+        // On rollback the playlist memberships still exist. Recovery discards
+        // the staged intent without touching the songs or their tags.
         library.runInTransaction {
             unavailable.verify(library, expected)
             for (id in expected.items) {
@@ -142,7 +164,9 @@ class TagRepository(
                 }
             }
         }
-        store.finishRemovals(keys)
+        // After COMMIT, if tag cleanup fails or the process dies, recovery
+        // finishes tag cleanup only. Never run these deletions a second time.
+        recoverPending()
         TagRuntime.changed()
     }
 
