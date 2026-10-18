@@ -832,16 +832,21 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                 showPlaylistSaveError(new PlaylistEditConflictException());
                 return;
             }
-            disposables.add(UnavailableRepository
-                    .setMarked(context, item.getStreamId(), desiredMark)
+            // The user explicitly requested this mutation. Never attach it
+            // to the view's load disposables: startLoading() clears those,
+            // which could cancel a second queued mark before its IO write.
+            UnavailableRepository.setMarked(context, item.getStreamId(), desiredMark)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(() -> {
                         if (getView() != null && isUnavailable()) {
                             unavailableMarkRefreshPending = true;
                             refreshUnavailableAfterMarkWhenSafe();
                         }
-                    }, err -> showUiErrorSnackbar(this,
-                            "Updating Unavailable mark", err)));
+                    }, err -> {
+                        if (getView() != null) {
+                            showUiErrorSnackbar(this, "Updating Unavailable mark", err);
+                        }
+                    });
         };
         if (isUnavailable() && playlistSaveQueue != null) {
             // The save listener notifies before mutation-idle callbacks.

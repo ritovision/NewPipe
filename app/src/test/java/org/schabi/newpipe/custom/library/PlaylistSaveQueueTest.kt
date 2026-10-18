@@ -3,6 +3,9 @@
  */
 package org.schabi.newpipe.custom.library
 
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.schedulers.Schedulers
 import java.util.ArrayDeque
 import java.util.concurrent.Executor
 import org.junit.Assert.assertEquals
@@ -158,6 +161,26 @@ class PlaylistSaveQueueTest {
             listOf("save acknowledged", "mark available 1", "mark unavailable 2"),
             events
         )
+    }
+
+    @Test
+    fun secondScheduledMarkSurvivesFirstMarksViewReload() {
+        val worker = ManualExecutor()
+        val scheduler = Schedulers.from(worker)
+        val viewDisposables = CompositeDisposable()
+        val written = mutableListOf<Long>()
+        // The first mark's UI completion refreshes the list and clears view
+        // subscriptions while the second mark's IO task remains scheduled.
+        Completable.fromAction { written.add(1L) }
+            .subscribeOn(scheduler)
+            .subscribe({ viewDisposables.clear() }, { throw AssertionError(it) })
+        Completable.fromAction { written.add(2L) }
+            .subscribeOn(scheduler)
+            .subscribe({}, { throw AssertionError(it) })
+        viewDisposables.add(Completable.never().subscribe())
+        worker.runAll()
+        assertEquals(listOf(1L, 2L), written)
+        assertEquals(0, viewDisposables.size())
     }
 
     @Test

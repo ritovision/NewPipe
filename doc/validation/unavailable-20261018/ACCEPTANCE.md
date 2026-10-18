@@ -78,3 +78,13 @@ Astra's read-only review of correction f6e250685 identified two P2 issues:
 **Build and Android tests:** NotCodex-2 :app:assembleDebug, :app:assembleDebugAndroidTest, and :app:testDebugUnitTest passed (log /tmp/unavailable-last-fix-build.log). Primary NotCodex's isolated QA Android package passed 156/156 instrumented tests (log ~/.cache/newpipe-unavailable-qa/native-multimark-final-20261018.log). Gateway code unchanged; prior 59/59 tests pass.
 
 **Handoff:** After Astra Extra High's read-only final correction review, start Claude Opus Max in a separate interactive terminal on the primary machine. The user expressly requested no polling once Claude begins. No additional emulator, scrcpy, or real-Library work is needed for this gate.
+
+## Fifth Astra review: sibling refresh cancellation
+
+Astra Extra High's read-only review of defd0b080 found a P2 RxJava race: after two marks were correctly retained behind a reorder, the first completed mark triggered startLoading(false), which cleared the view-scoped CompositeDisposable and could cancel the second subscribed mark before its IO operation ran.
+
+**Correction:** The explicitly requested UnavailableRepository.setMarked Completable is no longer added to the view-scoped disposables. This preserves each scheduled write across a sibling UI refresh. Its success/error callbacks guard view access, so reloading the screen cannot cancel the separate data mutation.
+
+**Evidence:** Added PlaylistSaveQueueTest.secondScheduledMarkSurvivesFirstMarksViewReload, a controlled RxJava scheduler case modeling one mark completing, clearing UI subscriptions, and a second mark still queued. The PlaylistSaveQueueTest suite now passes 22/22. Android app, AndroidTest APK, and JVM build passed in /tmp/unavailable-finalrx-build.log.
+
+**Next:** Run the isolated QA Android instrumented regression suite, commit/push these final corrections, and run a focused Astra read-only check. The user expressly authorized launching Claude Opus Max at that point through an interactive shell; do not poll Claude after starting it.
