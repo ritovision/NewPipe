@@ -36,3 +36,17 @@
 - The feature remains on its isolated feature branch, **not merged** into `custom/dev`.
 - The user requested: corrective coding + testing + **Astra Extra High independent review**, then **stop before running Claude Opus Extra High**, so the user can resume it later.
 - Review outcomes should be appended only when they actually complete; a successful build or code review is not proof of all UI integration paths.
+
+## Second Astra Extra High adjudication
+
+Astra's independent **full feature-branch** review of corrective commit `10b44adda` identified three further P2 issues. These are now corrected without a new subsystem:
+
+1. **Mark/unmark could discard unrelated pending edits:** removed the forced `reloadAfterDiscardingEdits()` from the mark callback. Existing Room playlist observation updates the affected list and respects dirty editor state; queued reorder edits are not explicitly discarded.
+2. **The Tags screen could create a duplicate Unavailable name:** the repository snapshot-create path now validates the reserved name, in addition to the existing ordinary native and AI creation paths. Added a targeted Android regression.
+3. **The protected Unavailable title still opened Rename:** protected the header click, the rename dialog and the rename mutation entry point; also blocks optimistic renaming to the reserved special name.
+
+**Additional adjudicated lifecycle hardening:** rebinding an already verified canonical Library must preserve its bound Unavailable identity, rather than losing the sidecar field. Added a dedicated native regression test.
+
+**Second-pass verification:** `/tmp/unavailable-post-astra-build.log` on NotCodex-2: Android debug APK, AndroidTest APK and JVM tests **BUILD SUCCESSFUL**. Physical Pixel 7 isolated QA package: **156/156 instrumented tests passed**, `~/.cache/newpipe-unavailable-qa/native-final-before-claude-20261018.log`. No main NewPipe data cleared or overwritten.
+
+**Stop point:** Run a targeted final Astra Extra High read-only review of the last correction commit. Only after adjudicating that result is the branch ready for the user to authorize Claude Opus Extra High. **Do not automatically start Claude.**

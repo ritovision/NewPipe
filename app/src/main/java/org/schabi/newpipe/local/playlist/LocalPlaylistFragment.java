@@ -228,7 +228,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         super.initListeners();
 
         headerBinding.playlistTitleView.setOnClickListener(view -> {
-            if (!isProtectedLibrary()) {
+            if (!isProtectedLibrary() && !isUnavailable()) {
                 createRenameDialog();
             }
         });
@@ -583,7 +583,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
     private void createRenameDialog() {
         if (playlistId == null || name == null || getContext() == null
-                || isProtectedLibrary()) {
+                || isProtectedLibrary() || isUnavailable()) {
             return;
         }
 
@@ -604,7 +604,12 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     }
 
     private void changePlaylistName(final String title) {
-        if (playlistManager == null) {
+        if (playlistManager == null || isProtectedLibrary() || isUnavailable()) {
+            return;
+        }
+        if (title.trim().equalsIgnoreCase(UnavailableRepository.NAME)) {
+            showUiErrorSnackbar(this, "Renaming playlist",
+                    new IllegalArgumentException("Unavailable is a reserved playlist name"));
             return;
         }
 
@@ -923,9 +928,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                             .setMarked(context, item.getStreamId(), !marked)
                             .observeOn(AndroidSchedulers.mainThread())
                             .subscribe(() -> {
-                                if (getView() != null) {
-                                    reloadAfterDiscardingEdits();
-                                }
+                                // Room's playlist observer updates the affected list.
+                                // Do not discard unrelated queued drag/reorder edits.
                             }, err -> showUiErrorSnackbar(this,
                                     "Updating Unavailable mark", err)));
                 });

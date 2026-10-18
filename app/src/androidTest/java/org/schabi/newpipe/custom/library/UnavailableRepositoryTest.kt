@@ -155,6 +155,15 @@ class UnavailableRepositoryTest {
         assertTrue(tags.pendingRemovals().isEmpty())
     }
 
+    @Test fun rebindExistingVerifiedLibraryDoesNotOrphanUnavailable() {
+        val original = UnavailableRepository.boundId(db)!!
+        LibraryRepository.rebindExisting(db, binding, libraryId)
+        assertEquals(original, binding.read()!!.unavailablePlaylistId)
+        LibraryRepository.forgetSessionForTest()
+        LibraryRepository.initialize(db, binding)
+        assertEquals(original, UnavailableRepository.boundId(db))
+    }
+
     @Test fun libraryRebindInitializesUnavailableWithoutAnotherRestart() {
         val previous = UnavailableRepository.boundId(db)!!
         // Restore-like state on the isolated in-memory test database.

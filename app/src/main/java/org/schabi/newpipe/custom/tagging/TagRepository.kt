@@ -9,6 +9,7 @@ import java.util.concurrent.Callable
 import kotlin.concurrent.withLock
 import org.schabi.newpipe.custom.library.LibraryBindingStore
 import org.schabi.newpipe.custom.library.LibraryRepository
+import org.schabi.newpipe.custom.library.UnavailableRepository
 import org.schabi.newpipe.database.AppDatabase
 import org.schabi.newpipe.database.Converters
 import org.schabi.newpipe.database.playlist.model.PlaylistEntity
@@ -227,6 +228,9 @@ class TagRepository(
     fun createPlaylistSnapshot(name: String, keys: List<StreamKey>): Long = access { libraryId ->
         val title = name.trim()
         require(title.isNotEmpty() && title.length <= 150) { "Use a playlist name between 1 and 150 characters" }
+        require(!title.equals(UnavailableRepository.NAME, ignoreCase = true)) {
+            "Unavailable is reserved for the protected playlist"
+        }
         library.runInTransaction(
             Callable {
                 val streams = resolveSnapshotLocked(libraryId, keys)

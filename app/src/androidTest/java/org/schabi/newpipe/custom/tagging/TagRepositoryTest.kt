@@ -78,6 +78,18 @@ class TagRepositoryTest {
         assertTrue(repository.editor(key(item)).assigned.isEmpty())
     }
 
+    @Test fun tagResultsCannotCreateAnotherProtectedUnavailableName() {
+        val video = media("https://example.org/reserved")
+        append(libraryId, video)
+        try {
+            repository.createPlaylistSnapshot("  unavailable  ", listOf(key(video)))
+            fail("The Tags save action must reserve the Unavailable name")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message!!.contains("reserved"))
+        }
+        assertEquals(2, LocalPlaylistManager(db).playlists.blockingFirst().size)
+    }
+
     @Test fun categoryDeletionCascadesOnlyMetadata() {
         val item = media()
         val category = repository.createCategory("Genre")
