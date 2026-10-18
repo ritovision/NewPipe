@@ -116,6 +116,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
     private CompositeDisposable disposables;
     private Disposable libraryIdentitySubscription;
+    private Disposable unavailableIdentitySubscription;
+    private boolean hasUnavailableItems;
 
     /** Whether the playlist has been fully loaded from db. */
     private AtomicBoolean isLoadingComplete;
@@ -193,6 +195,17 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                         getActivity().invalidateOptionsMenu();
                     }
                 }, error -> showUiErrorSnackbar(this, "Updating Library menus", error));
+        unavailableIdentitySubscription = UnavailableRepository
+                .observeId(NewPipeDatabase.getInstance(requireContext()))
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(id -> invalidatePlaylistActions(),
+                        error -> showUiErrorSnackbar(this, "Updating Unavailable menus", error));
+    }
+
+    private void invalidatePlaylistActions() {
+        if (getActivity() != null) {
+            getActivity().invalidateOptionsMenu();
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -362,7 +375,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             final MenuItem action = menu.findItem(id);
             if (action != null) {
                 action.setVisible(isUnavailable());
-                action.setEnabled(isUnavailable() && !loadedStreamIds.isEmpty());
+                action.setEnabled(isUnavailable() && hasUnavailableItems);
             }
         }
     }
@@ -383,6 +396,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         if (libraryIdentitySubscription != null) {
             libraryIdentitySubscription.dispose();
             libraryIdentitySubscription = null;
+        }
+        if (unavailableIdentitySubscription != null) {
+            unavailableIdentitySubscription.dispose();
+            unavailableIdentitySubscription = null;
         }
         super.onDestroyView();
 
@@ -445,6 +462,10 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
             @Override
             public void onNext(final List<PlaylistStreamEntry> streams) {
+                // Menu availability follows the committed DB, even while the
+                // editor intentionally retains a pending reordered snapshot.
+                hasUnavailableItems = !streams.isEmpty();
+                invalidatePlaylistActions();
                 // Skip handling the result after it has been modified
                 if (debounceSaver == null || !debounceSaver.getIsModified()) {
                     loadedStreamIds = playlistStreamIds(streams);
@@ -817,46 +838,77 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         if (disposables == null || getView() == null) {
             return;
         }
-        if (isUnavailable()) {
+        final boolean editsThisPlaylist = isUnavailable();
+        if (editsThisPlaylist) {
             saveImmediate();
         }
+        final PlaylistSaveQueue saves = editsThisPlaylist ? playlistSaveQueue : null;
+        // Capture the data operation now. A destroyed view must not erase this
+        // user request, and a restored catalog must not receive the old row ID.
+        final io.reactivex.rxjava3.core.Completable mutation = UnavailableRepository
+                .setMarked(context.getApplicationContext(), item.getStreamId(), desiredMark);
         final Runnable issueMark = () -> {
-            if (disposables == null || getView() == null) {
+            final Throwable saveFailure = saves == null ? null : saves.failure();
+            if (saveFailure != null || (getView() != null && editsThisPlaylist
+                    && debounceSaver != null && debounceSaver.getIsModified())) {
+                if (getView() != null) {
+                    showPlaylistSaveError(saveFailure == null
+                            ? new PlaylistEditConflictException() : saveFailure);
+                } else {
+                    Log.w(TAG, "Mark not applied because its preceding playlist save failed",
+                            saveFailure);
+                }
                 return;
             }
-            if (isUnavailable() && debounceSaver != null
-                    && debounceSaver.getIsModified()) {
-                // A failed reorder already displayed the actionable Reload
-                // snackbar. Preserve that recovery path rather than replacing
-                // it with the generic error-reporting snackbar.
-                showPlaylistSaveError(new PlaylistEditConflictException());
-                return;
-            }
-            // The user explicitly requested this mutation. Never attach it
-            // to the view's load disposables: startLoading() clears those,
-            // which could cancel a second queued mark before its IO write.
-            UnavailableRepository.setMarked(context, item.getStreamId(), desiredMark)
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(() -> {
-                        if (getView() != null && isUnavailable()) {
-                            unavailableMarkRefreshPending = true;
-                            refreshUnavailableAfterMarkWhenSafe();
-                        }
-                    }, err -> {
-                        if (getView() != null) {
-                            showUiErrorSnackbar(this, "Updating Unavailable mark", err);
-                        }
-                    });
+            mutation.observeOn(AndroidSchedulers.mainThread()).subscribe(() -> {
+                if (getView() != null && isUnavailable()) {
+                    unavailableMarkRefreshPending = true;
+                    refreshUnavailableAfterMarkWhenSafe();
+                }
+            }, error -> {
+                if (getView() != null) {
+                    showUiErrorSnackbar(this, "Updating Unavailable mark", error);
+                } else {
+                    Log.w(TAG, "Deferred Unavailable mark failed", error);
+                }
+            });
         };
-        if (isUnavailable() && playlistSaveQueue != null) {
-            // The save listener notifies before mutation-idle callbacks.
-            // All requested marks are retained (not coalesced like view reloads),
-            // and the Handler observes the save acknowledgement before marking.
-            playlistSaveQueue.afterSavesForMutation(
-                    () -> playlistSaveHandler.post(issueMark));
+        if (saves != null) {
+            saves.afterSavesForMutation(() -> playlistSaveHandler.post(issueMark));
         } else {
             issueMark.run();
         }
+    }
+
+    /**
+     * A confirmed write is independent of list reloads and view subscriptions.
+     *
+     * @param operation the already targeted data mutation
+     * @param description the contextual failure description
+     */
+    private void executeConfirmedRemoval(final io.reactivex.rxjava3.core.Completable operation,
+                                         final String description) {
+        operation.observeOn(AndroidSchedulers.mainThread()).subscribe(() -> {
+            if (getView() != null) {
+                reloadAfterDiscardingEdits();
+            }
+        }, error -> {
+            if (getView() == null) {
+                Log.w(TAG, description, error);
+            } else if (error instanceof UnavailableRepository.SelectionChangedException) {
+                Snackbar.make(requireView(), R.string.rv_unavailable_selection_changed,
+                                Snackbar.LENGTH_INDEFINITE)
+                        .setAction(R.string.rv_playlist_reload,
+                                view -> reloadAfterDiscardingEdits()).show();
+            } else {
+                // A membership commit may have succeeded before tag cleanup
+                // failed. Refresh clean editors so we do not claim it rolled back.
+                if (debounceSaver != null && !debounceSaver.getIsModified()) {
+                    startLoading(false);
+                }
+                showUiErrorSnackbar(this, description, error);
+            }
+        });
     }
 
     private void reloadAfterDiscardingEdits() {
@@ -1054,8 +1106,8 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                     if (disposables == null) {
                         return;
                     }
-                    final Context context = requireContext();
-                    disposables.add(LibraryRepository.ensureInitialized(context)
+                    final Context context = requireContext().getApplicationContext();
+                    executeConfirmedRemoval(LibraryRepository.ensureInitialized(context)
                             .andThen(io.reactivex.rxjava3.core.Completable.defer(() -> {
                                 final Long id = LibraryRepository.boundLibraryId(
                                         NewPipeDatabase.getInstance(context));
@@ -1066,14 +1118,7 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                                 }
                                 return LibraryRepository.removeEverywhere(context, id,
                                         item.getStreamId());
-                            }))
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe(() -> {
-                                if (getView() != null) {
-                                    reloadAfterDiscardingEdits();
-                                }
-                            }, error -> showUiErrorSnackbar(this,
-                                    "Removing video everywhere", error)));
+                            })), "Removing video everywhere");
                 }).show();
     }
 
@@ -1099,21 +1144,19 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
                             .setMessage(getResources().getQuantityString(
                                     message, preview.getCount(), preview.getCount()))
                             .setNegativeButton(R.string.cancel, null)
-                            .setPositiveButton(title, (dialog, which) -> {
+                            .setPositiveButton(removeEverywhere
+                                    ? R.string.rv_unavailable_remove_everywhere
+                                    : R.string.rv_unavailable_clear, (dialog, which) -> {
                                 if (disposables == null) {
                                     return;
                                 }
+                                final Context appContext = context.getApplicationContext();
                                 final io.reactivex.rxjava3.core.Completable operation =
                                         removeEverywhere
-                                                ? UnavailableRepository.removeAll(context, preview)
-                                                : UnavailableRepository.clear(context, preview);
-                                disposables.add(operation.observeOn(AndroidSchedulers.mainThread())
-                                        .subscribe(() -> {
-                                            if (getView() != null) {
-                                                reloadAfterDiscardingEdits();
-                                            }
-                                        }, error -> showUiErrorSnackbar(this,
-                                                "Changing Unavailable playlist", error)));
+                                                ? UnavailableRepository.removeAll(
+                                                        appContext, preview)
+                                                : UnavailableRepository.clear(appContext, preview);
+                                executeConfirmedRemoval(operation, "Changing Unavailable playlist");
                             }).show();
                 }, error -> showUiErrorSnackbar(this, "Reading Unavailable playlist", error)));
     }

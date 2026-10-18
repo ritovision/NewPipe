@@ -1,6 +1,6 @@
 # Unavailable Playlist — Manual Marking and Global Cleanup
 
-**Status:** Agreed product scope; documentation only. **Implementation has not started.**
+**Status:** Implemented on the feature branch; final correction and test evidence are recorded in [post-review validation](../validation/unavailable-20261018/POST_CLAUDE_FIXES.md). Not yet merged or deployed.
 **Date:** 2026-10-17
 **Base:** `custom/dev`, after accepted Library, Tagging and AI Control integration (`a6d448d93` at scoping).
 **Related:** [Library](library-playlist-system.md) · [Tagging](tagging-layer.md) · [AI Control](ai-control-v1.md).
@@ -38,7 +38,7 @@ Available from **Library, ordinary local playlists, and Unavailable**:
 | **Mark Unavailable** (currently unmarked) | Add exactly one membership to the protected Unavailable playlist; leave all other memberships/tags alone | **None** |
 | **Mark Available** (currently marked) | Remove the Unavailable membership only; leave Library, other playlists, and tags alone | **None** |
 | **Remove Everywhere** | Delete the stream's memberships from Library, Unavailable, and **every** local playlist, including all duplicate occurrences; coordinate tag cleanup | **Required** |
-| **Remove from This Playlist** (existing ordinary-playlist action) | Preserve existing local-only behavior outside Library. In Unavailable, interpret as **Mark Available** | Existing behavior; no new global effect |
+| **Remove from This Playlist** (existing ordinary-playlist action) | Preserve existing local-only behavior outside Library. In Unavailable, interpret as **Mark Available** | **Required** for local removal; Mark Available remains confirmation-free |
 
 - Show exactly one of **Mark Unavailable** and **Mark Available**, determined from authoritative current membership; never show both as independent options. A stale menu must recheck at commit.
 - Keep the existing Library global-delete semantics and confirmation; avoid two ambiguous “Delete” entries with different effects.

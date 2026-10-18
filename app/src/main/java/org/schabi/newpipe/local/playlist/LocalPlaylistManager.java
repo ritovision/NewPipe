@@ -20,6 +20,7 @@ import org.schabi.newpipe.database.stream.model.StreamEntity;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Flowable;
@@ -82,7 +83,7 @@ public class LocalPlaylistManager {
                     database, playlistId)) {
                 final List<Long> missing = streamIds.stream().distinct()
                         .filter(id -> !org.schabi.newpipe.custom.library.UnavailableRepository
-                                .isMarked(database, id)).toList();
+                                .isMarked(database, id)).collect(Collectors.toList());
                 final List<Long> inserted = insertJoinEntities(playlistId, missing,
                         LibraryRepository.nextJoinIndex(database, playlistId));
                 LibraryRepository.refreshAutomaticThumbnail(database, playlistId);
@@ -169,7 +170,8 @@ public class LocalPlaylistManager {
                     database, playlistId, streamIds);
             final List<Long> uniqueIds =
                     org.schabi.newpipe.custom.library.UnavailableRepository.isBound(
-                            database, playlistId) ? safeIds.stream().distinct().toList() : safeIds;
+                            database, playlistId)
+                            ? safeIds.stream().distinct().collect(Collectors.toList()) : safeIds;
             final List<PlaylistStreamEntity> joinEntities = new ArrayList<>(uniqueIds.size());
             for (int i = 0; i < uniqueIds.size(); i++) {
                 joinEntities.add(new PlaylistStreamEntity(playlistId, uniqueIds.get(i), i));

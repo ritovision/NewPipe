@@ -78,6 +78,43 @@ class UnavailableRepositoryTest {
         UnavailableRepository.setMarked(context, uid(stream), value).blockingAwait()
     }
 
+    @Test fun identityEventsTrackLateBindingAndReset() {
+        val id = UnavailableRepository.boundId(db)!!
+        val events = UnavailableRepository.observeId(db).test()
+        events.assertValues(id)
+        UnavailableRepository.reset()
+        events.assertValues(id, -1L)
+        UnavailableRepository.ensure(db, binding)
+        events.assertValues(id, -1L, id)
+        events.dispose()
+    }
+
+    @Test fun bookmarkGuardsSuppressDeadEndDeleteAndRedundantDesignation() {
+        val id = UnavailableRepository.boundId(db)!!
+        assertTrue(UnavailableRepository.isDeletionProtected(db, id, "Unavailable"))
+        assertTrue(UnavailableRepository.isDeletionProtected(db, 88888L, " unavailable "))
+        assertFalse(UnavailableRepository.canDesignate(db, "Unavailable"))
+        assertFalse(UnavailableRepository.isDeletionProtected(db, 88888L, "Ordinary"))
+        UnavailableRepository.reset()
+        assertTrue(UnavailableRepository.canDesignate(db, " unavailable "))
+        assertFalse(UnavailableRepository.canDesignate(db, "Ordinary"))
+    }
+
+    @Test fun unavailableRepositoryErrorIsDeliveredToSubscriberNotThrownOnTap() {
+        TagRuntime.unregister(db)
+        val operation = UnavailableRepository.setMarked(context, 1L, true)
+        operation.test().await().assertError(IllegalStateException::class.java)
+    }
+
+    @Test fun requestedMarkCannotJumpToAReplacedRepository() {
+        val song = stream("captured-repository")
+        manager.appendToPlaylist(libraryId, listOf(song)).blockingGet()
+        val operation = UnavailableRepository.setMarked(context, uid(song), true)
+        repo.invalidate()
+        operation.test().await().assertError(IllegalStateException::class.java)
+        assertTrue(contents(UnavailableRepository.boundId(db)!!).isEmpty())
+    }
+
     @Test fun createsStableEmptyProtectedSubset() {
         val unavailable = UnavailableRepository.boundId(db)!!
         assertTrue(contents(unavailable).isEmpty())

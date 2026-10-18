@@ -341,8 +341,10 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
     }
 
     private void deleteItem(final PlaylistLocalItem item) {
-        if (itemListAdapter == null || (item instanceof PlaylistMetadataEntry
-                && isProtectedLibrary((PlaylistMetadataEntry) item))) {
+        if (itemListAdapter == null || (item instanceof PlaylistMetadataEntry local
+                && (isProtectedLibrary(local) || UnavailableRepository.isDeletionProtected(
+                        NewPipeDatabase.getInstance(requireContext()), local.getUid(),
+                        local.getOrderingName())))) {
             return;
         }
         itemListAdapter.removeItem(item);
@@ -536,13 +538,15 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
 
         final ArrayList<String> items = new ArrayList<>();
         items.add(rename);
-        items.add(delete);
+        if (!UnavailableRepository.isDeletionProtected(currentDb,
+                selectedItem.getUid(), selectedItem.getOrderingName())) {
+            items.add(delete);
+        }
         if (isThumbnailPermanent) {
             items.add(unsetThumbnail);
         }
-        final boolean canDesignateUnavailable = selectedItem.getOrderingName()
-                .trim().equalsIgnoreCase(UnavailableRepository.NAME)
-                && !UnavailableRepository.isBound(currentDb, selectedItem.getUid());
+        final boolean canDesignateUnavailable = UnavailableRepository
+                .canDesignate(currentDb, selectedItem.getOrderingName());
         final String designateUnavailable = getString(R.string.rv_unavailable_rebind);
         if (canDesignateUnavailable) {
             items.add(designateUnavailable);

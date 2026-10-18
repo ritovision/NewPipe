@@ -114,6 +114,9 @@ class PlaylistSaveQueue(private val executor: Executor, private val writer: Writ
         if (immediate) action.run()
     }
 
+    /** A deferred mutation must not mistake a failed save for success after detachment. */
+    fun failure(): Throwable? = synchronized(lock) { blocked }
+
     /** Explicit user discard waits for an already-started database operation; never cancels it. */
     fun discardAndWhenIdle(action: Runnable) {
         val immediate = synchronized(lock) {

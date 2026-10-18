@@ -170,8 +170,15 @@ object TagBackupCoordinator {
                 val repository = TagRuntime.get(context)
                 // Complete same-catalog recovery before retaining missing tag metadata.
                 // If identity itself needs repair, only receipt-backed AI cleanup is safe.
-                repository.beforeLibraryMutation()
                 val tags = prepared.directory.resolve(TagStore.FILE_NAME)
+                try {
+                    repository.beforeLibraryMutation()
+                } catch (blocked: TagRepository.NativeBulkRecoveryBlockedException) {
+                    // A verified complete backup replaces BOTH stores. No old
+                    // intent is executed or discarded in the live database here.
+                    // Stock backups retaining current tags may not bypass recovery.
+                    if (!Files.exists(tags)) throw blocked
+                }
                 if (!Files.exists(tags)) {
                     // A stock backup does not authorize deleting recoverable unmatched tags.
                     // Snapshot them now, after draining writers, then discard obsolete runtime intents.

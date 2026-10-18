@@ -208,7 +208,8 @@ internal class AiCatalogStore(
 
             is AiCatalogCommand.RemoveAllUnavailable -> {
                 val id = unavailableId()
-                if (command.expectedRevision != null && command.expectedRevision != revision(id)) throw AiFailure("CONFLICT")
+                val expected = command.expectedRevision ?: throw AiFailure("EXPECTED_REVISION_REQUIRED")
+                if (expected != revision(id)) throw AiFailure("CONFLICT")
                 val ids = UnavailableRepository.ids(db, id)
                 if (ids.size > MAX_BULK_UNAVAILABLE) throw AiFailure("TOO_MANY_UNAVAILABLE")
                 var memberships = 0L

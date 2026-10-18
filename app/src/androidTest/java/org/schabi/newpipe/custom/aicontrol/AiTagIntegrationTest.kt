@@ -23,6 +23,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.schabi.newpipe.custom.library.LibraryBindingStore
 import org.schabi.newpipe.custom.library.LibraryRepository
+import org.schabi.newpipe.custom.library.UnavailableRepository
 import org.schabi.newpipe.custom.tagging.StreamKey
 import org.schabi.newpipe.custom.tagging.TagFilter
 import org.schabi.newpipe.custom.tagging.TagRepository
@@ -32,6 +33,7 @@ import org.schabi.newpipe.custom.tagging.TagStore
 import org.schabi.newpipe.database.AppDatabase
 import org.schabi.newpipe.database.stream.model.StreamEntity
 import org.schabi.newpipe.extractor.stream.StreamType
+import org.schabi.newpipe.local.playlist.LocalPlaylistManager
 import org.schabi.newpipe.testUtil.TestDatabase
 import org.schabi.newpipe.testUtil.TrampolineSchedulerRule
 
@@ -118,7 +120,8 @@ class AiTagIntegrationTest {
             "CONFLICT",
             run(AiCatalogCommand.RemoveAllUnavailable("0".repeat(64))).code
         )
-        val deletion = request(AiCatalogCommand.RemoveAllUnavailable())
+        val revision = run(AiCatalogCommand.ListItems(unavailable)).data.getValue("revision").jsonPrimitive.content
+        val deletion = request(AiCatalogCommand.RemoveAllUnavailable(revision))
         assertEquals(AiOutcome.COMMITTED, run(deletion).outcome)
         assertTrue(run(deletion).replayed)
         assertTrue(repo.snapshot().items.isEmpty())
@@ -139,8 +142,76 @@ class AiTagIntegrationTest {
         assertEquals("PERMISSION_DENIED", run(AiCatalogCommand.MarkUnavailable(listOf(ref))).code)
         assertEquals("PERMISSION_DENIED", run(AiCatalogCommand.MarkAvailable(listOf(ref))).code)
         assertEquals("PERMISSION_DENIED", run(AiCatalogCommand.ClearUnavailable()).code)
-        assertEquals("PERMISSION_DENIED", run(AiCatalogCommand.RemoveAllUnavailable()).code)
+        assertEquals("PERMISSION_DENIED", run(AiCatalogCommand.RemoveAllUnavailable("0".repeat(64))).code)
         assertEquals(1, repo.snapshot().items.size)
+    }
+
+    @Test fun bulkDeleteRequiresRevisionAndRejectsAChangedSelectionWithoutDeleting() {
+        val (a, refA) = item("frozen-a")
+        val (b, refB) = item("frozen-b")
+        val id = UnavailableRepository.boundId(db)!!
+        assertEquals(AiOutcome.COMMITTED, run(AiCatalogCommand.MarkUnavailable(listOf(refA))).outcome)
+        val revision = run(AiCatalogCommand.ListItems(id)).data.getValue("revision").jsonPrimitive.content
+        val missing = run(AiCatalogCommand.RemoveAllUnavailable())
+        assertEquals("EXPECTED_REVISION_REQUIRED", missing.code)
+        assertEquals(AiOutcome.REJECTED, missing.outcome)
+        assertEquals(AiOutcome.COMMITTED, run(AiCatalogCommand.MarkUnavailable(listOf(refB))).outcome)
+        val stale = run(AiCatalogCommand.RemoveAllUnavailable(revision))
+        assertEquals("CONFLICT", stale.code)
+        assertEquals(AiOutcome.REJECTED, stale.outcome)
+        assertEquals(2, repo.snapshot().items.size)
+        assertTrue(repo.editor(key(a)).assigned.isNotEmpty())
+        assertTrue(repo.editor(key(b)).assigned.isNotEmpty())
+        assertEquals(2, UnavailableRepository.ids(db, id).size)
+        assertTrue(tags.pendingAiRemovals().isEmpty())
+        val fresh = run(AiCatalogCommand.ListItems(id)).data.getValue("revision").jsonPrimitive.content
+        val deletion = request(AiCatalogCommand.RemoveAllUnavailable(fresh))
+        assertEquals(AiOutcome.COMMITTED, run(deletion).outcome)
+        // A subsequent new mark must not be picked up by a replay of the old UUID.
+        val (_, refC) = item("post-delete")
+        assertEquals(AiOutcome.COMMITTED, run(AiCatalogCommand.MarkUnavailable(listOf(refC))).outcome)
+        assertTrue(run(deletion).replayed)
+        assertEquals(1, repo.snapshot().items.size)
+        assertEquals(listOf(refC.streamId), UnavailableRepository.ids(db, id))
+    }
+
+    @Test fun aiRetriesUnavailableSetupAfterNameCollisionWithoutUiOrRestart() {
+        val (_, ref) = item("recover-ai")
+        val original = UnavailableRepository.boundId(db)!!
+        val store = LibraryBindingStore(binding)
+        store.write(store.read()!!.copy(unavailablePlaylistId = null))
+        UnavailableRepository.reset()
+        assertEquals("UNAVAILABLE_NOT_READY", run(AiCatalogCommand.MarkUnavailable(listOf(ref))).code)
+        LocalPlaylistManager(db).renamePlaylist(original, "Former candidate").blockingGet()
+        // The canonical Library remains initialized throughout this repair.
+        assertEquals(AiOutcome.COMMITTED, run(AiCatalogCommand.MarkUnavailable(listOf(ref))).outcome)
+        val repaired = UnavailableRepository.boundId(db)!!
+        assertTrue(repaired != original)
+        assertEquals(listOf(ref.streamId), UnavailableRepository.ids(db, repaired))
+    }
+
+    @Test fun aiBulkDeletionThousandItemsReportsMeasuredLatencyAndPreservesReceipts() {
+        val manager = LocalPlaylistManager(db)
+        val id = UnavailableRepository.boundId(db)!!
+        val media = (1..1000).map { n ->
+            StreamEntity(
+                serviceId = 0,
+                url = "https://example.org/scale-$n",
+                title = "Scale $n",
+                streamType = StreamType.VIDEO_STREAM,
+                duration = 12,
+                uploader = "Synthetic"
+            )
+        }
+        manager.appendToPlaylist(id, media).blockingGet()
+        val revision = run(AiCatalogCommand.ListItems(id)).data.getValue("revision").jsonPrimitive.content
+        val start = android.os.SystemClock.elapsedRealtime()
+        val deletion = request(AiCatalogCommand.RemoveAllUnavailable(revision))
+        assertEquals(AiOutcome.COMMITTED, run(deletion).outcome)
+        println("UNAVAILABLE_AI_BULK_1000_MS=${android.os.SystemClock.elapsedRealtime() - start}")
+        assertTrue(run(deletion).replayed)
+        assertTrue(repo.snapshot().items.isEmpty())
+        assertTrue(tags.pendingAiRemovals().isEmpty())
     }
 
     @Test fun tagCreationReceiptIsAtomicAndReplayDoesNotDuplicate() {

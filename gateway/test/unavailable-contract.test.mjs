@@ -28,7 +28,8 @@ describe('Unavailable playlist optional AI capability contract',()=>{
  test('whole-list operations contain no AI-supplied stream IDs or alternate playlist targets',()=>{
   for(const name of ['clear_unavailable','remove_all_unavailable']){
    const schema=TOOL_MAP.get(name).schema;
-   expect(schema.safeParse(mutation()).success).toBe(true);
+   expect(schema.safeParse(mutation()).success).toBe(name === 'clear_unavailable');
+   expect(schema.safeParse({...mutation(),expected_revision:null}).success).toBe(false);
    expect(schema.safeParse({...mutation(),expected_revision:revision}).success).toBe(true);
    expect(schema.safeParse({...mutation(),expected_revision:'stale'}).success).toBe(false);
    expect(schema.safeParse({...mutation(),playlist_id:88}).success).toBe(false);

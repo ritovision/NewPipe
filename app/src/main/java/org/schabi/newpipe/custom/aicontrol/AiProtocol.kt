@@ -396,7 +396,10 @@ internal object AiProtocol {
 
             is AiCatalogCommand.ClearUnavailable -> revision(command.expectedRevision)
 
-            is AiCatalogCommand.RemoveAllUnavailable -> revision(command.expectedRevision)
+            is AiCatalogCommand.RemoveAllUnavailable -> {
+                checkInput(command.expectedRevision != null, "EXPECTED_REVISION_REQUIRED")
+                revision(command.expectedRevision)
+            }
 
             is AiCatalogCommand.Receipt -> requireUuid(command.originalRequestId)
         }

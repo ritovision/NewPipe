@@ -1,0 +1,16 @@
+{
+  "baseline": "73df1892b51f22c2ec3c2d78e38e129400dbfff5",
+  "reviewer": "gpt-6-astra",
+  "effort": "max",
+  "mode": "read-only",
+  "production_diff_sha256": "d464b22890e025d86cdae9558a2c85e1110597e61eb3fae46527c6be6b9ebfb3",
+  "jvm_tests": 314,
+  "core_android_tests": 165,
+  "ui_android_tests": 3,
+  "android_runs": "separate fresh instrumentation processes",
+  "gateway_tests": 59,
+  "combined_android_run": "failed; see POST_CLAUDE_FIXES.md",
+  "claude_rerun": false,
+  "production_deployment": false,
+  "merged": false
+}

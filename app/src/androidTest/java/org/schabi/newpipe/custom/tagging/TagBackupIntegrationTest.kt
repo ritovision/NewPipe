@@ -188,6 +188,53 @@ class TagBackupIntegrationTest {
         }
     }
 
+    @Test fun completeValidatedBackupCanRecoverMixedNativeBulkState() {
+        val tag = repository.createTag("Recoverable", null)
+        val a = item("recovery-a", tag)
+        val b = item("recovery-b", tag)
+        val backup = exported()
+        val library = LibraryRepository.boundLibraryId(db)!!
+        repository.store.stageNativeBulk(TagStore.NativeBulk("mixed-restore", library, listOf(key(a), key(b))))
+        LibraryRepository.removeEverywhere(db, library, a.uid)
+        assertThrows(TagRepository.NativeBulkRecoveryBlockedException::class.java) { repository.snapshot() }
+        TagBackupCoordinator.prepare(context, file(backup)).use { prepared ->
+            TagBackupCoordinator.installWithShutdown(context, prepared) {}
+        }
+        reopen()
+        assertEquals(2, repository.snapshot().items.size)
+        assertEquals(setOf(tag), repository.editor(key(a)).assigned)
+        assertEquals(setOf(tag), repository.editor(key(b)).assigned)
+        assertTrue(repository.store.pendingNativeBulks().isEmpty())
+    }
+
+    @Test fun backupWithoutTagsCannotBypassMixedNativeBulkRecovery() {
+        val tag = repository.createTag("Retain", null)
+        val a = item("stock-a", tag)
+        val b = item("stock-b", tag)
+        val backup = exported()
+        val stock = directory.resolve("stock-no-tags.zip")
+        ZipFile(backup.toFile()).use { source ->
+            ZipOutputStream(Files.newOutputStream(stock)).use { target ->
+                source.entries().asSequence().filter { it.name != TagStore.FILE_NAME }.forEach { entry ->
+                    target.putNextEntry(ZipEntry(entry.name))
+                    source.getInputStream(entry).use { it.copyTo(target) }
+                    target.closeEntry()
+                }
+            }
+        }
+        val library = LibraryRepository.boundLibraryId(db)!!
+        repository.store.stageNativeBulk(TagStore.NativeBulk("mixed-stock", library, listOf(key(a), key(b))))
+        LibraryRepository.removeEverywhere(db, library, a.uid)
+        TagBackupCoordinator.prepare(context, file(stock)).use { prepared ->
+            assertThrows(TagRepository.NativeBulkRecoveryBlockedException::class.java) {
+                TagBackupCoordinator.installWithShutdown(context, prepared) {}
+            }
+        }
+        assertFalse(TagRuntime.restoring)
+        assertEquals(1, repository.store.pendingNativeBulks().size)
+        assertEquals(setOf(tag), repository.store.assigned(key(b)))
+    }
+
     @Test fun fileSwapFaultRecoversOldRoomTagsAndBindingBeforeNextOpen() {
         val tag = repository.createTag("Before", null)
         val a = item("before", tag)

@@ -28,6 +28,8 @@ class TagRepository(
         invalidated = true
     }
 
+    class NativeBulkRecoveryBlockedException(message: String) : IllegalStateException(message)
+
     data class Item(val stream: StreamEntity, val tagIds: Set<Long>)
     data class Snapshot(val definitions: TagDefinitions, val items: List<Item>, val orphanedAssignments: Int)
 
@@ -59,15 +61,17 @@ class TagRepository(
         // Crash after COMMIT: none remains saved -> finish tag cleanup only.
         // Never replay the native batch deletion from independent tag storage.
         for (batch in store.pendingNativeBulks()) {
-            check(batch.libraryId == libraryId) {
-                "Library identity changed during an interrupted bulk removal"
+            if (batch.libraryId != libraryId) {
+                throw NativeBulkRecoveryBlockedException("Library identity changed during an interrupted bulk removal")
             }
             val saved = readLibraryStreams(libraryId).mapTo(HashSet()) {
                 StreamKey(it.serviceId, it.url)
             }
             val survivors = batch.keys.count { it in saved }
-            check(survivors == 0 || survivors == batch.keys.size) {
-                "Partial native batch state detected; refusing automatic deletion or cleanup"
+            if (survivors != 0 && survivors != batch.keys.size) {
+                throw NativeBulkRecoveryBlockedException(
+                    "Partial native batch state detected; refusing automatic deletion or cleanup"
+                )
             }
             store.settleNativeBulk(batch, committed = survivors == 0)
         }

@@ -25,6 +25,24 @@ class PlaylistSaveQueueTest {
     }
 
     @Test
+    fun markingRequestSurvivesDetachmentButNotFailedSave() {
+        for (failSave in listOf(false, true)) {
+            val tasks = ManualExecutor()
+            var marked = false
+            val queue = PlaylistSaveQueue(tasks) { _, desired ->
+                if (failSave) throw PlaylistEditConflictException()
+                desired
+            }
+            queue.submit(listOf(1L, 2L), listOf(2L, 1L))
+            queue.afterSavesForMutation { if (queue.failure() == null) marked = true }
+            queue.setListener(null)
+            tasks.runAll()
+            assertEquals(!failSave, marked)
+            assertEquals(failSave, queue.failure() != null)
+        }
+    }
+
+    @Test
     fun submittedEditsCommitAfterTheViewListenerDetaches() {
         val tasks = ManualExecutor()
         var stored = listOf(1L, 2L, 3L)

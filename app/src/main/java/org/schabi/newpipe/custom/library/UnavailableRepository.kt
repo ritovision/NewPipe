@@ -6,8 +6,10 @@ package org.schabi.newpipe.custom.library
 import android.content.Context
 import androidx.sqlite.db.SimpleSQLiteQuery
 import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 import java.util.concurrent.Callable
 import kotlin.concurrent.withLock
 import org.schabi.newpipe.custom.tagging.TagRuntime
@@ -24,6 +26,24 @@ object UnavailableRepository {
     private data class Session(val database: AppDatabase, val id: Long)
 
     @Volatile private var session: Session? = null
+    private val identityChanges = BehaviorSubject.createDefault(Unit).toSerialized()
+
+    private fun publishSession(value: Session?) {
+        session = value
+        identityChanges.onNext(Unit)
+    }
+
+    @JvmStatic
+    fun observeId(db: AppDatabase): Observable<Long> = identityChanges.map { boundId(db) ?: -1L }.distinctUntilChanged()
+
+    @JvmStatic
+    fun isReservedName(name: String?): Boolean = name?.trim()?.equals(NAME, true) == true
+
+    @JvmStatic
+    fun canDesignate(db: AppDatabase, name: String?): Boolean = boundId(db) == null && isReservedName(name)
+
+    @JvmStatic
+    fun isDeletionProtected(db: AppDatabase, id: Long, name: String?): Boolean = isBound(db, id) || isReservedName(name)
 
     @JvmStatic
     fun boundId(db: AppDatabase): Long? = session?.takeIf { it.database === db }?.id
@@ -37,7 +57,7 @@ object UnavailableRepository {
 
     @JvmStatic
     fun reset() {
-        session = null
+        publishSession(null)
     }
 
     /** Must be called only after the canonical Library has been initialized. */
@@ -71,7 +91,7 @@ object UnavailableRepository {
             bindingStore.write(binding.copy(unavailablePlaylistId = created))
             created
         }
-        session = Session(db, id)
+        publishSession(Session(db, id))
         id
     }
 
@@ -140,7 +160,7 @@ object UnavailableRepository {
                 LibraryRepository.refreshAutomaticThumbnail(db, selectedId)
             }
             store.write(binding.copy(unavailablePlaylistId = selectedId))
-            session = Session(db, selectedId)
+            publishSession(Session(db, selectedId))
         }
     }.subscribeOn(Schedulers.io())
 
@@ -167,6 +187,10 @@ object UnavailableRepository {
         playlistId
     )
 
+    class SelectionChangedException : IllegalStateException(
+        "Unavailable changed. Review the updated list and confirm again."
+    )
+
     data class Preview(val playlistId: Long, val items: List<Long>) {
         val count: Int get() = items.size
     }
@@ -179,8 +203,8 @@ object UnavailableRepository {
     /** Rechecks the exact set inside the writer transaction before a destructive operation. */
     internal fun verify(db: AppDatabase, preview: Preview): Long {
         val current = boundId(db) ?: error("Unavailable is not initialized")
-        check(preview.playlistId == current && preview.items == ids(db, current)) {
-            "Unavailable changed. Review the updated list and confirm again."
+        if (preview.playlistId != current || preview.items != ids(db, current)) {
+            throw SelectionChangedException()
         }
         return current
     }
@@ -208,36 +232,42 @@ object UnavailableRepository {
     }.subscribeOn(Schedulers.io())
 
     @JvmStatic
-    fun setMarked(context: Context, streamId: Long, marked: Boolean): Completable = Completable.fromAction {
-        val repository = TagRuntime.get(context)
-        val db = repository.library
-        repository.access { library ->
-            val unavailable = ensure(db, repository.binding)
-            db.runInTransaction {
-                val saved = queryIds(
-                    db,
-                    "SELECT 1 FROM playlist_stream_join WHERE playlist_id=? AND stream_id=? LIMIT 1",
-                    library,
-                    streamId
-                ).isNotEmpty()
-                check(saved) { "This video is no longer saved in Library" }
-                if (marked) {
-                    if (!contains(db, streamId)) {
-                        val next = LibraryRepository.nextJoinIndex(db, unavailable)
-                        db.playlistStreamDAO().insertAll(
-                            listOf(PlaylistStreamEntity(unavailable, streamId, next))
+    fun setMarked(context: Context, streamId: Long, marked: Boolean): Completable {
+        val repository = try {
+            TagRuntime.get(context)
+        } catch (error: Exception) {
+            return Completable.error(error)
+        }
+        return Completable.fromAction {
+            val db = repository.library
+            repository.access { library ->
+                val unavailable = ensure(db, repository.binding)
+                db.runInTransaction {
+                    val saved = queryIds(
+                        db,
+                        "SELECT 1 FROM playlist_stream_join WHERE playlist_id=? AND stream_id=? LIMIT 1",
+                        library,
+                        streamId
+                    ).isNotEmpty()
+                    check(saved) { "This video is no longer saved in Library" }
+                    if (marked) {
+                        if (!contains(db, streamId)) {
+                            val next = LibraryRepository.nextJoinIndex(db, unavailable)
+                            db.playlistStreamDAO().insertAll(
+                                listOf(PlaylistStreamEntity(unavailable, streamId, next))
+                            )
+                        }
+                    } else {
+                        db.openHelper.writableDatabase.execSQL(
+                            "DELETE FROM playlist_stream_join WHERE playlist_id=? AND stream_id=?",
+                            arrayOf<Any>(unavailable, streamId)
                         )
                     }
-                } else {
-                    db.openHelper.writableDatabase.execSQL(
-                        "DELETE FROM playlist_stream_join WHERE playlist_id=? AND stream_id=?",
-                        arrayOf<Any>(unavailable, streamId)
-                    )
+                    LibraryRepository.refreshAutomaticThumbnail(db, unavailable)
                 }
-                LibraryRepository.refreshAutomaticThumbnail(db, unavailable)
             }
-        }
-    }.subscribeOn(Schedulers.io())
+        }.subscribeOn(Schedulers.io())
+    }
 
     @JvmStatic
     fun getPreview(context: Context): Single<Preview> = Single.fromCallable {

@@ -1,6 +1,6 @@
 # Unavailable Playlist — Astra Adjudication and Corrective QA
 
-**Status:** Corrective implementation and headless builds complete. **Final independent Astra review and Claude Opus review remain pending** at this checkpoint.
+**Status:** Historical corrective checkpoints below. See [POST_CLAUDE_FIXES.md](POST_CLAUDE_FIXES.md) for the latest Astra Max review, exact-build results, and test-run limitations.
 **Baseline:** `feature/unavailable-playlist-20261017`, initial implementation `1431da435` on `custom/dev` after accepted Library, Tagging and AI Control.
 **Specification:** [Unavailable Playlist](../../specs/unavailable-playlist.md).
 

@@ -75,6 +75,19 @@ internal class AiCatalogExecutor(
                             if (tags == null) throw AiFailure("TAGGING_UNAVAILABLE", AiOutcome.NOT_EXECUTED)
                             return@Callable AiTagExecutor(tags, clock).execute(parsed, lease)
                         }
+                        val needsUnavailable = command is AiCatalogCommand.MarkUnavailable ||
+                            command is AiCatalogCommand.MarkAvailable ||
+                            command is AiCatalogCommand.ClearUnavailable ||
+                            command is AiCatalogCommand.RemoveAllUnavailable
+                        if (tags != null && (needsUnavailable || command is AiCatalogCommand.ListPlaylists)) {
+                            try {
+                                org.schabi.newpipe.custom.library.UnavailableRepository.ensure(db, tags.binding)
+                            } catch (error: IllegalStateException) {
+                                // A collision must never auto-adopt another playlist or
+                                // block reading the rest of the user's catalog.
+                                if (needsUnavailable) throw AiFailure("UNAVAILABLE_NOT_READY", AiOutcome.NOT_EXECUTED)
+                            }
+                        }
                         // Stage outside Room. A rollback must leave no committed receipt; recovery
                         // discards that intent rather than executing a rejected remote deletion later.
                         tags?.let { AiTagExecutor.stageRemoval(it, parsed) }
