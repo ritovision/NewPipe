@@ -120,7 +120,7 @@ class AiCatalogExecutorTest {
         val second = run(command)
         assertEquals(first.data, second.data)
         assertTrue(second.replayed)
-        assertEquals(2, manager.playlists.blockingFirst().size)
+        assertEquals(3, manager.playlists.blockingFirst().size)
         assertEquals(1, db.aiCommandReceiptDao().count())
     }
 
@@ -130,7 +130,7 @@ class AiCatalogExecutorTest {
         run(original)
         val changed = run(original.copy(command = AiCatalogCommand.CreatePlaylist("Twice")))
         assertEquals("REQUEST_ID_REUSED", changed.code)
-        assertEquals(2, manager.playlists.blockingFirst().size)
+        assertEquals(3, manager.playlists.blockingFirst().size)
     }
 
     @Test
@@ -154,7 +154,7 @@ class AiCatalogExecutorTest {
         assertEquals(AiOutcome.COMMITTED, retry.outcome)
         assertTrue(retry.replayed)
         assertEquals(AiOutcome.COMPLETED, run(AiCatalogCommand.Receipt(original.requestId)).outcome)
-        assertEquals(2, manager.playlists.blockingFirst().size)
+        assertEquals(3, manager.playlists.blockingFirst().size)
     }
 
     @Test
@@ -209,7 +209,7 @@ class AiCatalogExecutorTest {
     fun canonicalLibraryCannotBeDeletedOrRenamedAsOrdinaryPlaylist() {
         assertEquals("PROTECTED_LIBRARY", run(AiCatalogCommand.DeletePlaylist(library)).code)
         assertEquals("PROTECTED_LIBRARY", run(AiCatalogCommand.RenamePlaylist(library, "Other")).code)
-        assertEquals(1, manager.playlists.blockingFirst().size)
+        assertEquals(2, manager.playlists.blockingFirst().size)
     }
 
     @Test
@@ -287,7 +287,7 @@ class AiCatalogExecutorTest {
         db.openHelper.writableDatabase.execSQL("CREATE TRIGGER synthetic_receipt_failure BEFORE INSERT ON rv_ai_command_receipts BEGIN SELECT RAISE(ABORT, 'synthetic'); END")
         val result = run(AiCatalogCommand.CreatePlaylist("Must roll back"))
         assertEquals(AiOutcome.OUTCOME_UNKNOWN, result.outcome)
-        assertEquals(1, manager.playlists.blockingFirst().size)
+        assertEquals(2, manager.playlists.blockingFirst().size)
         assertEquals(0, db.aiCommandReceiptDao().count())
     }
 
@@ -310,7 +310,7 @@ class AiCatalogExecutorTest {
         val command = request(AiCatalogCommand.CreatePlaylist("No"))
         assertEquals("WRONG_DEVICE", run(command.copy(deviceId = UUID.randomUUID().toString())).code)
         assertEquals("STALE_CATALOG", run(command.copy(catalogEpoch = UUID.randomUUID().toString())).code)
-        assertEquals(1, manager.playlists.blockingFirst().size)
+        assertEquals(2, manager.playlists.blockingFirst().size)
     }
 
     @Test
@@ -340,7 +340,7 @@ class AiCatalogExecutorTest {
         val original = request(AiCatalogCommand.CreatePlaylist("No"))
         session.disconnect()
         assertEquals(AiOutcome.NOT_EXECUTED, run(original).outcome)
-        assertEquals(1, manager.playlists.blockingFirst().size)
+        assertEquals(2, manager.playlists.blockingFirst().size)
     }
 
     @Test
@@ -547,7 +547,7 @@ class AiCatalogExecutorTest {
             val result = caller.get(10, TimeUnit.SECONDS)
             assertEquals(AiOutcome.NOT_EXECUTED, result.outcome)
             assertEquals(if (expire) "EXPIRED" else "SESSION_CLOSED", result.code)
-            assertEquals(1, manager.playlists.blockingFirst().size)
+            assertEquals(2, manager.playlists.blockingFirst().size)
             assertEquals(0, db.aiCommandReceiptDao().count())
         } finally {
             release.countDown()
@@ -574,7 +574,7 @@ class AiCatalogExecutorTest {
             assertTrue(values.all { it.outcome == AiOutcome.COMMITTED })
             assertEquals(1, values.count { it.replayed })
             assertEquals(values[0].data, values[1].data)
-            assertEquals(2, manager.playlists.blockingFirst().size)
+            assertEquals(3, manager.playlists.blockingFirst().size)
             assertEquals(1, db.aiCommandReceiptDao().count())
         } finally {
             callers.shutdownNow()
@@ -620,7 +620,7 @@ class AiCatalogExecutorTest {
         val original = request(AiCatalogCommand.CreatePlaylist("Expired before dispatch"))
         now += 31_000
         assertEquals(AiOutcome.NOT_EXECUTED, run(original).outcome)
-        assertEquals(1, manager.playlists.blockingFirst().size)
+        assertEquals(2, manager.playlists.blockingFirst().size)
         assertEquals(0, db.aiCommandReceiptDao().count())
     }
 
@@ -633,7 +633,7 @@ class AiCatalogExecutorTest {
         val result = run(original)
         assertEquals(AiOutcome.OUTCOME_UNKNOWN, result.outcome)
         assertEquals("EXPIRED_RESULT_NOT_RETAINED", result.code)
-        assertEquals(2, manager.playlists.blockingFirst().size)
+        assertEquals(3, manager.playlists.blockingFirst().size)
     }
 
     @Test
@@ -642,7 +642,7 @@ class AiCatalogExecutorTest {
         run(original)
         now += 31_000
         assertEquals("REQUEST_ID_REUSED", run(original.copy(command = AiCatalogCommand.CreatePlaylist("Twice"))).code)
-        assertEquals(2, manager.playlists.blockingFirst().size)
+        assertEquals(3, manager.playlists.blockingFirst().size)
     }
 
     @Test

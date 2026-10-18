@@ -905,4 +905,17 @@
     <string name="api23_requirement_dialog_title">NewPipe is dropping support for Android 5</string>
     <string name="api23_requirement_dialog_message">Unfortunately NewPipe depends on a few libraries that dropped support for Android 5.0 and 5.1. The next NewPipe release will therefore only work on devices with Android 6 or higher, sadly. Read more in the blogpost.</string>
     <string name="api23_requirement_dialog_blogpost">Blogpost</string>
+    <string name="rv_unavailable_rebind">Use as Unavailable</string>
+    <string name="rv_unavailable_rebind_message">Designate this existing playlist as the protected Unavailable list? Its songs stay saved in Library and their other playlists. This action does not remove anything.</string>
+    <string name="rv_unavailable_rebind_success">Unavailable playlist designated.</string>
+    <string name="rv_mark_unavailable">Mark Unavailable</string>
+    <string name="rv_mark_available">Mark Available</string>
+    <string name="rv_unavailable_remove_from_playlist">Remove from This Playlist</string>
+    <string name="rv_unavailable_remove_from_playlist_message">Remove this video from this playlist? It will remain saved in Library and any other playlists.</string>
+    <string name="rv_unavailable_remove_everywhere">Remove Everywhere</string>
+    <string name="rv_unavailable_clear">Clear Unavailable</string>
+    <string name="rv_unavailable_remove_all">Remove All Everywhere</string>
+    <string name="rv_unavailable_remove_one_message">Remove this video from Library and every local playlist? Its saved tag assignments will also be removed.</string>
+    <string name="rv_unavailable_clear_message">Clear %1$d marked items from Unavailable? They will remain in Library and all other playlists.</string>
+    <string name="rv_unavailable_remove_all_message">Remove all %1$d marked items from Library and every local playlist? Their saved tag assignments will also be removed. This cannot be automatically undone.</string>
 </resources>

@@ -90,6 +90,59 @@ class AiTagIntegrationTest {
     }
     private fun key(stream: StreamEntity) = StreamKey(stream.serviceId, stream.url)
 
+    @Test fun aiUnavailableCommandsShareNativeMembershipAndTagCleanup() {
+        val (a, refA) = item("unavailable-a")
+        val (b, refB) = item("unavailable-b")
+        val playlist = repo.createPlaylistSnapshot("Playlist with originals", listOf(key(a), key(b)))
+        val unavailable = org.schabi.newpipe.custom.library.UnavailableRepository.boundId(db)!!
+        assertTrue(run(AiCatalogCommand.ListPlaylists()).data.toString().contains("special_unavailable"))
+        assertEquals(
+            AiOutcome.COMMITTED,
+            run(AiCatalogCommand.MarkUnavailable(listOf(refA, refB))).outcome
+        )
+        assertEquals(
+            AiOutcome.COMMITTED,
+            run(AiCatalogCommand.MarkUnavailable(listOf(refA))).outcome
+        )
+        assertEquals(
+            2,
+            org.schabi.newpipe.custom.library.UnavailableRepository.ids(db, unavailable).size
+        )
+        assertEquals(AiOutcome.COMMITTED, run(AiCatalogCommand.MarkAvailable(listOf(refA))).outcome)
+        assertEquals(1, org.schabi.newpipe.custom.library.UnavailableRepository.ids(db, unavailable).size)
+        assertEquals(AiOutcome.COMMITTED, run(AiCatalogCommand.ClearUnavailable()).outcome)
+        assertEquals(2, repo.snapshot().items.size)
+        assertTrue(db.playlistStreamDAO().getOrderedStreamsOf(unavailable).blockingFirst().isEmpty())
+        assertEquals(AiOutcome.COMMITTED, run(AiCatalogCommand.MarkUnavailable(listOf(refA, refB))).outcome)
+        assertEquals(
+            "CONFLICT",
+            run(AiCatalogCommand.RemoveAllUnavailable("0".repeat(64))).code
+        )
+        val deletion = request(AiCatalogCommand.RemoveAllUnavailable())
+        assertEquals(AiOutcome.COMMITTED, run(deletion).outcome)
+        assertTrue(run(deletion).replayed)
+        assertTrue(repo.snapshot().items.isEmpty())
+        assertTrue(db.playlistStreamDAO().getOrderedStreamsOf(playlist).blockingFirst().isEmpty())
+        assertTrue(org.schabi.newpipe.custom.library.UnavailableRepository.ids(db, unavailable).isEmpty())
+        assertTrue(repo.editor(key(a)).assigned.isEmpty())
+        assertTrue(repo.editor(key(b)).assigned.isEmpty())
+        assertTrue(tags.pendingAiRemovals().isEmpty())
+    }
+
+    @Test fun aiUnavailableCommandsRespectSpecialProtectionAndScopes() {
+        val (_, ref) = item("scope")
+        val unavailable = org.schabi.newpipe.custom.library.UnavailableRepository.boundId(db)!!
+        assertEquals("PROTECTED_UNAVAILABLE", run(AiCatalogCommand.DeletePlaylist(unavailable)).code)
+        assertEquals("PROTECTED_UNAVAILABLE", run(AiCatalogCommand.RenamePlaylist(unavailable, "Hijack")).code)
+        access.enableFromLocalConsent(device, epoch, mapOf(client to setOf(AiScope.LIBRARY_READ)))
+        session = access.openAuthenticatedSession(client)
+        assertEquals("PERMISSION_DENIED", run(AiCatalogCommand.MarkUnavailable(listOf(ref))).code)
+        assertEquals("PERMISSION_DENIED", run(AiCatalogCommand.MarkAvailable(listOf(ref))).code)
+        assertEquals("PERMISSION_DENIED", run(AiCatalogCommand.ClearUnavailable()).code)
+        assertEquals("PERMISSION_DENIED", run(AiCatalogCommand.RemoveAllUnavailable()).code)
+        assertEquals(1, repo.snapshot().items.size)
+    }
+
     @Test fun tagCreationReceiptIsAtomicAndReplayDoesNotDuplicate() {
         val request = request(AiTagCommand.CreateCategory("Genre"))
         val first = run(request)

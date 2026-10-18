@@ -43,6 +43,7 @@ import org.reactivestreams.Subscription;
 import org.schabi.newpipe.NewPipeDatabase;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.custom.library.LibraryRepository;
+import org.schabi.newpipe.custom.library.UnavailableRepository;
 import org.schabi.newpipe.custom.library.PlaylistEditConflictException;
 import org.schabi.newpipe.custom.library.PlaylistSaveQueue;
 import org.schabi.newpipe.database.LocalItem;
@@ -103,6 +104,11 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     private boolean isProtectedLibrary() {
         return LibraryRepository.isUiProtected(
                 NewPipeDatabase.getInstance(requireContext()), playlistId, name);
+    }
+
+    private boolean isUnavailable() {
+        return playlistId != null && UnavailableRepository.isBound(
+                NewPipeDatabase.getInstance(requireContext()), playlistId);
     }
 
     private LocalPlaylistViewModel viewModel;
@@ -341,12 +347,20 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     @Override
     public void onPrepareOptionsMenu(@NonNull final Menu menu) {
         super.onPrepareOptionsMenu(menu);
-        final boolean ordinaryPlaylist = !isProtectedLibrary();
+        final boolean ordinaryPlaylist = !isProtectedLibrary() && !isUnavailable();
         for (final int id : new int[]{R.id.menu_item_rename_playlist,
                 R.id.menu_item_remove_watched, R.id.menu_item_remove_duplicates}) {
             final MenuItem action = menu.findItem(id);
             if (action != null) {
                 action.setVisible(ordinaryPlaylist);
+            }
+        }
+        for (final int id : new int[]{R.id.menu_item_clear_unavailable,
+                R.id.menu_item_remove_all_unavailable}) {
+            final MenuItem action = menu.findItem(id);
+            if (action != null) {
+                action.setVisible(isUnavailable());
+                action.setEnabled(isUnavailable() && !loadedStreamIds.isEmpty());
             }
         }
     }
@@ -457,12 +471,17 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
 
     @Override
     public boolean onOptionsItemSelected(final MenuItem item) {
-        if (isProtectedLibrary() && (item.getItemId() == R.id.menu_item_rename_playlist
+        if ((isProtectedLibrary() || isUnavailable())
+                && (item.getItemId() == R.id.menu_item_rename_playlist
                 || item.getItemId() == R.id.menu_item_remove_watched
                 || item.getItemId() == R.id.menu_item_remove_duplicates)) {
             return true; // Individual Library deletion keeps its own explicit confirmation.
         }
-        if (item.getItemId() == R.id.menu_item_share_playlist) {
+        if (item.getItemId() == R.id.menu_item_clear_unavailable) {
+            confirmUnavailableBulk(false);
+        } else if (item.getItemId() == R.id.menu_item_remove_all_unavailable) {
+            confirmUnavailableBulk(true);
+        } else if (item.getItemId() == R.id.menu_item_share_playlist) {
             createShareConfirmationDialog();
         } else if (item.getItemId() == R.id.menu_item_rename_playlist) {
             createRenameDialog();
@@ -865,42 +884,148 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     }
 
     protected void showInfoItemDialog(final PlaylistStreamEntry item) {
-        final StreamInfoItem infoItem = item.toStreamInfoItem();
-
-        try {
-            final Context context = getContext();
-            final InfoItemDialog.Builder dialogBuilder =
-                    new InfoItemDialog.Builder(getActivity(), context, this, infoItem);
-
-            // Library deletion uses the explicit remove-everywhere transaction,
-            // while ordinary playlists retain their existing local-only delete.
-            if (!LibraryRepository.isBoundLibrary(
-                    NewPipeDatabase.getInstance(requireContext()), playlistId)) {
-                dialogBuilder.addEntry(StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL);
-            }
-            dialogBuilder.addEntry(StreamDialogDefaultEntry.EDIT_TAGS);
-            dialogBuilder.addEntry(StreamDialogDefaultEntry.DELETE);
-
-            // set custom actions
-            // all entries modified below have already been added within the builder
-            dialogBuilder
-                    .setAction(
-                            StreamDialogDefaultEntry.START_HERE_ON_BACKGROUND,
-                            (f, i) -> NavigationHelper.playOnBackgroundPlayer(
-                                    context, getPlayQueueStartingAt(item), true))
-                    .setAction(
-                            StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL,
-                            (f, i) ->
-                                    changeThumbnailStreamId(item.getStreamEntity().getUid(),
-                                            true))
-                    .setAction(
-                            StreamDialogDefaultEntry.DELETE,
-                            (f, i) -> deleteItem(item))
-                    .create()
-                    .show();
-        } catch (final IllegalArgumentException e) {
-            InfoItemDialog.Builder.reportErrorDuringInitialization(e, infoItem);
+        if (!isAdded() || disposables == null) {
+            return;
         }
+        disposables.add(UnavailableRepository.inspect(requireContext(), item.getStreamId())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(marked -> {
+                    if (!isAdded() || disposables == null) {
+                        return;
+                    }
+                    final StreamInfoItem infoItem = item.toStreamInfoItem();
+                    try {
+                        final Context context = requireContext();
+                        final InfoItemDialog.Builder dialogBuilder =
+                                new InfoItemDialog.Builder(getActivity(), context, this, infoItem);
+                        if (!isProtectedLibrary() && !isUnavailable()) {
+                            dialogBuilder.addEntry(
+                                    StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL);
+                            dialogBuilder.addEntry(
+                                    StreamDialogDefaultEntry.REMOVE_FROM_THIS_PLAYLIST);
+                        }
+                        dialogBuilder.addEntry(StreamDialogDefaultEntry.EDIT_TAGS);
+                        final StreamDialogDefaultEntry markAction = marked
+                                ? StreamDialogDefaultEntry.MARK_AVAILABLE
+                                : StreamDialogDefaultEntry.MARK_UNAVAILABLE;
+                        dialogBuilder.addEntry(markAction);
+                        dialogBuilder.addEntry(StreamDialogDefaultEntry.REMOVE_EVERYWHERE);
+                        dialogBuilder
+                                .setAction(StreamDialogDefaultEntry.START_HERE_ON_BACKGROUND,
+                                        (f, i) -> NavigationHelper.playOnBackgroundPlayer(
+                                                context, getPlayQueueStartingAt(item), true))
+                                .setAction(StreamDialogDefaultEntry.SET_AS_PLAYLIST_THUMBNAIL,
+                                        (f, i) -> changeThumbnailStreamId(
+                                                item.getStreamEntity().getUid(), true))
+                                .setAction(StreamDialogDefaultEntry.REMOVE_FROM_THIS_PLAYLIST,
+                                        (f, i) -> confirmRemoveFromPlaylist(item))
+                                .setAction(markAction, (f, i) -> {
+                                    if (disposables == null) {
+                                        return;
+                                    }
+                                    disposables.add(UnavailableRepository
+                                            .setMarked(context, item.getStreamId(), !marked)
+                                            .observeOn(AndroidSchedulers.mainThread())
+                                            .subscribe(() -> {
+                                                if (getView() != null) {
+                                                    reloadAfterDiscardingEdits();
+                                                }
+                                            }, err -> showUiErrorSnackbar(this,
+                                                    "Updating Unavailable mark", err)));
+                                })
+                                .setAction(StreamDialogDefaultEntry.REMOVE_EVERYWHERE,
+                                        (f, i) -> confirmRemoveEverywhere(item))
+                                .create()
+                                .show();
+                    } catch (final IllegalArgumentException error) {
+                        InfoItemDialog.Builder.reportErrorDuringInitialization(error, infoItem);
+                    }
+                }, error -> showUiErrorSnackbar(this, "Loading Unavailable mark", error)));
+    }
+
+    private void confirmRemoveFromPlaylist(final PlaylistStreamEntry item) {
+        if (isProtectedLibrary() || isUnavailable()) {
+            return;
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.rv_unavailable_remove_from_playlist)
+                .setMessage(R.string.rv_unavailable_remove_from_playlist_message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.rv_unavailable_remove_from_playlist,
+                        (dialog, which) -> deleteItem(item))
+                .show();
+    }
+
+    private void confirmRemoveEverywhere(final PlaylistStreamEntry item) {
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.rv_unavailable_remove_everywhere)
+                .setMessage(R.string.rv_unavailable_remove_one_message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.rv_unavailable_remove_everywhere, (dialog, which) -> {
+                    if (disposables == null) {
+                        return;
+                    }
+                    final Context context = requireContext();
+                    disposables.add(LibraryRepository.ensureInitialized(context)
+                            .andThen(io.reactivex.rxjava3.core.Completable.defer(() -> {
+                                final Long id = LibraryRepository.boundLibraryId(
+                                        NewPipeDatabase.getInstance(context));
+                                if (id == null) {
+                                    return io.reactivex.rxjava3.core.Completable.error(
+                                            new IllegalStateException(
+                                                    "Library identity unavailable"));
+                                }
+                                return LibraryRepository.removeEverywhere(context, id,
+                                        item.getStreamId());
+                            }))
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(() -> {
+                                if (getView() != null) {
+                                    reloadAfterDiscardingEdits();
+                                }
+                            }, error -> showUiErrorSnackbar(this,
+                                    "Removing video everywhere", error)));
+                }).show();
+    }
+
+    private void confirmUnavailableBulk(final boolean removeEverywhere) {
+        if (!isUnavailable() || disposables == null) {
+            return;
+        }
+        disposables.add(UnavailableRepository.getPreview(requireContext())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(preview -> {
+                    if (!isAdded() || !isUnavailable() || preview.getCount() == 0) {
+                        return;
+                    }
+                    final Context context = requireContext();
+                    final int title = removeEverywhere
+                            ? R.string.rv_unavailable_remove_all
+                            : R.string.rv_unavailable_clear;
+                    final int message = removeEverywhere
+                            ? R.string.rv_unavailable_remove_all_message
+                            : R.string.rv_unavailable_clear_message;
+                    new AlertDialog.Builder(context)
+                            .setTitle(title)
+                            .setMessage(getString(message, preview.getCount()))
+                            .setNegativeButton(R.string.cancel, null)
+                            .setPositiveButton(title, (dialog, which) -> {
+                                if (disposables == null) {
+                                    return;
+                                }
+                                final io.reactivex.rxjava3.core.Completable operation =
+                                        removeEverywhere
+                                                ? UnavailableRepository.removeAll(context, preview)
+                                                : UnavailableRepository.clear(context, preview);
+                                disposables.add(operation.observeOn(AndroidSchedulers.mainThread())
+                                        .subscribe(() -> {
+                                            if (getView() != null) {
+                                                reloadAfterDiscardingEdits();
+                                            }
+                                        }, error -> showUiErrorSnackbar(this,
+                                                "Changing Unavailable playlist", error)));
+                            }).show();
+                }, error -> showUiErrorSnackbar(this, "Reading Unavailable playlist", error)));
     }
 
     private void setInitialData(final long pid, final String title) {

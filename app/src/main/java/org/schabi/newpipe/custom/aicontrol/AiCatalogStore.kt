@@ -13,6 +13,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.schabi.newpipe.custom.library.LibraryRepository
+import org.schabi.newpipe.custom.library.UnavailableRepository
 import org.schabi.newpipe.database.AppDatabase
 import org.schabi.newpipe.database.playlist.model.PlaylistEntity
 import org.schabi.newpipe.database.playlist.model.PlaylistStreamEntity
@@ -99,6 +100,9 @@ internal class AiCatalogStore(
             }
 
             is AiCatalogCommand.CreatePlaylist -> {
+                if (command.name.trim().equals(UnavailableRepository.NAME, ignoreCase = true)) {
+                    throw AiFailure("PROTECTED_PLAYLIST_NAME")
+                }
                 val ids = resolve(command.items)
                 val id = db.playlistDAO().insert(
                     PlaylistEntity(name = command.name.trim(), isThumbnailPermanent = false, thumbnailStreamId = ids.firstOrNull() ?: -1L, displayIndex = -1)
@@ -108,13 +112,16 @@ internal class AiCatalogStore(
             }
 
             is AiCatalogCommand.RenamePlaylist -> {
-                ordinary(command.playlistId, library, command.expectedRevision)
+                ordinary(command.playlistId, library, command.expectedRevision, protectStructure = true)
+                if (command.name.trim().equals(UnavailableRepository.NAME, ignoreCase = true)) {
+                    throw AiFailure("PROTECTED_PLAYLIST_NAME")
+                }
                 sql.execSQL("UPDATE playlists SET name = ? WHERE uid = ?", arrayOf<Any>(command.name.trim(), command.playlistId))
                 writeResult(command.playlistId, 1)
             }
 
             is AiCatalogCommand.DeletePlaylist -> {
-                ordinary(command.playlistId, library, command.expectedRevision)
+                ordinary(command.playlistId, library, command.expectedRevision, protectStructure = true)
                 val memberships = scalar("SELECT COUNT(*) FROM playlist_stream_join WHERE playlist_id = ?", command.playlistId)
                 sql.execSQL("DELETE FROM playlists WHERE uid = ?", arrayOf(command.playlistId))
                 buildJsonObject {
@@ -136,7 +143,9 @@ internal class AiCatalogStore(
 
             is AiCatalogCommand.Add -> {
                 ordinary(command.playlistId, library, command.expectedRevision)
-                val added = append(command.playlistId, resolve(command.items), command.allowDuplicates)
+                val allowDuplicates = command.allowDuplicates &&
+                    command.playlistId != UnavailableRepository.boundId(db)
+                val added = append(command.playlistId, resolve(command.items), allowDuplicates)
                 writeResult(command.playlistId, added)
             }
 
@@ -170,6 +179,48 @@ internal class AiCatalogStore(
                     put("removed_memberships", removed)
                     put("source_revision", revision(command.sourcePlaylistId))
                     put("target_revision", revision(command.targetPlaylistId))
+                }
+            }
+
+            is AiCatalogCommand.MarkUnavailable -> {
+                val id = unavailableId()
+                val added = append(id, resolveSaved(command.items, library), allowDuplicates = false)
+                writeResult(id, added)
+            }
+
+            is AiCatalogCommand.MarkAvailable -> {
+                val id = unavailableId()
+                val removed = removeMemberships(id, resolveSaved(command.items, library).distinct())
+                writeResult(id, removed)
+            }
+
+            is AiCatalogCommand.ClearUnavailable -> {
+                val id = unavailableId()
+                if (command.expectedRevision != null && command.expectedRevision != revision(id)) throw AiFailure("CONFLICT")
+                val count = scalar("SELECT COUNT(*) FROM playlist_stream_join WHERE playlist_id=?", id)
+                sql.execSQL("DELETE FROM playlist_stream_join WHERE playlist_id=?", arrayOf<Any>(id))
+                refreshThumbnail(id)
+                buildJsonObject {
+                    put("removed_markings", count)
+                    put("playlist_id", id)
+                }
+            }
+
+            is AiCatalogCommand.RemoveAllUnavailable -> {
+                val id = unavailableId()
+                if (command.expectedRevision != null && command.expectedRevision != revision(id)) throw AiFailure("CONFLICT")
+                val ids = UnavailableRepository.ids(db, id)
+                if (ids.size > MAX_BULK_UNAVAILABLE) throw AiFailure("TOO_MANY_UNAVAILABLE")
+                var memberships = 0L
+                for (streamId in ids) {
+                    if (!contains(library, streamId)) throw AiFailure("LIBRARY_INCONSISTENT")
+                    memberships += scalar("SELECT COUNT(*) FROM playlist_stream_join WHERE stream_id=?", streamId)
+                    if (!LibraryRepository.removeEverywhere(db, library, streamId)) throw AiFailure("LIBRARY_INCONSISTENT")
+                }
+                buildJsonObject {
+                    put("removed_library_items", ids.size)
+                    put("removed_memberships", memberships)
+                    put("playlist_id", id)
                 }
             }
 
@@ -217,8 +268,24 @@ internal class AiCatalogStore(
         }
     }
 
-    private fun ordinary(id: Long, library: Long, expectedRevision: String?) {
+    private fun unavailableId(): Long = UnavailableRepository.boundId(db) ?: throw AiFailure("UNAVAILABLE_NOT_READY", AiOutcome.NOT_EXECUTED)
+
+    private fun ordinary(
+        id: Long,
+        library: Long,
+        expectedRevision: String?,
+        protectStructure: Boolean = false
+    ) {
         if (id == library) throw AiFailure("PROTECTED_LIBRARY")
+        if (protectStructure && (
+                id == UnavailableRepository.boundId(db) ||
+                    query("SELECT name FROM playlists WHERE uid=?", id).use {
+                        it.moveToFirst() && it.getString(0).equals(UnavailableRepository.NAME, ignoreCase = true)
+                    }
+                )
+        ) {
+            throw AiFailure("PROTECTED_UNAVAILABLE")
+        }
         if (scalar("SELECT COUNT(*) FROM playlists WHERE uid = ?", id) != 1L) throw AiFailure("PLAYLIST_NOT_FOUND")
         if (expectedRevision != null && revision(id) != expectedRevision) throw AiFailure("CONFLICT")
     }
@@ -282,6 +349,11 @@ internal class AiCatalogStore(
         LibraryRepository.refreshAutomaticThumbnail(db, playlistId)
     }
 
+    companion object {
+        /** No truncation: callers see a deterministic error if the whole list is too large. */
+        internal const val MAX_BULK_UNAVAILABLE = 5000
+    }
+
     private fun listPlaylists(command: AiCatalogCommand.ListPlaylists, library: Long): JsonObject {
         val rows = mutableListOf<JsonObject>()
         query(
@@ -297,6 +369,7 @@ internal class AiCatalogStore(
                         put("name", cursor.getString(1).orEmpty().take(200))
                         put("item_count", cursor.getLong(2))
                         put("canonical_library", cursor.getLong(0) == library)
+                        put("special_unavailable", cursor.getLong(0) == UnavailableRepository.boundId(db))
                     }
                 )
             }

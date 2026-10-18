@@ -47,6 +47,7 @@ object LibraryRepository {
 
     private fun publishSession(value: Session?) {
         session = value
+        if (value == null) UnavailableRepository.reset()
         identityChanges.onNext(Unit)
     }
 
@@ -157,6 +158,11 @@ object LibraryRepository {
         } catch (error: Throwable) {
             publishSession(null)
             throw error
+        }
+        // A collision or stale optional Unavailable binding must not make the
+        // canonical Library or the existing tagging system unusable.
+        runCatching { UnavailableRepository.ensure(db, store) }.onFailure {
+            Log.w(TAG, "Unavailable needs identity repair before marking", it)
         }
         return id
     }
@@ -438,6 +444,25 @@ object LibraryRepository {
                 "The protected Library name cannot be changed"
             }
         }
+        if (UnavailableRepository.isBound(db, playlistId) ||
+            readPlaylistName(db, playlistId) == UnavailableRepository.NAME
+        ) {
+            check(proposedName == readPlaylistName(db, playlistId)) {
+                "The Unavailable playlist cannot be renamed"
+            }
+        }
+    }
+
+    /** Allow a user to rename a same-name collision *away* from Unavailable. */
+    @JvmStatic
+    fun requireNotProtectedForRename(db: AppDatabase, playlistId: Long, name: String) {
+        check(!isLibrary(db, playlistId)) { "The canonical Library cannot be renamed" }
+        check(!UnavailableRepository.isBound(db, playlistId)) {
+            "The protected Unavailable playlist cannot be renamed"
+        }
+        check(!name.trim().equals(UnavailableRepository.NAME, ignoreCase = true)) {
+            "Unavailable is reserved for the protected playlist"
+        }
     }
 
     @JvmStatic
@@ -445,6 +470,7 @@ object LibraryRepository {
         check(!isLibrary(db, playlistId)) {
             "The protected Library cannot be renamed or deleted"
         }
+        UnavailableRepository.requireNotProtected(db, playlistId)
     }
 
     /** Called only by the ZIP restore path, after validating/staging the ZIP. */

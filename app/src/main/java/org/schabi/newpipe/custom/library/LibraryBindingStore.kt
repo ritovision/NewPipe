@@ -22,7 +22,7 @@ class LibraryBindingStore(private val databasePath: Path) {
         context.getDatabasePath(AppDatabase.DATABASE_NAME).toPath()
     )
 
-    data class Binding(val playlistId: Long, val name: String)
+    data class Binding(val playlistId: Long, val name: String, val unavailablePlaylistId: Long? = null)
 
     private val atomicFile = AtomicFile(pathForDatabase(databasePath).toFile())
 
@@ -44,7 +44,13 @@ class LibraryBindingStore(private val databasePath: Path) {
         check(id > 0 && name == LIBRARY_NAME) {
             "Invalid Library identity: unexpected ID or name"
         }
-        return Binding(id, name)
+        val unavailableValue = properties.getProperty("unavailable_playlist_id")
+        val unavailable = unavailableValue?.toLongOrNull()
+        check(unavailableValue == null || unavailable != null)
+        check(unavailable == null || unavailable > 0 && unavailable != id) {
+            "Invalid Unavailable playlist identity"
+        }
+        return Binding(id, name, unavailable)
     }
 
     fun write(binding: Binding) {
@@ -52,6 +58,7 @@ class LibraryBindingStore(private val databasePath: Path) {
         val values = Properties().apply {
             setProperty("playlist_id", binding.playlistId.toString())
             setProperty("name", binding.name)
+            binding.unavailablePlaylistId?.let { setProperty("unavailable_playlist_id", it.toString()) }
         }
         val stream = atomicFile.startWrite()
         try {

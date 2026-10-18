@@ -324,9 +324,21 @@ object TagBackupCoordinator {
         val properties = Properties().also { p -> Files.newInputStream(binding).use { p.load(it) } }
         val id = properties.getProperty("playlist_id")?.toLongOrNull()
         check(id != null && id > 0 && properties.getProperty("name") == LibraryBindingStore.LIBRARY_NAME) { "Invalid Library binding in backup" }
+        val unavailableValue = properties.getProperty("unavailable_playlist_id")
+        val unavailable = unavailableValue?.toLongOrNull()
+        check(unavailableValue == null || unavailable != null && unavailable > 0 && unavailable != id) {
+            "Invalid Unavailable identity in backup"
+        }
         SQLiteDatabase.openDatabase(database.toString(), null, SQLiteDatabase.OPEN_READONLY).use { db ->
             db.rawQuery("SELECT name FROM playlists WHERE uid=?", arrayOf(id.toString())).use { c ->
                 check(c.moveToFirst() && c.getString(0) == LibraryBindingStore.LIBRARY_NAME) { "Backup Library binding does not match its database" }
+            }
+            if (unavailable != null) {
+                db.rawQuery("SELECT name FROM playlists WHERE uid=?", arrayOf(unavailable.toString())).use { c ->
+                    check(c.moveToFirst() && c.getString(0) == org.schabi.newpipe.custom.library.UnavailableRepository.NAME) {
+                        "Backup Unavailable identity does not match its database"
+                    }
+                }
             }
         }
     }

@@ -12,6 +12,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.schabi.newpipe.custom.library.LibraryRepository
+import org.schabi.newpipe.custom.library.UnavailableRepository
 import org.schabi.newpipe.custom.tagging.StreamKey
 import org.schabi.newpipe.custom.tagging.TagFilter
 import org.schabi.newpipe.custom.tagging.TagNames
@@ -293,14 +294,44 @@ internal class AiTagExecutor(private val repository: TagRepository, private val 
 
         /** Staged before Room; only receipt-backed commits may trigger tag cleanup. */
         fun stageRemoval(repository: TagRepository, request: AiRequest) {
-            val command = request.command as? AiCatalogCommand.RemoveLibrary ?: return
+            val command = request.command
+            if (command !is AiCatalogCommand.RemoveLibrary &&
+                command !is AiCatalogCommand.RemoveAllUnavailable
+            ) {
+                return
+            }
             if (receipt(repository.library, request, request.requestId) != null) return
             val libraryId = LibraryRepository.boundLibraryId(repository.library) ?: throw AiFailure("LIBRARY_NOT_READY")
             val keys = repository.readLibraryStreams(libraryId).associateBy { it.uid }
-            val intents = command.items.distinctBy { it.streamId }.mapNotNull { ref ->
-                val row = keys[ref.streamId] ?: return@mapNotNull null
-                if (row.url != ref.url || NewPipe.getService(row.serviceId).serviceInfo.name != ref.service) throw AiFailure("STREAM_IDENTITY_MISMATCH")
-                TagStore.AiRemoval(request.deviceId, request.catalogEpoch, request.clientId, request.requestId, AiProtocol.fingerprint(request), libraryId, StreamKey(row.serviceId, row.url))
+            val selected = when (command) {
+                is AiCatalogCommand.RemoveLibrary -> command.items.distinctBy { it.streamId }.mapNotNull { ref ->
+                    val row = keys[ref.streamId] ?: return@mapNotNull null
+                    if (row.url != ref.url || NewPipe.getService(row.serviceId).serviceInfo.name != ref.service) {
+                        throw AiFailure("STREAM_IDENTITY_MISMATCH")
+                    }
+                    row
+                }
+
+                is AiCatalogCommand.RemoveAllUnavailable -> {
+                    val id = UnavailableRepository.boundId(repository.library)
+                        ?: throw AiFailure("UNAVAILABLE_NOT_READY")
+                    val items = UnavailableRepository.ids(repository.library, id)
+                    if (items.size > AiCatalogStore.MAX_BULK_UNAVAILABLE) throw AiFailure("TOO_MANY_UNAVAILABLE")
+                    items.map { streamId -> keys[streamId] ?: throw AiFailure("LIBRARY_INCONSISTENT") }
+                }
+
+                else -> emptyList()
+            }
+            val intents = selected.map { row ->
+                TagStore.AiRemoval(
+                    request.deviceId,
+                    request.catalogEpoch,
+                    request.clientId,
+                    request.requestId,
+                    AiProtocol.fingerprint(request),
+                    libraryId,
+                    StreamKey(row.serviceId, row.url)
+                )
             }
             if (intents.isNotEmpty()) repository.store.stageAiRemovals(intents)
         }

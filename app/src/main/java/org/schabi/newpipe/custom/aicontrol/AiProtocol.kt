@@ -169,6 +169,23 @@ internal sealed class AiCatalogCommand {
     @SerialName("remove_library_items")
     data class RemoveLibrary(val items: List<AiStreamRef>, @SerialName("expected_revision") val expectedRevision: String? = null) : AiCatalogCommand()
 
+    /** Mark/unmark already saved media in the verified protected Unavailable playlist. */
+    @Serializable
+    @SerialName("mark_unavailable")
+    data class MarkUnavailable(val items: List<AiStreamRef>) : AiCatalogCommand()
+
+    @Serializable
+    @SerialName("mark_available")
+    data class MarkAvailable(val items: List<AiStreamRef>) : AiCatalogCommand()
+
+    @Serializable
+    @SerialName("clear_unavailable")
+    data class ClearUnavailable(@SerialName("expected_revision") val expectedRevision: String? = null) : AiCatalogCommand()
+
+    @Serializable
+    @SerialName("remove_all_unavailable")
+    data class RemoveAllUnavailable(@SerialName("expected_revision") val expectedRevision: String? = null) : AiCatalogCommand()
+
     @Serializable
     @SerialName("get_command_result")
     data class Receipt(@SerialName("original_request_id") val originalRequestId: String) : AiCatalogCommand()
@@ -373,6 +390,14 @@ internal object AiProtocol {
                 revision(command.expectedRevision)
             }
 
+            is AiCatalogCommand.MarkUnavailable -> items(command.items)
+
+            is AiCatalogCommand.MarkAvailable -> items(command.items)
+
+            is AiCatalogCommand.ClearUnavailable -> revision(command.expectedRevision)
+
+            is AiCatalogCommand.RemoveAllUnavailable -> revision(command.expectedRevision)
+
             is AiCatalogCommand.Receipt -> requireUuid(command.originalRequestId)
         }
     }
@@ -397,7 +422,9 @@ internal object AiProtocol {
         is AiCatalogCommand.RenamePlaylist, is AiCatalogCommand.DeletePlaylist, is AiCatalogCommand.Save,
         is AiCatalogCommand.Add, is AiCatalogCommand.Remove, is AiCatalogCommand.Reorder,
         is AiCatalogCommand.Move, is AiCatalogCommand.PreviewRemoval, is AiCatalogCommand.RemoveLibrary,
-        is AiCatalogCommand.Receipt, is AiCatalogCommand.ResolveUrl, is AiCatalogCommand.SaveUrls -> false
+        is AiCatalogCommand.Receipt, is AiCatalogCommand.ResolveUrl, is AiCatalogCommand.SaveUrls,
+        is AiCatalogCommand.MarkUnavailable, is AiCatalogCommand.MarkAvailable,
+        is AiCatalogCommand.ClearUnavailable, is AiCatalogCommand.RemoveAllUnavailable -> false
     }
 
     fun requiredScopes(command: AiCatalogCommand): Set<AiScope> = when (command) {
@@ -412,7 +439,10 @@ internal object AiProtocol {
 
         is AiCatalogCommand.Save, is AiCatalogCommand.ResolveUrl -> setOf(AiScope.LIBRARY_WRITE)
 
-        is AiCatalogCommand.RemoveLibrary -> setOf(AiScope.LIBRARY_DELETE)
+        is AiCatalogCommand.RemoveLibrary, is AiCatalogCommand.RemoveAllUnavailable -> setOf(AiScope.LIBRARY_DELETE)
+
+        is AiCatalogCommand.MarkUnavailable, is AiCatalogCommand.MarkAvailable,
+        is AiCatalogCommand.ClearUnavailable -> setOf(AiScope.PLAYLIST_WRITE)
 
         is AiCatalogCommand.DeletePlaylist -> setOf(AiScope.PLAYLIST_DELETE)
 
@@ -437,7 +467,9 @@ internal object AiProtocol {
 
         is AiCatalogCommand.CreatePlaylist, is AiCatalogCommand.RenamePlaylist, is AiCatalogCommand.DeletePlaylist,
         is AiCatalogCommand.Save, is AiCatalogCommand.Add, is AiCatalogCommand.Remove, is AiCatalogCommand.Reorder,
-        is AiCatalogCommand.Move, is AiCatalogCommand.RemoveLibrary -> true
+        is AiCatalogCommand.Move, is AiCatalogCommand.RemoveLibrary,
+        is AiCatalogCommand.MarkUnavailable, is AiCatalogCommand.MarkAvailable,
+        is AiCatalogCommand.ClearUnavailable, is AiCatalogCommand.RemoveAllUnavailable -> true
 
         AiCatalogCommand.Status, AiCatalogCommand.NowPlaying, is AiCatalogCommand.ListPlaylists,
         is AiCatalogCommand.ListItems, is AiCatalogCommand.Search, is AiCatalogCommand.GetStream,

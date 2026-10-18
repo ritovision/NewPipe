@@ -90,6 +90,22 @@ public enum StreamDialogDefaultEntry {
     EDIT_TAGS(R.string.rv_edit_tags, (fragment, item) ->
             TagEditorFragment.show(fragment.getParentFragmentManager(), new StreamEntity(item))),
 
+    MARK_UNAVAILABLE(R.string.rv_mark_unavailable, (fragment, item) -> {
+        throw new UnsupportedOperationException("Set an action for this local stream");
+    }),
+
+    MARK_AVAILABLE(R.string.rv_mark_available, (fragment, item) -> {
+        throw new UnsupportedOperationException("Set an action for this local stream");
+    }),
+
+    REMOVE_FROM_THIS_PLAYLIST(R.string.rv_unavailable_remove_from_playlist, (fragment, item) -> {
+        throw new UnsupportedOperationException("Set an action for this local stream");
+    }),
+
+    REMOVE_EVERYWHERE(R.string.rv_unavailable_remove_everywhere, (fragment, item) -> {
+        throw new UnsupportedOperationException("Set an action for this local stream");
+    }),
+
     DELETE(R.string.delete, (fragment, item) -> {
         throw new UnsupportedOperationException("This needs to be implemented manually "
                 + "by using InfoItemDialog.Builder.setAction()");

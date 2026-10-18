@@ -29,6 +29,7 @@ import org.reactivestreams.Subscription;
 import org.schabi.newpipe.NewPipeDatabase;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.custom.library.LibraryRepository;
+import org.schabi.newpipe.custom.library.UnavailableRepository;
 import org.schabi.newpipe.custom.library.LibraryRepository.IdentityRepairRequiredException;
 import org.schabi.newpipe.database.AppDatabase;
 import org.schabi.newpipe.database.LocalItem;
@@ -498,11 +499,18 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
     }
 
     private boolean isProtectedLibrary(final PlaylistMetadataEntry item) {
-        return LibraryRepository.isUiProtected(NewPipeDatabase.getInstance(requireContext()),
-                item.getUid(), item.getOrderingName());
+        final AppDatabase db = NewPipeDatabase.getInstance(requireContext());
+        return LibraryRepository.isUiProtected(db, item.getUid(), item.getOrderingName())
+                || UnavailableRepository.isUiProtected(db, item.getUid(), item.getOrderingName());
     }
 
     private void showLocalDialog(final PlaylistMetadataEntry selectedItem) {
+        final AppDatabase currentDb = NewPipeDatabase.getInstance(requireContext());
+        if (UnavailableRepository.isBound(currentDb, selectedItem.getUid())) {
+            // This playlist is protected, but unlike Library it has no rebind UI here.
+            // Re-entering the Library initializer would reopen this dialog indefinitely.
+            return;
+        }
         if (isProtectedLibrary(selectedItem)) {
             if (!LibraryRepository.isBoundLibrary(
                     NewPipeDatabase.getInstance(requireContext()), selectedItem.getUid())) {
@@ -532,12 +540,22 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
         if (isThumbnailPermanent) {
             items.add(unsetThumbnail);
         }
+        final boolean canDesignateUnavailable = selectedItem.getOrderingName()
+                .trim().equalsIgnoreCase(UnavailableRepository.NAME)
+                && !UnavailableRepository.isBound(currentDb, selectedItem.getUid());
+        final String designateUnavailable = getString(R.string.rv_unavailable_rebind);
+        if (canDesignateUnavailable) {
+            items.add(designateUnavailable);
+        }
 
         final DialogInterface.OnClickListener action = (d, index) -> {
             if (items.get(index).equals(rename)) {
                 showRenameDialog(selectedItem);
             } else if (items.get(index).equals(delete)) {
                 showDeleteDialog(selectedItem.getOrderingName(), selectedItem);
+            } else if (canDesignateUnavailable
+                    && items.get(index).equals(designateUnavailable)) {
+                confirmUnavailableRebind(selectedItem);
             } else if (isThumbnailPermanent && items.get(index).equals(unsetThumbnail)) {
                 localPlaylistManager.unsetPlaylistThumbnail(selectedItem.getUid())
                         .observeOn(AndroidSchedulers.mainThread())
@@ -551,6 +569,23 @@ public final class BookmarkFragment extends BaseLocalListFragment<List<PlaylistL
 
         new AlertDialog.Builder(activity)
                 .setItems(items.toArray(new String[0]), action)
+                .show();
+    }
+
+    private void confirmUnavailableRebind(final PlaylistMetadataEntry selectedItem) {
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.rv_unavailable_rebind)
+                .setMessage(R.string.rv_unavailable_rebind_message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.rv_unavailable_rebind, (dialog, which) ->
+                        disposables.add(UnavailableRepository
+                                .rebind(requireContext(), selectedItem.getUid())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(() -> Toast.makeText(requireContext(),
+                                                R.string.rv_unavailable_rebind_success,
+                                                Toast.LENGTH_LONG).show(),
+                                        error -> showUiErrorSnackbar(this,
+                                                "Designating Unavailable playlist", error))))
                 .show();
     }
 

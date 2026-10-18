@@ -77,10 +77,13 @@ class LibraryRepositoryTest {
         val id = LibraryRepository.initialize(db, store)
 
         assertEquals(emptyList<Long>(), entries(id))
-        assertEquals(listOf("Library"), manager.playlists.blockingFirst().map { it.orderingName })
+        assertEquals(
+            listOf("Library", "Unavailable"),
+            manager.playlists.blockingFirst().map { it.orderingName }
+        )
         assertTrue(LibraryRepository.isLibrary(db, id))
         assertEquals(id, LibraryRepository.initialize(db, store))
-        assertEquals(1, manager.playlists.blockingFirst().size)
+        assertEquals(2, manager.playlists.blockingFirst().size)
     }
 
     @Test
@@ -105,7 +108,7 @@ class LibraryRepositoryTest {
         manager.appendToPlaylist(library, listOf(a, a)).test().await().assertComplete()
 
         assertEquals(listOf(uid(1, a.url)), entries(library))
-        assertEquals(1, manager.playlists.blockingFirst().size)
+        assertEquals(2, manager.playlists.blockingFirst().size)
     }
 
     @Test
@@ -179,7 +182,7 @@ class LibraryRepositoryTest {
             .test().await().assertError(IllegalStateException::class.java)
 
         assertTrue(LibraryRepository.isLibrary(db, library))
-        assertEquals(1, manager.playlists.blockingFirst().size)
+        assertEquals(2, manager.playlists.blockingFirst().size)
     }
 
     @Test
@@ -190,7 +193,7 @@ class LibraryRepositoryTest {
         val fresh = LibraryRepository.initialize(db, store)
         assertTrue(fresh != existing)
         assertFalse(LibraryRepository.isLibrary(db, existing))
-        assertEquals(2, manager.playlists.blockingFirst().size)
+        assertEquals(3, manager.playlists.blockingFirst().size)
         assertEquals(entries(existing), entries(fresh))
     }
 
@@ -308,7 +311,7 @@ class LibraryRepositoryTest {
 
         manager.updatePlaylists(listOf(wrong), emptyList()).test().await()
             .assertComplete()
-        assertEquals("Library", manager.playlists.blockingFirst().single().orderingName)
+        assertEquals("Library", manager.playlists.blockingFirst().single { it.uid == library }.orderingName)
     }
 
     @Test
@@ -416,7 +419,8 @@ class LibraryRepositoryTest {
         val library = LibraryRepository.initialize(db, store)
         val a = stream("https://example.org/duplicate-library-name")
         manager.createPlaylist("Library", listOf(a)).test().await().assertComplete()
-        val ordinary = manager.playlists.blockingFirst().single { it.uid != library }.uid
+        val ordinary = manager.playlists.blockingFirst()
+            .single { it.uid != library && it.orderingName == "Library" }.uid
         assertFalse(LibraryRepository.isUiProtected(db, ordinary, "Library"))
         assertTrue(LibraryRepository.isUiProtected(db, library, "Library"))
         assertFalse(LibraryRepository.isBoundLibrary(db, ordinary))
@@ -430,7 +434,7 @@ class LibraryRepositoryTest {
         assertEquals(1, entries(library).size)
         manager.renamePlaylist(ordinary, "Renamed duplicate").test().await().assertComplete()
         manager.updatePlaylists(emptyList(), listOf(ordinary)).test().await().assertComplete()
-        assertEquals(1, manager.playlists.blockingFirst().size)
+        assertEquals(2, manager.playlists.blockingFirst().size)
     }
 
     @Test
@@ -541,7 +545,8 @@ class LibraryRepositoryTest {
         val library = LibraryRepository.initialize(db, store)
         val a = stream("https://example.org/stale-repair")
         manager.createPlaylist("Library", listOf(a)).test().await().assertComplete()
-        val duplicate = manager.playlists.blockingFirst().single { it.uid != library }.uid
+        val duplicate = manager.playlists.blockingFirst()
+            .single { it.uid != library && it.orderingName == "Library" }.uid
         val observer = LibraryRepository.observeLibraryId(db).test()
 
         assertFalse(LibraryRepository.rebindIfStillUnbound(db, store, duplicate))

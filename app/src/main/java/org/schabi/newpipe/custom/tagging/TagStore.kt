@@ -184,6 +184,29 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
         )
     }
 
+    fun beginRemovals(keys: List<StreamKey>, libraryId: Long) = transaction { db ->
+        for (key in keys) {
+            db.insertOrThrow(
+                "removal_intent",
+                null,
+                ContentValues().apply {
+                    put("service_id", key.serviceId)
+                    put("url", key.url)
+                    put("library_id", libraryId)
+                }
+            )
+        }
+    }
+
+    fun finishRemovals(keys: List<StreamKey>) = transaction { db ->
+        for (key in keys) {
+            db.delete("assignment", "service_id=? AND url=?", key.args())
+            bumpRevision(db, key)
+            db.delete("removal_intent", "service_id=? AND url=?", key.args())
+        }
+        changed(db)
+    }
+
     fun pendingRemovals(): List<TagRemovalIntent> = readableDatabase.rawQuery(
         "SELECT service_id,url,library_id FROM removal_intent",
         null

@@ -9,6 +9,16 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/menu_item_clear_unavailable"
+        android:title="@string/rv_unavailable_clear"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_item_remove_all_unavailable"
+        android:title="@string/rv_unavailable_remove_all"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/menu_item_rename_playlist"
         android:title="@string/rename_playlist"
         app:showAsAction="never" />

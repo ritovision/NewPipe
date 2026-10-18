@@ -163,6 +163,14 @@ object LibraryBackupRestore {
         ) {
             "Invalid backup: unrecognized Library identity"
         }
+        val unavailableRaw = properties.getProperty("unavailable_playlist_id")
+        val unavailableId = unavailableRaw?.toLongOrNull()
+        check(
+            unavailableRaw == null ||
+                unavailableId != null && unavailableId > 0 && unavailableId != id
+        ) {
+            "Invalid backup: unrecognized Unavailable identity"
+        }
     }
 
     private fun restoreFile(snapshot: Path?, target: Path) {

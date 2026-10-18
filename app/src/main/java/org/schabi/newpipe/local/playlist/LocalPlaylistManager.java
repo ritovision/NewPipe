@@ -71,6 +71,15 @@ public class LocalPlaylistManager {
             if (LibraryRepository.isLibrary(database, playlistId)) {
                 return LibraryRepository.appendDirectly(database, playlistId, streamIds);
             }
+            // Unavailable is a set of saved streams, not a playlist of repeated copies.
+            if (org.schabi.newpipe.custom.library.UnavailableRepository.isBound(
+                    database, playlistId)) {
+                final List<Long> missing = streamIds.stream().distinct()
+                        .filter(id -> !org.schabi.newpipe.custom.library.UnavailableRepository
+                                .isMarked(database, id)).toList();
+                return insertJoinEntities(playlistId, missing,
+                        LibraryRepository.nextJoinIndex(database, playlistId));
+            }
             // Derive the next position *inside* the same transaction as insertion.
             final List<Long> inserted = insertJoinEntities(playlistId, streamIds,
                     LibraryRepository.nextJoinIndex(database, playlistId));
@@ -150,9 +159,12 @@ public class LocalPlaylistManager {
         if (!LibraryRepository.rewriteLibraryWithoutRemoving(database, playlistId, streamIds)) {
             final List<Long> safeIds = LibraryRepository.filterStaleOrdinaryUpdate(
                     database, playlistId, streamIds);
-            final List<PlaylistStreamEntity> joinEntities = new ArrayList<>(safeIds.size());
-            for (int i = 0; i < safeIds.size(); i++) {
-                joinEntities.add(new PlaylistStreamEntity(playlistId, safeIds.get(i), i));
+            final List<Long> uniqueIds =
+                    org.schabi.newpipe.custom.library.UnavailableRepository.isBound(
+                            database, playlistId) ? safeIds.stream().distinct().toList() : safeIds;
+            final List<PlaylistStreamEntity> joinEntities = new ArrayList<>(uniqueIds.size());
+            for (int i = 0; i < uniqueIds.size(); i++) {
+                joinEntities.add(new PlaylistStreamEntity(playlistId, uniqueIds.get(i), i));
             }
             playlistStreamTable.deleteBatch(playlistId);
             playlistStreamTable.insertAll(joinEntities);
@@ -260,7 +272,7 @@ public class LocalPlaylistManager {
         return Maybe.fromCallable(() -> TagRuntime.mutate(database,
                 () -> database.runInTransaction(() -> {
             if (name != null) {
-                LibraryRepository.requireNotLibrary(database, playlistId);
+                LibraryRepository.requireNotProtectedForRename(database, playlistId, name);
                 try (SupportSQLiteStatement statement = database.getOpenHelper()
                         .getWritableDatabase().compileStatement(
                                 "UPDATE playlists SET name = ? WHERE uid = ?")) {

@@ -19,7 +19,7 @@ import org.schabi.newpipe.extractor.stream.StreamType
 class TagRepository(
     val library: AppDatabase,
     internal val store: TagStore,
-    private val binding: LibraryBindingStore
+    internal val binding: LibraryBindingStore
 ) {
     @Volatile private var invalidated = false
     internal fun invalidate() {
@@ -117,6 +117,33 @@ class TagRepository(
             store.finishRemoval(key)
             TagRuntime.changed()
         }
+    }
+
+    /**
+     * Confirmed native bulk removal: all Room playlist deletions commit as one
+     * transaction; durable tag intents complete cleanup after a process death.
+     */
+    fun removeUnavailableEverywhere(expected: org.schabi.newpipe.custom.library.UnavailableRepository.Preview) = access { libraryId ->
+        val unavailable = org.schabi.newpipe.custom.library.UnavailableRepository
+        unavailable.ensure(library, binding)
+        unavailable.verify(library, expected)
+        val byId = readLibraryStreams(libraryId).associateBy { it.uid }
+        val keys = expected.items.map { id ->
+            val stream = byId[id] ?: error("The marked video is no longer in Library")
+            StreamKey(stream.serviceId, stream.url)
+        }
+        store.beginRemovals(keys, libraryId)
+        // Interrupted work is resumed by recoverPending() before later mutations.
+        library.runInTransaction {
+            unavailable.verify(library, expected)
+            for (id in expected.items) {
+                check(LibraryRepository.removeEverywhere(library, libraryId, id)) {
+                    "The marked video is no longer saved"
+                }
+            }
+        }
+        store.finishRemovals(keys)
+        TagRuntime.changed()
     }
 
     fun snapshot(): Snapshot = access { libraryId ->

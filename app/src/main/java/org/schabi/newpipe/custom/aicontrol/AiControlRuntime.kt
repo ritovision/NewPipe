@@ -494,7 +494,7 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
         val CAPABILITIES = listOf(
             "get_catalog_status", "list_playlists", "list_playlist_items", "search_library", "get_stream", "create_playlist", "rename_playlist", "delete_playlist",
             "save_to_library", "add_to_playlist", "remove_from_playlist", "reorder_playlist_items", "move_items_between_playlists", "preview_library_removal",
-            "remove_library_items", "get_command_result", "get_now_playing", "pause", "resume", "skip_if_current", "resolve_stream_url", "save_urls", "play_items", "append_to_queue"
+            "remove_library_items", "mark_unavailable", "mark_available", "clear_unavailable", "remove_all_unavailable", "get_command_result", "get_now_playing", "pause", "resume", "skip_if_current", "resolve_stream_url", "save_urls", "play_items", "append_to_queue"
         ) + AiTagProtocol.capabilities
     }
 }
