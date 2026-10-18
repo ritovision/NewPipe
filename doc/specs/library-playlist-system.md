@@ -89,7 +89,8 @@ For imports/restore: re-identify the Library playlist, backfill imports, and res
 - **Same recording on different services:** Treat different uploads as different stream identities unless the user explicitly links/replaces them.
 - **History/subscriptions:** Not automatically included unless the user saves them. “Watched/played” does not mean “saved.”
 - **Tagging:** Tags belong to our separate metadata layer, associated with saved stream identities, not to a specific playlist.
-- **Pruning:** The deferred [Pruning and Library Health proposal](../potential-features/pruning-library-health.md) follows the same global-removal invariant.
+- **Manual Unavailable list (next feature):** The agreed [Unavailable Playlist specification](unavailable-playlist.md) makes a second protected playlist a subset of canonical Library. Mark/unmark changes only its membership; global removal still removes everywhere.
+- **Automatic Pruning:** The older [Pruning and Library Health proposal](../potential-features/pruning-library-health.md) remains deferred and is not part of the manual Unavailable implementation.
 
 ## Acceptance examples / tests
 

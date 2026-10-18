@@ -1,6 +1,8 @@
 # Pruning — Library Health and AI-Assisted Repair
 
-**Status:** Deferred feature proposal — planning only; not approved for implementation
+> **Historical / superseded for the next milestone (2026-10-17):** The owner chose a simpler [Unavailable Playlist — Manual Marking and Global Cleanup](../specs/unavailable-playlist.md) instead. No automatic availability scanner, YouTube API, thumbnail monitoring, or replacement engine is approved. The proposal below is retained as exploratory history only, not the implementation plan.
+
+**Status:** Deferred historical feature proposal — planning only; not approved for implementation
 **Priority:** Low / backlog
 **Proposed navigation:** NewPipe main menu → Pruning
 **Created:** 2026-10-15
