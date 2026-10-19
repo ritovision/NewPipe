@@ -302,6 +302,7 @@ object TagBackupCoordinator {
             integrity { db.query(it) }
             check(structure { db.query(it) } == structure { expected.openHelper.writableDatabase.query(it) }) { "Backup schema does not match the supported catalog" }
             db.execSQL("DELETE FROM rv_ai_command_receipts")
+            db.execSQL("DELETE FROM rv_cloud_apply_receipt")
         } finally {
             copy.close()
             expected.close()

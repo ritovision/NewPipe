@@ -12,6 +12,8 @@ import androidx.room.TypeConverters
 import org.schabi.newpipe.custom.aicontrol.AiCommandReceipt
 import org.schabi.newpipe.custom.aicontrol.AiCommandReceiptDao
 import org.schabi.newpipe.custom.aicontrol.RitoVisionDatabaseVersion
+import org.schabi.newpipe.custom.cloud.CloudApplyReceipt
+import org.schabi.newpipe.custom.cloud.CloudApplyReceiptDao
 import org.schabi.newpipe.database.feed.dao.FeedDAO
 import org.schabi.newpipe.database.feed.dao.FeedGroupDAO
 import org.schabi.newpipe.database.feed.model.FeedEntity
@@ -55,6 +57,7 @@ import org.schabi.newpipe.database.subscription.SubscriptionEntity
     ]
 )
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun cloudApplyReceiptDao(): CloudApplyReceiptDao
     abstract fun aiCommandReceiptDao(): AiCommandReceiptDao
     abstract fun feedDAO(): FeedDAO
     abstract fun feedGroupDAO(): FeedGroupDAO

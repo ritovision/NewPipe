@@ -12,6 +12,7 @@ import androidx.room.RoomDatabase
 import kotlin.concurrent.Volatile
 import kotlin.concurrent.withLock
 import org.schabi.newpipe.custom.aicontrol.AiDatabaseMigration
+import org.schabi.newpipe.custom.cloud.CloudDatabaseMigration
 import org.schabi.newpipe.custom.tagging.CatalogOpenHelperFactory
 import org.schabi.newpipe.custom.tagging.TagRuntime
 import org.schabi.newpipe.database.AppDatabase
@@ -48,7 +49,8 @@ object NewPipeDatabase {
             MIGRATION_6_7,
             MIGRATION_7_8,
             MIGRATION_8_9,
-            AiDatabaseMigration.FROM_UPSTREAM_9
+            AiDatabaseMigration.FROM_UPSTREAM_9,
+            CloudDatabaseMigration.FROM_9001
         )
         if (guarded) {
             builder.openHelperFactory(CatalogOpenHelperFactory(context.getDatabasePath(AppDatabase.DATABASE_NAME).toPath().parent))

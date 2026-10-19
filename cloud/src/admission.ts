@@ -147,3 +147,9 @@ export async function resolveOrRetire(db: D1Database, c: AdmissionContext, seque
 export function nextCounter(value: string): string {
   const n = counter(value); if (n === MAX_COUNTER) fail("COUNTER_EXHAUSTED"); return String(n + 1n);
 }
+
+
+/** Authenticated receipt resolution before an expensive transfer/publish; never accepts caller auth fields over HTTP. */
+export async function inspectOperation(db: D1Database, context: AdmissionContext, sequence: string, digest: string): Promise<Receipt | null> {
+  return beforeAttempt(db, context, sequence, digest);
+}

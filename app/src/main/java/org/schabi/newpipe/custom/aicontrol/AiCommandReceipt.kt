@@ -57,7 +57,7 @@ interface AiCommandReceiptDao {
 object AiDatabaseMigration {
     val FROM_UPSTREAM_9 = Migration(
         RitoVisionDatabaseVersion.UPSTREAM_SCHEMA,
-        RitoVisionDatabaseVersion.CURRENT
+        RitoVisionDatabaseVersion.AI_SCHEMA
     ) { db ->
         db.execSQL(
             """
