@@ -128,7 +128,7 @@ class TagBackupIntegrationTest {
         assertEquals(setOf(tag), repository.editor(key(a)).assigned)
         assertEquals(listOf(b.uid, a.uid), db.playlistStreamDAO().getOrderedStreamsOf(playlist).blockingFirst().map { it.streamId })
         assertEquals(
-            9001,
+            org.schabi.newpipe.custom.aicontrol.RitoVisionDatabaseVersion.CURRENT,
             db.openHelper.readableDatabase.query("PRAGMA user_version").use {
                 it.moveToFirst()
                 it.getInt(0)
@@ -265,6 +265,9 @@ class TagBackupIntegrationTest {
             old.execSQL("DROP TABLE ai_removal_intent")
             old.execSQL("DROP TABLE native_bulk_intent")
             // Build a genuine historical fixture, not a v4 DB mislabeled as v1.
+            old.execSQL("DROP TABLE cloud_apply_payload")
+            old.execSQL("DROP TABLE cloud_apply_pending")
+            old.execSQL("DROP TABLE cloud_sync_baseline")
             old.execSQL("DROP TABLE cloud_catalog_identity")
             old.execSQL("DROP TABLE cloud_catalog_context")
             old.version = 1
@@ -284,6 +287,9 @@ class TagBackupIntegrationTest {
         android.database.sqlite.SQLiteDatabase.openDatabase(target.toString(), null, 0).use { old ->
             old.execSQL("DROP TABLE native_bulk_intent")
             // Build a genuine historical fixture, not a v4 DB mislabeled as v2.
+            old.execSQL("DROP TABLE cloud_apply_payload")
+            old.execSQL("DROP TABLE cloud_apply_pending")
+            old.execSQL("DROP TABLE cloud_sync_baseline")
             old.execSQL("DROP TABLE cloud_catalog_identity")
             old.execSQL("DROP TABLE cloud_catalog_context")
             old.version = 2
@@ -348,7 +354,7 @@ class TagBackupIntegrationTest {
                 assertEquals(0, cursor.getInt(1))
             }
             assertEquals(
-                9001,
+                org.schabi.newpipe.custom.aicontrol.RitoVisionDatabaseVersion.CURRENT,
                 db.openHelper.readableDatabase.query("PRAGMA user_version").use {
                     it.moveToFirst()
                     it.getInt(0)

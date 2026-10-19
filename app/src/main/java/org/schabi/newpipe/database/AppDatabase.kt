@@ -53,7 +53,8 @@ import org.schabi.newpipe.database.subscription.SubscriptionEntity
         FeedGroupEntity::class,
         FeedGroupSubscriptionEntity::class,
         FeedLastUpdatedEntity::class,
-        AiCommandReceipt::class
+        AiCommandReceipt::class,
+        CloudApplyReceipt::class
     ]
 )
 abstract class AppDatabase : RoomDatabase() {

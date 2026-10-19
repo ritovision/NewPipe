@@ -34,6 +34,8 @@ internal class CloudNativeSnapshot(
     val nativeIds: Map<NativeId, String>,
     val hints: Map<CloudKey, CloudMediaHint>,
     val orphaned: List<CloudOrphanAssignment>,
+    val tagRevision: Long,
+    val runtimeGeneration: Long,
     canonical: ByteArray
 ) {
     private val bytes = canonical.copyOf()
@@ -72,92 +74,112 @@ internal class CloudNativeCatalog(
             val main = repository.library.openHelper.writableDatabase
             val tags = repository.store.writableDatabase
             check(!main.inTransaction() && !tags.inTransaction()) { "CLOUD_CAPTURE_NESTED_TRANSACTION" }
+            CloudNativeApply.recoverLocked(repository)
             repository.library.runInTransaction(
                 Callable {
                     repository.store.transaction { side ->
-                        requireNoPendingRecovery(side)
-                        val binding = repository.binding.read() ?: error("IDENTITY_REPAIR_REQUIRED")
-                        val unavailable = binding.unavailablePlaylistId ?: error("IDENTITY_REPAIR_REQUIRED")
-                        val oldContext = CloudIdentityStore.context(side)
-                        if (enrollment) {
-                            check(oldContext == null) { "CLOUD_ALREADY_ENROLLED" }
-                        } else {
-                            check(oldContext != null) { "CLOUD_ENROLLMENT_REQUIRED" }
-                            check(oldContext.scope == scope) { "CLOUD_SCOPE_MISMATCH" }
-                            check(oldContext.incarnation == expectedIncarnation) { "CLOUD_INCARNATION_CHANGED" }
-                            check(binding.cloudIncarnation == oldContext.incarnation) { "CLOUD_MAIN_DATABASE_CHANGED" }
-                        }
-                        val sequence = playlistSequence(main)
-                        check(enrollment || sequence >= checkNotNull(binding.cloudPlaylistSequence)) { "CLOUD_PLAYLIST_SEQUENCE_REGRESSED" }
-                        val playlists = readPlaylists(main, setOf(binding.playlistId, unavailable))
-                        check(
-                            playlists.singleOrNull { it.id == binding.playlistId }?.name == LibraryBindingStore.LIBRARY_NAME &&
-                                playlists.singleOrNull { it.id == unavailable }?.name == UnavailableRepository.NAME
-                        ) { "IDENTITY_REPAIR_REQUIRED" }
-                        val ordinary = playlists.filter { it.id != binding.playlistId && it.id != unavailable }
-                        check(ordinary.size <= CloudCatalogCodec.MAX_PLAYLISTS) { "NATIVE_PLAYLIST_LIMIT" }
-                        check(ordinary.none { UnavailableRepository.isReservedName(it.name) }) { "IDENTITY_REPAIR_REQUIRED" }
-                        val hints = LinkedHashMap<CloudKey, CloudMediaHint>()
-                        val memberships = readMemberships(main, playlists.mapTo(HashSet()) { it.id }, hints)
-                        val categories = readCategories(side)
-                        val definitions = readTags(side)
-                        val assignments = readAssignments(side)
-                        val active = buildSet {
-                            ordinary.forEach { add(NativeId(Kind.PLAYLIST, it.id)) }
-                            categories.forEach { add(NativeId(Kind.CATEGORY, it.id)) }
-                            definitions.forEach { add(NativeId(Kind.TAG, it.id)) }
-                        }
-                        val (context, map) = CloudIdentityStore.reconcile(
-                            side,
-                            scope,
-                            binding.playlistId,
-                            unavailable,
-                            expectedIncarnation,
-                            active,
-                            enrollment
-                        )
-                        fun portable(kind: Kind, id: Long): String = map[NativeId(kind, id)] ?: error("NATIVE_REFERENCE_MISSING")
-                        val library = memberships[binding.playlistId].orEmpty()
-                        val saved = library.toHashSet()
-                        val byKey = assignments.groupBy { it.key }
-                        val catalog = CloudCatalog(
-                            library = library,
-                            unavailable = memberships[unavailable].orEmpty(),
-                            playlists = ordinary.map { p ->
-                                CloudPlaylist(portable(Kind.PLAYLIST, p.id), p.name, p.artwork, memberships[p.id].orEmpty())
-                            },
-                            categories = categories.map { CloudCategory(portable(Kind.CATEGORY, it.id), it.name, it.nameKey) },
-                            tags = definitions.map { CloudTag(portable(Kind.TAG, it.id), it.name, it.nameKey, it.categoryId?.let { id -> portable(Kind.CATEGORY, id) }) },
-                            assignments = byKey.filterKeys { it in saved }.map { (key, values) ->
-                                CloudAssignment(key, values.map { portable(Kind.TAG, it.tagId) }.sorted())
-                            }
-                        )
-                        val validated = CloudCatalogCodec.snapshot(catalog)
-                        val canonical = CloudCatalogCodec.canonicalBytes(validated)
-                        val orphans = byKey.filterKeys { it !in saved }.map { (key, values) ->
-                            CloudOrphanAssignment(key, values.map { portable(Kind.TAG, it.tagId) }.sorted())
-                        }.sortedWith(compareBy<CloudOrphanAssignment> { it.key.service }.thenBy { it.key.url })
-                        // Re-read persisted role file: supported binding writers also hold TagRuntime.lock.
-                        check(repository.binding.read() == binding) { "CLOUD_BINDING_CHANGED" }
-                        // Persist the file anchor before the tag transaction can commit. A failed
-                        // commit may leave an unclaimed marker, never trusted old mappings.
-                        val anchored = binding.copy(cloudIncarnation = context.incarnation, cloudPlaylistSequence = sequence)
-                        if (anchored != binding) {
-                            repository.binding.write(anchored)
-                            check(repository.binding.read() == anchored) { "CLOUD_BINDING_WRITE_FAILED" }
-                        }
-                        afterBindingPersisted?.invoke()
-                        CloudNativeSnapshot(validated, context, map.toMap(), hints.toMap(), orphans, canonical)
+                        captureCore(scope, expectedIncarnation, enrollment, main, side)
                     }
                 }
             )
         }
     }
 
+    /** The apply coordinator already owns both writer transactions; validation sees staged tag edits. */
+    internal fun verifyAppliedInTransaction(scope: CloudIdentityStore.Scope, incarnation: String): CloudNativeSnapshot {
+        check(TagRuntime.lock.isHeldByCurrentThread) { "CLOUD_APPLY_BARRIER_REQUIRED" }
+        val main = repository.library.openHelper.writableDatabase
+        val side = repository.store.writableDatabase
+        check(main.inTransaction() && side.inTransaction()) { "CLOUD_APPLY_TRANSACTION_REQUIRED" }
+        return captureCore(scope, incarnation, false, main, side)
+    }
+
+    private fun captureCore(
+        scope: CloudIdentityStore.Scope,
+        expectedIncarnation: String?,
+        enrollment: Boolean,
+        main: SupportSQLiteDatabase,
+        side: SQLiteDatabase
+    ): CloudNativeSnapshot {
+        requireNoPendingRecovery(side)
+        val binding = repository.binding.read() ?: error("IDENTITY_REPAIR_REQUIRED")
+        val unavailable = binding.unavailablePlaylistId ?: error("IDENTITY_REPAIR_REQUIRED")
+        val oldContext = CloudIdentityStore.context(side)
+        if (enrollment) {
+            check(oldContext == null) { "CLOUD_ALREADY_ENROLLED" }
+        } else {
+            check(oldContext != null) { "CLOUD_ENROLLMENT_REQUIRED" }
+            check(oldContext.scope == scope) { "CLOUD_SCOPE_MISMATCH" }
+            check(oldContext.incarnation == expectedIncarnation) { "CLOUD_INCARNATION_CHANGED" }
+            check(binding.cloudIncarnation == oldContext.incarnation) { "CLOUD_MAIN_DATABASE_CHANGED" }
+        }
+        val sequence = playlistSequence(main)
+        check(enrollment || sequence >= checkNotNull(binding.cloudPlaylistSequence)) { "CLOUD_PLAYLIST_SEQUENCE_REGRESSED" }
+        val playlists = readPlaylists(main, setOf(binding.playlistId, unavailable))
+        check(
+            playlists.singleOrNull { it.id == binding.playlistId }?.name == LibraryBindingStore.LIBRARY_NAME &&
+                playlists.singleOrNull { it.id == unavailable }?.name == UnavailableRepository.NAME
+        ) { "IDENTITY_REPAIR_REQUIRED" }
+        val ordinary = playlists.filter { it.id != binding.playlistId && it.id != unavailable }
+        check(ordinary.size <= CloudCatalogCodec.MAX_PLAYLISTS) { "NATIVE_PLAYLIST_LIMIT" }
+        check(ordinary.none { UnavailableRepository.isReservedName(it.name) }) { "IDENTITY_REPAIR_REQUIRED" }
+        val hints = LinkedHashMap<CloudKey, CloudMediaHint>()
+        val memberships = readMemberships(main, playlists.mapTo(HashSet()) { it.id }, hints)
+        val categories = readCategories(side)
+        val definitions = readTags(side)
+        val assignments = readAssignments(side)
+        val active = buildSet {
+            ordinary.forEach { add(NativeId(Kind.PLAYLIST, it.id)) }
+            categories.forEach { add(NativeId(Kind.CATEGORY, it.id)) }
+            definitions.forEach { add(NativeId(Kind.TAG, it.id)) }
+        }
+        val (context, map) = CloudIdentityStore.reconcile(
+            side,
+            scope,
+            binding.playlistId,
+            unavailable,
+            expectedIncarnation,
+            active,
+            enrollment
+        )
+        fun portable(kind: Kind, id: Long): String = map[NativeId(kind, id)] ?: error("NATIVE_REFERENCE_MISSING")
+        val library = memberships[binding.playlistId].orEmpty()
+        val saved = library.toHashSet()
+        val byKey = assignments.groupBy { it.key }
+        val catalog = CloudCatalog(
+            library = library,
+            unavailable = memberships[unavailable].orEmpty(),
+            playlists = ordinary.map { p ->
+                CloudPlaylist(portable(Kind.PLAYLIST, p.id), p.name, p.artwork, memberships[p.id].orEmpty())
+            },
+            categories = categories.map { CloudCategory(portable(Kind.CATEGORY, it.id), it.name, it.nameKey) },
+            tags = definitions.map { CloudTag(portable(Kind.TAG, it.id), it.name, it.nameKey, it.categoryId?.let { id -> portable(Kind.CATEGORY, id) }) },
+            assignments = byKey.filterKeys { it in saved }.map { (key, values) ->
+                CloudAssignment(key, values.map { portable(Kind.TAG, it.tagId) }.sorted())
+            }
+        )
+        val validated = CloudCatalogCodec.snapshot(catalog)
+        val canonical = CloudCatalogCodec.canonicalBytes(validated)
+        val orphans = byKey.filterKeys { it !in saved }.map { (key, values) ->
+            CloudOrphanAssignment(key, values.map { portable(Kind.TAG, it.tagId) }.sorted())
+        }.sortedWith(compareBy<CloudOrphanAssignment> { it.key.service }.thenBy { it.key.url })
+        // Re-read persisted role file: supported binding writers also hold TagRuntime.lock.
+        check(repository.binding.read() == binding) { "CLOUD_BINDING_CHANGED" }
+        // Persist the file anchor before the tag transaction can commit. A failed
+        // commit may leave an unclaimed marker, never trusted old mappings.
+        val anchored = binding.copy(cloudIncarnation = context.incarnation, cloudPlaylistSequence = sequence)
+        if (anchored != binding) {
+            repository.binding.write(anchored)
+            check(repository.binding.read() == anchored) { "CLOUD_BINDING_WRITE_FAILED" }
+        }
+        afterBindingPersisted?.invoke()
+        return CloudNativeSnapshot(validated, context, map.toMap(), hints.toMap(), orphans, repository.store.version(), TagRuntime.generation, canonical)
+    }
+
     private fun requireNoPendingRecovery(db: SQLiteDatabase) {
         db.rawQuery(
             "SELECT EXISTS(SELECT 1 FROM removal_intent) OR EXISTS(SELECT 1 FROM ai_removal_intent) " +
-                "OR EXISTS(SELECT 1 FROM native_bulk_intent)",
+                "OR EXISTS(SELECT 1 FROM native_bulk_intent) OR EXISTS(SELECT 1 FROM cloud_apply_pending)",
             null
         ).use { c ->
             check(c.moveToFirst() && c.getInt(0) == 0) { "APPLY_RECOVERY_REQUIRED" }

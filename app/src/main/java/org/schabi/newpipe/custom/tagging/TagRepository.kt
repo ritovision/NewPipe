@@ -47,6 +47,8 @@ class TagRepository(
     internal fun recoverPending(): Long {
         TagRuntime.assertAvailable()
         check(!invalidated) { "This Library was closed or replaced. Restart the app." }
+        // Resolve an already-committed cloud write before any native/AI cleanup can act.
+        org.schabi.newpipe.custom.cloud.CloudNativeApply.recoverLocked(this)
         val libraryId = LibraryRepository.initialize(library, binding)
         for (intent in store.pendingAiRemovals()) {
             // A same-database receipt proves the old deletion commit even after a user

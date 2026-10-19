@@ -12,7 +12,10 @@ import uuid
 from pathlib import Path
 
 QA_PACKAGE = "org.schabi.newpipe.debug.featurecloudsyncv120261019"
-CLASSES = {"identity": "CloudIdentityProcessDeathTest", "enrollment": "CloudEnrollmentProcessDeathTest"}
+CLASSES = {"identity": "CloudIdentityProcessDeathTest", "enrollment": "CloudEnrollmentProcessDeathTest",
+           "apply-before-room": "CloudApplyProcessDeathTest", "apply-after-room": "CloudApplyProcessDeathTest",
+           "apply-before-tags": "CloudApplyProcessDeathTest"}
+APPLY_PHASES = {"apply-before-room": "BEFORE_ROOM_COMMIT", "apply-after-room": "ROOM_COMMITTED", "apply-before-tags": "BEFORE_TAG_COMMIT"}
 
 
 def main() -> None:
@@ -51,12 +54,13 @@ def main() -> None:
         raise RuntimeError("Expected isolated QA instrumentation is not installed")
     run("shell", "run-as", args.package, "--user", str(args.user), "pwd")
     token = "probe-" + uuid.uuid4().hex[:20]
-    directory = f"cache/cloud-{args.suite}-probe-{token}"
+    directory = f"cache/cloud-{'apply' if args.suite in APPLY_PHASES else args.suite}-probe-{token}"
     klass = "org.schabi.newpipe.custom.cloud." + CLASSES[args.suite]
     base_command = adb + ["shell", "am", "instrument", "--user", str(args.user), "-w", "-r"]
 
     def command(method: str) -> list[str]:
-        return base_command + ["-e", "class", klass + "#" + method, "-e", "cloudProbe", token, runner]
+        extra = ["-e", "cloudPhase", APPLY_PHASES[args.suite]] if args.suite in APPLY_PHASES else []
+        return base_command + ["-e", "class", klass + "#" + method, "-e", "cloudProbe", token] + extra + [runner]
 
     def phase(method: str, name: str) -> None:
         result = subprocess.run(command(method), capture_output=True, text=True, timeout=100)
@@ -102,8 +106,9 @@ def main() -> None:
         "serial": args.serial, "avd": args.avd, "android_user": args.user,
         "package": args.package, "probe": token, "killed_pid": killed_pid,
         "actual_host_force_stop": True, "verified_marker": verified,
-        "scope": "single tag-map transaction" if args.suite == "identity" else "binding durable before tag enrollment commit",
-        "not_full_cloud_apply_recovery": True,
+        "scope": APPLY_PHASES.get(args.suite, "single tag-map transaction" if args.suite == "identity" else "binding durable before tag enrollment commit"),
+        "native_apply_recovery_tested": args.suite in APPLY_PHASES,
+        "not_network_or_power_loss_recovery": True,
         "logs": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in args.output.glob("*.log")},
     }
     (args.output / "results.json").write_text(json.dumps(result, indent=2) + "\n")

@@ -23,7 +23,7 @@ class AiDatabaseMigrationTest {
             db.execSQL("INSERT INTO playlists(uid, name, is_thumbnail_permanent, thumbnail_stream_id, display_index) VALUES(5, 'Synthetic', 0, 1, 0)")
             db.execSQL("INSERT INTO playlist_stream_join(playlist_id, stream_id, join_index) VALUES(5, 1, 0)")
         }
-        helper.runMigrationsAndValidate(name, RitoVisionDatabaseVersion.CURRENT, true, AiDatabaseMigration.FROM_UPSTREAM_9).use { db ->
+        helper.runMigrationsAndValidate(name, RitoVisionDatabaseVersion.CURRENT, true, AiDatabaseMigration.FROM_UPSTREAM_9, org.schabi.newpipe.custom.cloud.CloudDatabaseMigration.FROM_9001).use { db ->
             db.query("SELECT title FROM streams WHERE uid = 1").use { cursor ->
                 assertTrue(cursor.moveToFirst())
                 assertEquals("Synthetic", cursor.getString(0))
@@ -38,7 +38,7 @@ class AiDatabaseMigrationTest {
             }
             db.query("PRAGMA user_version").use { cursor ->
                 assertTrue(cursor.moveToFirst())
-                assertEquals(9001, cursor.getInt(0))
+                assertEquals(RitoVisionDatabaseVersion.CURRENT, cursor.getInt(0))
             }
         }
     }

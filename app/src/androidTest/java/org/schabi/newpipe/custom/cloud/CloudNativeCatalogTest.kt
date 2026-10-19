@@ -467,15 +467,20 @@ class CloudNativeCatalogTest {
     }
 
     @Test fun schemaOneTwoThreeUpgradePreservesDefinitionsAndAssignments() {
-        for (version in 1..3) {
+        for (version in 1..4) {
             val path = dir.resolve("legacy-$version.db").toString()
             TagStore(context, path).use { store ->
                 val category = store.createCategory("Genre")
                 val tag = store.createTag("Keep", category)
                 store.setTags(StreamKey(0, "https://example.test/legacy"), setOf(tag), 0)
                 val raw = store.writableDatabase
-                raw.execSQL("DROP TABLE cloud_catalog_identity")
-                raw.execSQL("DROP TABLE cloud_catalog_context")
+                raw.execSQL("DROP TABLE cloud_apply_payload")
+                raw.execSQL("DROP TABLE cloud_apply_pending")
+                raw.execSQL("DROP TABLE cloud_sync_baseline")
+                if (version < 4) {
+                    raw.execSQL("DROP TABLE cloud_catalog_identity")
+                    raw.execSQL("DROP TABLE cloud_catalog_context")
+                }
                 if (version < 3) raw.execSQL("DROP TABLE native_bulk_intent")
                 if (version < 2) {
                     raw.execSQL("DROP TABLE ai_removal_intent")
@@ -484,7 +489,7 @@ class CloudNativeCatalogTest {
                 raw.version = version
             }
             TagStore(context, path).use { restored ->
-                assertEquals(4, restored.writableDatabase.version)
+                assertEquals(TagStore.SCHEMA_VERSION, restored.writableDatabase.version)
                 assertEquals("Genre", restored.definitions().categories.single().name)
                 assertEquals("Keep", restored.definitions().tags.single().name)
                 assertEquals(1, restored.assigned(StreamKey(0, "https://example.test/legacy")).size)
@@ -548,7 +553,7 @@ class CloudNativeCatalogTest {
         assertEquals(tagRevision, repository.store.version())
         assertEquals(7, mapCount())
         assertEquals(
-            9001,
+            org.schabi.newpipe.custom.aicontrol.RitoVisionDatabaseVersion.CURRENT,
             db.openHelper.readableDatabase.query("PRAGMA user_version").use {
                 it.moveToFirst()
                 it.getInt(0)
@@ -694,6 +699,9 @@ class CloudNativeCatalogTest {
         val legacyTags = dir.resolve("legacy-v3-tags.db")
         TagRuntime.lock.withLock { TagBackupCoordinator.snapshotTag(repository.store, legacyTags) }
         SQLiteDatabase.openDatabase(legacyTags.toString(), null, SQLiteDatabase.OPEN_READWRITE).use { legacy ->
+            legacy.execSQL("DROP TABLE cloud_apply_payload")
+            legacy.execSQL("DROP TABLE cloud_apply_pending")
+            legacy.execSQL("DROP TABLE cloud_sync_baseline")
             legacy.execSQL("DROP TABLE cloud_catalog_identity")
             legacy.execSQL("DROP TABLE cloud_catalog_context")
             legacy.version = 3

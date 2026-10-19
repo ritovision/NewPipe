@@ -1,0 +1,39 @@
+// Dedicated NewPipe catalog service. No Music/AI relay or R2 binding.
+// API stays disabled by default; explicit small QA activation is separate from release.
+{
+  "name": "newpipe-cloud-sync-v1",
+  "main": "src/index.ts",
+  "account_id": "b35814b119cba4448e3e0ac59442cc25",
+  "compatibility_date": "2026-10-19",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": {
+    "PUBLIC_ORIGIN": "https://newpipe-cloud-sync-v1.ritorhymes.workers.dev",
+    "LIBRARY_ID": "newpipe-library-v1",
+    "SERVICE_GENERATION": "d124175c-82e8-4fb7-9534-b62b6c9f0eba",
+    "ENABLE_CATALOG_API": "false",
+    "MAX_CATALOG_BYTES": "65536",
+    "MAX_CATALOG_PAGES": "8"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "newpipe-cloud-sync-v1",
+      "database_id": "bde936ac-caa7-42bb-a931-208118a8cd6a",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "REQUEST_LIMITER",
+      "namespace_id": "2026101901",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
+  ],
+  "observability": {
+    "enabled": false
+  }
+}

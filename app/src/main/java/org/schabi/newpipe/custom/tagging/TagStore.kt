@@ -14,7 +14,7 @@ import org.schabi.newpipe.custom.aicontrol.AiCommandReceipt
 class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(context, name, null, SCHEMA_VERSION) {
     companion object {
         const val FILE_NAME = "ritovision-tags.db"
-        const val SCHEMA_VERSION = 4
+        const val SCHEMA_VERSION = 5
     }
 
     override fun onConfigure(db: SQLiteDatabase) {
@@ -34,6 +34,7 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
         createAiTables(db)
         createNativeBulkTable(db)
         org.schabi.newpipe.custom.cloud.CloudIdentityStore.createTables(db)
+        org.schabi.newpipe.custom.cloud.CloudApplyStore.createTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -42,7 +43,8 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
         }
         if (oldVersion == 1) createAiTables(db)
         if (oldVersion <= 2) createNativeBulkTable(db)
-        org.schabi.newpipe.custom.cloud.CloudIdentityStore.createTables(db)
+        if (oldVersion <= 3) org.schabi.newpipe.custom.cloud.CloudIdentityStore.createTables(db)
+        org.schabi.newpipe.custom.cloud.CloudApplyStore.createTables(db)
     }
 
     internal fun <T> transaction(action: (SQLiteDatabase) -> T): T {
@@ -314,6 +316,7 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
         db.delete("ai_removal_intent", null, null)
         db.delete("native_bulk_intent", null, null)
         db.delete("tag_command_receipt", null, null)
+        org.schabi.newpipe.custom.cloud.CloudApplyStore.discard(db)
         org.schabi.newpipe.custom.cloud.CloudIdentityStore.discard(db)
     }
 

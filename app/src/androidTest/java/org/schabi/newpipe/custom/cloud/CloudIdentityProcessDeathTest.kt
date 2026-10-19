@@ -110,7 +110,7 @@ class CloudIdentityProcessDeathTest {
                 check(c.moveToFirst())
                 assertEquals("ok", c.getString(0))
             }
-            assertEquals(4, store.readableDatabase.version)
+            assertEquals(TagStore.SCHEMA_VERSION, store.readableDatabase.version)
         }
         writeSync(File(dir, "verified"), "rollback-restored-original-identities")
         println("CLOUD_IDENTITY_PROCESS_DEATH_PASS")

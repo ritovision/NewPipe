@@ -12,8 +12,8 @@ class RitoVisionDatabaseVersionTest {
     @Test
     fun forkNamespaceCannotCollideWithCanonicalUpstreamVersion() {
         assertEquals(9, RitoVisionDatabaseVersion.UPSTREAM_SCHEMA)
-        assertEquals(1, RitoVisionDatabaseVersion.FORK_REVISION)
-        assertEquals(9001, RitoVisionDatabaseVersion.CURRENT)
+        assertEquals(2, RitoVisionDatabaseVersion.FORK_REVISION)
+        assertEquals(9002, RitoVisionDatabaseVersion.CURRENT)
         assertTrue(RitoVisionDatabaseVersion.CURRENT > 9)
         assertTrue(RitoVisionDatabaseVersion.CURRENT != 10)
     }
@@ -28,7 +28,8 @@ class RitoVisionDatabaseVersionTest {
                 RitoVisionDatabaseVersion.CURRENT
             )
         )
-        for (unsupported in listOf(-1, 0, 10, 11, 8999, 9000, 9002, 10001, 10002)) {
+        assertTrue(RitoVisionDatabaseVersion.supportsImportSchema(9001))
+        for (unsupported in listOf(-1, 0, 10, 11, 8999, 9000, 9003, 10001, 10002)) {
             assertFalse(RitoVisionDatabaseVersion.supportsImportSchema(unsupported))
         }
     }

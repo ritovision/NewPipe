@@ -344,7 +344,7 @@ class DatabaseMigrationTest {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(AiDatabaseMigration.FROM_UPSTREAM_9)
+            .addMigrations(AiDatabaseMigration.FROM_UPSTREAM_9, org.schabi.newpipe.custom.cloud.CloudDatabaseMigration.FROM_9001)
             .build()
         testHelper.closeWhenFinished(database)
         return database

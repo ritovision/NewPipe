@@ -13,8 +13,13 @@ internal object CloudApplyStore {
     const val MAX_PAYLOAD_BYTES = 64 * 1024 * 1024
     private const val CHUNK_BYTES = 32 * 1024
     data class Pending(
-        val operation: String, val incarnation: String, val beforeFingerprint: String,
-        val targetFingerprint: String, val digest: String, val bytes: Int, val chunks: Int
+        val operation: String,
+        val incarnation: String,
+        val beforeFingerprint: String,
+        val targetFingerprint: String,
+        val digest: String,
+        val bytes: Int,
+        val chunks: Int
     )
 
     fun createTables(db: SQLiteDatabase) {
@@ -33,8 +38,31 @@ internal object CloudApplyStore {
                 "operation_id TEXT NOT NULL,head_json TEXT NOT NULL,accepted_at INTEGER NOT NULL)"
         )
     }
+    data class Baseline(val incarnation: String, val operation: String, val head: CloudHead)
+    fun baseline(db: SQLiteDatabase): Baseline? = db.rawQuery(
+        "SELECT incarnation,operation_id,head_json FROM cloud_sync_baseline WHERE slot=1",
+        null
+    ).use { c ->
+        if (!c.moveToFirst()) {
+            null
+        } else {
+            Baseline(
+                c.getString(0),
+                c.getString(1),
+                CloudApplyPlanJson.readHead(com.grack.nanojson.JsonParser.`object`().from(c.getString(2)))
+            )
+        }
+    }
+    fun accept(db: SQLiteDatabase, incarnation: String, operation: String, head: CloudHead) {
+        check(TagRuntime.lock.isHeldByCurrentThread && db.inTransaction()) { "CLOUD_BASELINE_REQUIRES_TRANSACTION" }
+        db.execSQL(
+            "INSERT OR REPLACE INTO cloud_sync_baseline VALUES(1,?,?,?,?)",
+            arrayOf<Any>(incarnation, operation, CloudApplyPlanJson.headJson(head), System.currentTimeMillis())
+        )
+    }
     fun pending(db: SQLiteDatabase): Pending? = db.rawQuery(
-        "SELECT operation_id,incarnation,before_fingerprint,target_fingerprint,plan_digest,payload_bytes,chunk_count FROM cloud_apply_pending WHERE slot=1", null
+        "SELECT operation_id,incarnation,before_fingerprint,target_fingerprint,plan_digest,payload_bytes,chunk_count FROM cloud_apply_pending WHERE slot=1",
+        null
     ).use { c ->
         if (!c.moveToFirst()) return@use null
         val value = Pending(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getInt(5), c.getInt(6))
@@ -51,7 +79,8 @@ internal object CloudApplyStore {
                 val bytes = c.getBlob(1)
                 val expected = if (index + 1 == p.chunks) p.bytes - index * CHUNK_BYTES else CHUNK_BYTES
                 check(bytes.size == expected) { "CORRUPT_CLOUD_PAYLOAD" }
-                output.write(bytes); index++
+                output.write(bytes)
+                index++
             }
             check(index == p.chunks) { "CORRUPT_CLOUD_PAYLOAD" }
         }
@@ -71,7 +100,8 @@ internal object CloudApplyStore {
                 val start = index * CHUNK_BYTES
                 statement.bindLong(1, index.toLong())
                 statement.bindBlob(2, payload.copyOfRange(start, minOf(start + CHUNK_BYTES, payload.size)))
-                statement.executeInsert(); statement.clearBindings()
+                statement.executeInsert()
+                statement.clearBindings()
             }
         }
         return pending
