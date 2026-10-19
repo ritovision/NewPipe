@@ -82,7 +82,10 @@ object LibraryBackupRestore {
 
             if (!foundDb) return false
             requireSupportedDatabase(tempDb)
-            if (foundBinding) validateBinding(tempBinding)
+            if (foundBinding) {
+                validateBinding(tempBinding)
+                LibraryBindingStore.stripCloudMarkerFromCopy(tempBinding)
+            }
 
             val binding = LibraryBindingStore.pathForDatabase(locator.db)
             val bindingNew = binding.resolveSibling(binding.fileName.toString() + ".new")
@@ -156,6 +159,7 @@ object LibraryBackupRestore {
     private fun validateBinding(path: Path) {
         val properties = Properties()
         Files.newInputStream(path).use { properties.load(it) }
+        LibraryBindingStore.cloudMarker(properties)
         val id = properties.getProperty("playlist_id")?.toLongOrNull()
         check(
             id != null && id > 0 &&

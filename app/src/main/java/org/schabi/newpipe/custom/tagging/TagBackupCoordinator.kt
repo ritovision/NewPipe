@@ -105,6 +105,7 @@ object TagBackupCoordinator {
             check(DB in seen) { "Backup does not contain a NewPipe database" }
             validateRoomCopy(context, prepared.directory.resolve(DB))
             validateBinding(prepared.directory.resolve(BINDING), prepared.directory.resolve(DB))
+            LibraryBindingStore.stripCloudMarkerFromCopy(prepared.directory.resolve(BINDING))
             if (TagStore.FILE_NAME in seen) sanitizeTagCopy(context, prepared.directory.resolve(TagStore.FILE_NAME))
             preflightInstall(context, prepared)
             return prepared
@@ -232,6 +233,7 @@ object TagBackupCoordinator {
             }
             validateRoomCopy(context, stage.resolve(DB))
             validateBinding(stage.resolve(BINDING), stage.resolve(DB))
+            LibraryBindingStore.stripCloudMarkerFromCopy(stage.resolve(BINDING))
             sanitizeTagCopy(context, stage.resolve(TagStore.FILE_NAME))
             ZipOutputStream(SharpOutputStream(file.openAndTruncateStream()).buffered()).use { zip ->
                 for (name in listOf(DB, TagStore.FILE_NAME, BINDING)) {
@@ -329,6 +331,7 @@ object TagBackupCoordinator {
     private fun validateBinding(binding: Path, database: Path) {
         if (!Files.exists(binding)) return
         val properties = Properties().also { p -> Files.newInputStream(binding).use { p.load(it) } }
+        LibraryBindingStore.cloudMarker(properties)
         val id = properties.getProperty("playlist_id")?.toLongOrNull()
         check(id != null && id > 0 && properties.getProperty("name") == LibraryBindingStore.LIBRARY_NAME) { "Invalid Library binding in backup" }
         val unavailableValue = properties.getProperty("unavailable_playlist_id")

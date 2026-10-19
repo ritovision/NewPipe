@@ -2,7 +2,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
-import {planSequence,requireSequenceBudget} from '../src/sequence.ts';
+import {planSequence,requireSequenceBudget,MAX_LOCAL_REBALANCE} from '../src/sequence.ts';
 const key=(url,service=0)=>({service,url:`https://example.test/${url}`});
 const A=key('A'), B=key('B'), C=key('C'), X=key('X');
 const seeded=keys=>planSequence([],keys).rows;
@@ -15,8 +15,8 @@ const apply=(before,p)=>{
 test('empty sequence is a no-op',()=>{assert.deepEqual(planSequence([],[]),{rows:[],remove:[],put:[],rebalanced:false});});
 test('initial labels have independent fixed-width 128-bit expected values',()=>{
  const p=planSequence([],[A,B,C]);
- const step=((1n<<128n)-1n)/4n;
- assert.deepEqual(p.rows.map(r=>r.rank),[1n,2n,3n].map(n=>(n*step).toString(16).padStart(32,'0')));
+ const step=1n<<64n,center=1n<<127n;
+ assert.deepEqual(p.rows.map(r=>r.rank),[-1n,0n,1n].map(n=>(center+n*step).toString(16).padStart(32,'0')));
  assert.deepEqual(apply([],p),[A,B,C]);
 });
 test('deletion preserves all surviving ranks with one deleted row',()=>{
@@ -106,4 +106,37 @@ test('actual local D1 TEXT order and atomic patch match exact duplicate sequence
   const bad=await patch({remove:[before[0].rank],put:[before[1]]});assert.equal(bad.status,409);
   const state=await patch({remove:[],put:[]});assert.deepEqual(state.data.rows.map(row=>row.rank),before.map(row=>row.rank));
  }finally{await mf.dispose();}
+});
+
+for(const direction of ['append','prepend','interior'])test(`20k repeated ${direction}: bounded row writes not full rewrites`,()=>{
+ const keys=Array.from({length:20000},(_,i)=>key(`base-${i}`));let rows=seeded(keys),maxWrites=0,totalWrites=0,rebalances=0;
+ const started=performance.now(),iterations=160;
+ for(let i=0;i<iterations;i++){
+  const k=key(`new-${i}`),at=direction==='append'?keys.length:direction==='prepend'?0:10000;
+  keys.splice(at,0,k);const p=planSequence(rows,keys),writes=p.remove.length+p.put.length;
+  assert.deepEqual(p.rows.map(r=>r.key),keys);requireSequenceBudget(p,2*MAX_LOCAL_REBALANCE);
+  if(direction!=='interior'){assert.equal(p.rebalanced,false);assert.equal(p.remove.length,0);assert.equal(p.put.length,1);}
+  else if(p.rebalanced){assert.ok(p.remove.length<=MAX_LOCAL_REBALANCE);assert.ok(p.put.length<=MAX_LOCAL_REBALANCE);}
+  maxWrites=Math.max(maxWrites,writes);totalWrites+=writes;rebalances+=Number(p.rebalanced);rows=p.rows;
+ }
+ if(direction==='interior')assert.ok(rebalances>0,'must exercise exhausted interior gaps');
+ console.log(`CLOUD_SPARSE_REPEAT direction=${direction} base=20000 edits=${iterations} max_writes=${maxWrites} total_writes=${totalWrites} rebalances=${rebalances} duration_ms=${Math.round(performance.now()-started)}`);
+});
+test('local rebalance leaves distant ranks unchanged',()=>{
+ const before=Array.from({length:1000},(_,i)=>({rank:(BigInt(i+1)<<64n).toString(16).padStart(32,'0'),key:key(`r-${i}`)}));
+ before[501]={...before[501],rank:(BigInt('0x'+before[500].rank)+1n).toString(16).padStart(32,'0')};
+ const next=before.map(r=>r.key);next.splice(501,0,X);const p=planSequence(before,next);
+ assert.equal(p.rebalanced,true);assert.equal(p.rows[0].rank,before[0].rank);assert.equal(p.rows[1000].rank,before[999].rank);
+ assert.ok(p.remove.length<=MAX_LOCAL_REBALANCE);assert.ok(p.put.length<=MAX_LOCAL_REBALANCE);assert.deepEqual(apply(before,p),next);
+});
+test('adversarial packed gap refuses unbounded whole-list rewrite',()=>{
+ const before=Array.from({length:2000},(_,i)=>({rank:BigInt(i+1).toString(16).padStart(32,'0'),key:key(`p-${i}`)}));
+ const next=before.map(r=>r.key);next.splice(500,0,X);
+ assert.throws(()=>planSequence(before,next),/SEQUENCE_LOCAL_REBALANCE_REQUIRED/);
+ assert.equal(before[500].rank,BigInt(501).toString(16).padStart(32,'0'));
+});
+test('rank reuse is safe only with remove-before-put and exact base fencing',()=>{
+ const before=seeded([A,X,B]),p=planSequence(before,[A,C,B]);
+ assert.deepEqual(apply(before,p),[A,C,B]);assert.equal(p.remove.length,1);assert.equal(p.put.length,1);
+ assert.equal(p.put[0].rank,before[1].rank);
 });

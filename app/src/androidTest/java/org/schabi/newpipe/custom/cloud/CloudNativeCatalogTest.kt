@@ -12,6 +12,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.MessageDigest
+import java.util.Properties
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -43,11 +45,14 @@ import org.schabi.newpipe.custom.tagging.TagRepository
 import org.schabi.newpipe.custom.tagging.TagRuntime
 import org.schabi.newpipe.custom.tagging.TagStore
 import org.schabi.newpipe.database.AppDatabase
+import org.schabi.newpipe.database.playlist.PlaylistMetadataEntry
 import org.schabi.newpipe.database.playlist.model.PlaylistEntity
 import org.schabi.newpipe.database.playlist.model.PlaylistRemoteEntity
 import org.schabi.newpipe.database.playlist.model.PlaylistStreamEntity
 import org.schabi.newpipe.database.stream.model.StreamEntity
 import org.schabi.newpipe.extractor.stream.StreamType
+import org.schabi.newpipe.local.bookmark.MergedPlaylistManager
+import org.schabi.newpipe.local.playlist.LocalPlaylistManager
 import org.schabi.newpipe.streams.io.StoredFileHelper
 
 /** All content is synthetic and file-backed under the separate QA package cache. */
@@ -59,7 +64,48 @@ class CloudNativeCatalogTest {
     private val scope = CloudIdentityStore.Scope("cloud-test", "library-test")
     private fun key(s: StreamEntity) = CloudKey(s.serviceId, s.url)
     private fun nativeKey(s: StreamEntity) = StreamKey(s.serviceId, s.url)
-    private fun capture(incarnation: String? = null) = CloudNativeCatalog(repository).capture(scope, incarnation)
+
+    /** Fixture convenience only: production callers must choose enroll vs required-incarnation capture. */
+    private fun capture(incarnation: String? = null): CloudNativeSnapshot {
+        val expected = incarnation ?: CloudIdentityStore.context(repository.store.readableDatabase)?.incarnation
+        val reader = CloudNativeCatalog(repository)
+        return if (expected == null) reader.enroll(scope) else reader.capture(scope, expected)
+    }
+    private fun rejects(code: String, operation: () -> Unit) {
+        assertEquals(code, assertThrows(IllegalStateException::class.java, operation).message)
+    }
+    private fun roomContentDigest(): String {
+        val sql = db.openHelper.readableDatabase
+        val tables = sql.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").use { c ->
+            buildList { while (c.moveToNext()) add(c.getString(0)) }
+        }
+        val hash = MessageDigest.getInstance("SHA-256")
+        for (table in tables) {
+            hash.update(table.toByteArray())
+            val escaped = table.replace("\"", "\"\"")
+            val rows = sql.query("SELECT * FROM \"$escaped\"").use { c ->
+                buildList {
+                    while (c.moveToNext()) {
+                        add(
+                            (0 until c.columnCount).joinToString("|") { i ->
+                                val value = when (c.getType(i)) {
+                                    android.database.Cursor.FIELD_TYPE_NULL -> "NULL"
+                                    android.database.Cursor.FIELD_TYPE_BLOB -> c.getBlob(i).joinToString("") { (it.toInt() and 255).toString(16).padStart(2, '0') }
+                                    else -> c.getString(i)
+                                }
+                                "${c.getType(i)}:${value.length}:$value"
+                            }
+                        )
+                    }
+                }
+            }
+            rows.sorted().forEach {
+                hash.update(it.toByteArray(Charsets.UTF_8))
+                hash.update(0.toByte())
+            }
+        }
+        return hash.digest().joinToString("") { (it.toInt() and 255).toString(16).padStart(2, '0') }
+    }
 
     @Before fun setup() {
         val app = ApplicationProvider.getApplicationContext<Context>()
@@ -157,6 +203,8 @@ class CloudNativeCatalogTest {
         assertEquals("Jazz", result.catalog.tags.single().name)
         assertEquals(listOf(result.catalog.tags.single().id), result.catalog.assignments.single().tags)
         assertEquals("A", result.hints[key(a)]?.title)
+        assertEquals(42L, result.hints[key(a)]?.duration)
+        assertEquals("VIDEO_STREAM", result.hints[key(a)]?.streamType)
         assertEquals(3, mapCount())
         assertEquals(CloudCatalogCodec.fingerprint(result.catalog), result.fingerprint)
     }
@@ -235,7 +283,7 @@ class CloudNativeCatalogTest {
         media("A")
         val before = db.playlistDAO().count.blockingFirst()
         LibraryBindingStore.deleteForDatabase(context.getDatabasePath(AppDatabase.DATABASE_NAME).toPath())
-        assertThrows(IllegalStateException::class.java) { capture() }
+        rejects("IDENTITY_REPAIR_REQUIRED") { capture() }
         assertEquals(before, db.playlistDAO().count.blockingFirst())
         assertEquals(0, mapCount())
         assertNull(CloudIdentityStore.context(repository.store.readableDatabase))
@@ -244,20 +292,20 @@ class CloudNativeCatalogTest {
     @Test fun missingUnavailableDesignationIsNotAutomaticallyCreated() {
         val binding = repository.binding.read()!!
         repository.binding.write(binding.copy(unavailablePlaylistId = null))
-        assertThrows(IllegalStateException::class.java) { capture() }
+        rejects("IDENTITY_REPAIR_REQUIRED") { capture() }
         assertNull(repository.binding.read()!!.unavailablePlaylistId)
     }
 
     @Test fun staleBindingIsRejectedEvenWhenNativeSessionWasCached() {
         val binding = repository.binding.read()!!
         db.openHelper.writableDatabase.execSQL("UPDATE playlists SET name='Other' WHERE uid=?", arrayOf(binding.playlistId))
-        assertThrows(IllegalStateException::class.java) { capture() }
+        rejects("IDENTITY_REPAIR_REQUIRED") { capture() }
         assertEquals(0, mapCount())
     }
 
     @Test fun reservedOrdinaryNameBlocksWithoutRenamingIt() {
         playlist("\u00a0UNAVAILABLE\u2003", emptyList())
-        assertThrows(IllegalStateException::class.java) { capture() }
+        rejects("IDENTITY_REPAIR_REQUIRED") { capture() }
         assertEquals(0, mapCount())
         assertTrue(db.playlistDAO().getAll().blockingFirst().any { it.name == "\u00a0UNAVAILABLE\u2003" })
     }
@@ -266,7 +314,7 @@ class CloudNativeCatalogTest {
         val a = media("A")
         val library = LibraryRepository.boundLibraryId(db)!!
         repository.store.beginRemoval(nativeKey(a), library)
-        assertThrows(IllegalStateException::class.java) { capture() }
+        rejects("APPLY_RECOVERY_REQUIRED") { capture() }
         assertEquals(1, repository.store.pendingRemovals().size)
         assertEquals(1, db.playlistStreamDAO().getOrderedStreamsOf(library).blockingFirst().size)
     }
@@ -293,7 +341,7 @@ class CloudNativeCatalogTest {
         val a = media("A")
         val p = playlist("P", listOf(a), permanent = a)
         main("UPDATE playlists SET thumbnail_stream_id=999999 WHERE uid=?", p)
-        assertThrows(IllegalStateException::class.java) { capture() }
+        rejects("NATIVE_ARTWORK_UNRESOLVED:$p") { capture() }
         assertEquals(999999L, db.playlistDAO().getPlaylist(p).blockingFirst().single().thumbnailStreamId)
     }
 
@@ -313,8 +361,8 @@ class CloudNativeCatalogTest {
     @Test fun scopeAndIncarnationNeverSwitchImplicitly() {
         media("A")
         val before = capture()
-        assertThrows(IllegalStateException::class.java) { CloudNativeCatalog(repository).capture(CloudIdentityStore.Scope("other", "library-test")) }
-        assertThrows(IllegalStateException::class.java) { capture(UUID.randomUUID().toString()) }
+        assertThrows(IllegalStateException::class.java) { CloudNativeCatalog(repository).capture(CloudIdentityStore.Scope("other", "library-test"), before.identities.incarnation) }
+        rejects("CLOUD_INCARNATION_CHANGED") { capture(UUID.randomUUID().toString()) }
         assertEquals(before.identities, CloudIdentityStore.context(repository.store.readableDatabase))
     }
 
@@ -326,14 +374,14 @@ class CloudNativeCatalogTest {
         main("UPDATE playlists SET name='Former' WHERE uid=?", binding.unavailablePlaylistId!!)
         val newId = playlist("Unavailable", emptyList())
         repository.binding.write(binding.copy(unavailablePlaylistId = newId))
-        assertThrows(IllegalStateException::class.java) { capture() }
+        rejects("CLOUD_BINDING_CHANGED") { capture() }
     }
 
     @Test fun mainThreadRejectedBeforeOpeningOrMapping() {
         val error = AtomicReference<Throwable?>()
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             try {
-                capture()
+                CloudNativeCatalog(repository).enroll(scope)
             } catch (t: Throwable) {
                 error.set(t)
             }
@@ -384,7 +432,7 @@ class CloudNativeCatalogTest {
             assertThrows(IllegalStateException::class.java) {
                 repository.store.transaction { side ->
                     CloudIdentityStore.discard(side)
-                    CloudIdentityStore.reconcile(side, scope, old.identities.libraryId, old.identities.unavailableId, null, setOf(NativeId(Kind.TAG, 500)))
+                    CloudIdentityStore.reconcile(side, scope, old.identities.libraryId, old.identities.unavailableId, null, setOf(NativeId(Kind.TAG, 500)), enrollment = true)
                     error("synthetic interruption before commit")
                 }
             }
@@ -417,9 +465,9 @@ class CloudNativeCatalogTest {
         val reader = CloudNativeCatalog(repository)
         val backup = exported()
         TagBackupCoordinator.prepare(context, file(backup)).use { TagBackupCoordinator.installWithShutdown(context, it) {} }
-        assertThrows(IllegalStateException::class.java) { reader.capture(scope) }
+        assertThrows(IllegalStateException::class.java) { reader.capture(scope, old.identities.incarnation) }
         reopen()
-        assertThrows(IllegalStateException::class.java) { capture(old.identities.incarnation) }
+        rejects("CLOUD_ENROLLMENT_REQUIRED") { capture(old.identities.incarnation) }
         val next = capture()
         assertNotEquals(old.identities.incarnation, next.identities.incarnation)
         assertEquals(old.catalog.library, next.catalog.library)
@@ -519,6 +567,7 @@ class CloudNativeCatalogTest {
         }
         val seeded = System.nanoTime()
         val tagRevision = repository.store.version()
+        val roomBefore = roomContentDigest()
         val one = capture()
         val captured = System.nanoTime()
         val two = capture(one.identities.incarnation)
@@ -527,6 +576,7 @@ class CloudNativeCatalogTest {
         assertEquals(20_000, one.catalog.assignments.size)
         assertEquals(one.fingerprint, two.fingerprint)
         assertEquals(one.nativeIds, two.nativeIds)
+        assertEquals(roomBefore, roomContentDigest())
         assertEquals(tagRevision, repository.store.version())
         assertEquals(7, mapCount())
         assertEquals(
@@ -537,5 +587,174 @@ class CloudNativeCatalogTest {
             }
         )
         println("CLOUD_NATIVE_SCALE streams=20000 ordinary_memberships=100000 assignments=20000 canonical_bytes=${one.canonicalBytes().size} seed_ms=${(seeded - started) / 1_000_000} capture_ms=${(captured - seeded) / 1_000_000} repeat_ms=${(System.nanoTime() - captured) / 1_000_000}")
+    }
+
+    @Test fun captureCannotEnrollOrReplaceExistingEnrollment() {
+        val reader = CloudNativeCatalog(repository)
+        rejects("CLOUD_ENROLLMENT_REQUIRED") { reader.capture(scope, UUID.randomUUID().toString()) }
+        assertEquals(0, mapCount())
+        assertNull(repository.binding.read()!!.cloudIncarnation)
+        val enrolled = reader.enroll(scope)
+        rejects("CLOUD_ALREADY_ENROLLED") { reader.enroll(scope) }
+        assertEquals(enrolled.identities, reader.capture(scope, enrolled.identities.incarnation).identities)
+    }
+
+    @Test fun recreatedMainDatabaseCannotReuseSurvivingTagIdentities() {
+        val p = playlist("Old", listOf(media("old")))
+        val old = capture()
+        assertEquals(1L, old.identities.libraryId)
+        assertEquals(2L, old.identities.unavailableId)
+        assertEquals(3L, p)
+        NewPipeDatabase.close()
+        TagRuntime.restoring = false
+        LibraryRepository.forgetSessionForTest()
+        UnavailableRepository.reset()
+        val path = context.getDatabasePath(AppDatabase.DATABASE_NAME).toPath()
+        for (suffix in listOf("", "-wal", "-shm", "-journal")) Files.deleteIfExists(path.resolveSibling(path.fileName.toString() + suffix))
+        open()
+        repository.definitions()
+        val q = playlist("Unrelated", listOf(media("new")))
+        assertEquals(p, q)
+        assertNull(repository.binding.read()!!.cloudIncarnation)
+        rejects("CLOUD_MAIN_DATABASE_CHANGED") { CloudNativeCatalog(repository).capture(scope, old.identities.incarnation) }
+        assertEquals(old.nativeIds, CloudIdentityStore.mappings(repository.store.readableDatabase))
+        rejects("CLOUD_ALREADY_ENROLLED") { CloudNativeCatalog(repository).enroll(scope) }
+    }
+
+    @Test fun sameRoleIdsWithoutBindingMarkerDoNotProveDatabaseLifetime() {
+        playlist("P", listOf(media("A")))
+        val old = capture()
+        repository.binding.write(repository.binding.read()!!.copy(cloudIncarnation = null, cloudPlaylistSequence = null))
+        rejects("CLOUD_MAIN_DATABASE_CHANGED") { capture(old.identities.incarnation) }
+        assertEquals(old.nativeIds, CloudIdentityStore.mappings(repository.store.readableDatabase))
+    }
+
+    @Test fun playlistSequenceRegressionBlocksOldMapsEvenWithMatchingMarker() {
+        val p = playlist("P", listOf(media("A")))
+        main("INSERT INTO playlists(uid,name,is_thumbnail_permanent,thumbnail_stream_id,display_index) VALUES(100,'High',0,-1,1)")
+        val old = capture()
+        assertEquals(100L, repository.binding.read()!!.cloudPlaylistSequence)
+        main("DELETE FROM playlists WHERE uid=100")
+        main("UPDATE sqlite_sequence SET seq=? WHERE name='playlists'", p)
+        rejects("CLOUD_PLAYLIST_SEQUENCE_REGRESSED") { capture(old.identities.incarnation) }
+        assertEquals(old.nativeIds, CloudIdentityStore.mappings(repository.store.readableDatabase))
+    }
+
+    @Test fun sameLibraryRebindAndUnavailableBindingCopyPreserveLifetimeAnchor() {
+        media("A")
+        val old = capture()
+        val binding = repository.binding.read()!!
+        LibraryRepository.rebindExisting(db, repository.binding, binding.playlistId)
+        assertEquals(binding, repository.binding.read())
+        repository.binding.write(repository.binding.read()!!.copy(unavailablePlaylistId = binding.unavailablePlaylistId))
+        assertEquals(old.identities, capture(old.identities.incarnation).identities)
+    }
+
+    @Test fun ignoredProtectedArtworkDoesNotBlockCapture() {
+        media("A")
+        val old = capture()
+        val binding = repository.binding.read()!!
+        main("UPDATE playlists SET is_thumbnail_permanent=1,thumbnail_stream_id=999999 WHERE uid IN (?,?)", binding.playlistId, binding.unavailablePlaylistId!!)
+        assertEquals(old.fingerprint, capture().fingerprint)
+        assertEquals(999999L, db.playlistDAO().getPlaylist(binding.playlistId).blockingFirst().single().thumbnailStreamId)
+    }
+
+    @Test fun pruningOldMappingsRollsBackAfterLateContentValidationFailure() {
+        val tag = repository.createTag("Keep", null)
+        val p = playlist("Remove", listOf(media("A")))
+        val old = capture()
+        val binding = repository.binding.read()
+        main("DELETE FROM playlists WHERE uid=?", p)
+        repository.store.writableDatabase.execSQL("UPDATE tag SET name_key='WRONG' WHERE id=?", arrayOf(tag))
+        assertEquals("INVALID_CATALOG:stored tag key", assertThrows(IllegalArgumentException::class.java) { capture() }.message)
+        assertEquals(old.nativeIds, CloudIdentityStore.mappings(repository.store.readableDatabase))
+        assertEquals(binding, repository.binding.read())
+    }
+
+    @Test fun failedEnrollmentAfterBindingPersistDoesNotCreateTrustedMaps() {
+        playlist("P", listOf(media("A")))
+        rejects("synthetic-after-binding") { CloudNativeCatalog(repository) { error("synthetic-after-binding") }.enroll(scope) }
+        val orphanMarker = repository.binding.read()!!.cloudIncarnation
+        assertTrue(orphanMarker != null)
+        assertNull(CloudIdentityStore.context(repository.store.readableDatabase))
+        assertEquals(0, mapCount())
+        rejects("CLOUD_ENROLLMENT_REQUIRED") { CloudNativeCatalog(repository).capture(scope, orphanMarker!!) }
+        val next = CloudNativeCatalog(repository).enroll(scope)
+        assertNotEquals(orphanMarker, next.identities.incarnation)
+        assertEquals(next.identities.incarnation, repository.binding.read()!!.cloudIncarnation)
+    }
+
+    @Test fun failedCaptureAfterHighWaterAdvanceKeepsExistingIdentity() {
+        playlist("P", listOf(media("A")))
+        val old = capture()
+        val q = playlist("Later", emptyList())
+        val oldMap = old.nativeIds
+        rejects("synthetic-after-binding") { CloudNativeCatalog(repository) { error("synthetic-after-binding") }.capture(scope, old.identities.incarnation) }
+        assertEquals(q, repository.binding.read()!!.cloudPlaylistSequence)
+        assertEquals(oldMap, CloudIdentityStore.mappings(repository.store.readableDatabase))
+        val next = capture(old.identities.incarnation)
+        assertEquals(old.identities.incarnation, next.identities.incarnation)
+        assertTrue(next.nativeIds.containsKey(NativeId(Kind.PLAYLIST, q)))
+    }
+
+    @Test fun realMergedPlaylistOrderingMatchesPortableRank() {
+        val a = media("A")
+        for ((name, rank) in listOf("Zulu" to 3L, "alpha" to 3L, "ALPHA" to 3L, null to 3L, "Zero" to 0L)) playlist(name, listOf(a), rank)
+        db.playlistRemoteDAO().insert(PlaylistRemoteEntity(serviceId = 0, orderingName = "Remote", url = "https://example.test/remote-order", thumbnailUrl = null, uploader = null, displayIndex = 3, streamCount = 1))
+        val expected = MergedPlaylistManager.merge(LocalPlaylistManager(db).playlists.blockingFirst(), db.playlistRemoteDAO().getAll().blockingFirst())
+            .filterIsInstance<PlaylistMetadataEntry>().filter { it.uid != LibraryRepository.boundLibraryId(db) && it.uid != UnavailableRepository.boundId(db) }.map { it.uid }
+        val s = capture()
+        assertEquals(expected.map { s.nativeIds[NativeId(Kind.PLAYLIST, it)] }, s.catalog.playlists.map { it.id })
+    }
+
+    @Test fun durationAndTypeHintsUpdateWithoutChangingSemanticContent() {
+        val a = media("A")
+        val before = capture()
+        main("UPDATE streams SET duration=999,stream_type='AUDIO_STREAM' WHERE uid=?", a.uid)
+        val next = capture()
+        assertEquals(before.fingerprint, next.fingerprint)
+        assertEquals(999L, next.hints[key(a)]!!.duration)
+        assertEquals("AUDIO_STREAM", next.hints[key(a)]!!.streamType)
+    }
+
+    @Test fun legacyV3TagArchiveCompletesPrepareSanitizeAndInstall() {
+        val tag = repository.createTag("Legacy", null)
+        val a = media("A", setOf(tag))
+        playlist("P", listOf(a))
+        val old = capture()
+        val original = exported()
+        val legacyTags = dir.resolve("legacy-v3-tags.db")
+        TagRuntime.lock.withLock { TagBackupCoordinator.snapshotTag(repository.store, legacyTags) }
+        SQLiteDatabase.openDatabase(legacyTags.toString(), null, SQLiteDatabase.OPEN_READWRITE).use { legacy ->
+            legacy.execSQL("DROP TABLE cloud_catalog_identity")
+            legacy.execSQL("DROP TABLE cloud_catalog_context")
+            legacy.version = 3
+        }
+        val zip = dir.resolve("legacy-v3.zip")
+        ZipFile(original.toFile()).use { input ->
+            ZipOutputStream(Files.newOutputStream(zip)).use { output ->
+                for (entry in input.entries().toList()) {
+                    output.putNextEntry(ZipEntry(entry.name))
+                    if (entry.name == TagStore.FILE_NAME) Files.copy(legacyTags, output) else input.getInputStream(entry).use { it.copyTo(output) }
+                    output.closeEntry()
+                }
+            }
+        }
+        TagBackupCoordinator.prepare(context, file(zip)).use { prepared ->
+            TagStore(context, prepared.directory.resolve(TagStore.FILE_NAME).toString()).use { staged ->
+                assertEquals(TagStore.SCHEMA_VERSION, staged.readableDatabase.version)
+                assertNull(CloudIdentityStore.context(staged.readableDatabase))
+                assertTrue(CloudIdentityStore.mappings(staged.readableDatabase).isEmpty())
+            }
+            val props = Properties().also { p -> Files.newInputStream(prepared.directory.resolve(LibraryBindingStore.FILE_NAME)).use { p.load(it) } }
+            assertEquals(null to null, LibraryBindingStore.cloudMarker(props))
+            TagBackupCoordinator.installWithShutdown(context, prepared) {}
+        }
+        reopen()
+        assertEquals(setOf(tag), repository.store.assigned(nativeKey(a)))
+        rejects("CLOUD_ENROLLMENT_REQUIRED") { CloudNativeCatalog(repository).capture(scope, old.identities.incarnation) }
+        val next = CloudNativeCatalog(repository).enroll(scope)
+        assertEquals(old.catalog.library, next.catalog.library)
+        assertNotEquals(old.identities.incarnation, next.identities.incarnation)
     }
 }

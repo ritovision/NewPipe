@@ -205,15 +205,11 @@ object LibraryRepository {
                 // A repair may rebind the already-verified same Library.
                 // Preserve its protected Unavailable identity if this is not
                 // a replacement catalog, rather than orphaning its playlist.
-                val previousUnavailable = runCatching { store.read() }.getOrNull()
+                val previousBinding = runCatching { store.read() }.getOrNull()
                     ?.takeIf { it.playlistId == playlistId }
-                    ?.unavailablePlaylistId
                 store.write(
-                    LibraryBindingStore.Binding(
-                        playlistId,
-                        LibraryBindingStore.LIBRARY_NAME,
-                        previousUnavailable
-                    )
+                    previousBinding?.copy(name = LibraryBindingStore.LIBRARY_NAME)
+                        ?: LibraryBindingStore.Binding(playlistId, LibraryBindingStore.LIBRARY_NAME)
                 )
                 publishSession(Session(db, playlistId))
             }

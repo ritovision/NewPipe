@@ -55,8 +55,26 @@ Generic large sealed-delta publication, sparse ordering and measured physical sc
 
 ## Native capture and compatibility
 
-`CloudNativeCatalog.capture` requires off-main execution, the current registered repository, no unresolved native deletion intents, and verified persisted Library/Unavailable roles. It opens the guarded Room helper before binding reads, captures within Room/tag transactions under TagRuntime, then commits only validated runtime identity maps. Ordinary playlist duplicate occurrences and display rank are preserved; remote bookmarks, automatic artwork/cache refreshes and orphan assignments do not become portable semantic content. Orphan associations are retained and reported separately for later reconciliation.
+`CloudNativeCatalog.capture(scope, requiredIncarnation)` never enrolls or resets identities; `enroll(scope)` is a separate explicit local-identity action. Capture requires off-main execution, the current registered repository, no unresolved native deletion intents, and verified persisted Library/Unavailable roles. It opens the guarded Room helper before binding reads, captures within Room/tag transactions under TagRuntime, then commits validated runtime identity maps only after verifying the atomic binding lifetime anchor and playlist-sequence high-water. These are runtime-only metadata; native content is unchanged. Ordinary playlist duplicate occurrences and display rank are preserved; remote bookmarks, automatic artwork/cache refreshes and orphan assignments do not become portable semantic content. Orphan associations are retained and reported separately for later reconciliation.
 
 This is a read-side adapter. It does not apply a cloud library, recover a half-completed cross-store cloud apply, enable sync, or enroll a device. Proper native backup/restore invalidates runtime mappings; arbitrary out-of-band database replacement is not supported or claimed tamper-detectable. New tag-schema-4 databases/backups require this newer fork version; the older schema-3 application is not a supported downgrade reader. No physical owner installation has been upgraded.
 
 Capture owns a copy of exact canonical bytes; the caller must still bind any future preview to the documented live-state checks. The large native fixture measures an off-main full-catalog capture with writer locking; it is not proof of cheap per-edit sync or a user-interaction latency budget. The scheduler/delta pipeline must coalesce and measure production workloads before rollout.
+
+
+## Reproduce host-induced process death
+
+After installing the exact Cloud QA app/test build on an explicitly selected primary-host emulator, run the committed driver. This never selects a physical phone, changes Android users, clears app data, or touches another package:
+
+```sh
+python3 cloud/test-support/run-identity-process-death.py \
+  --adb /path/to/adb --serial emulator-5590 \
+  --avd MusicYtdlp_16K_Temp_API35 --user 11 \
+  --package org.schabi.newpipe.debug.featurecloudsyncv120261019 \
+  --suite identity --source-commit <full-40-character-tested-commit> \
+  --output /path/to/new-identity-evidence-directory
+```
+
+Run `--suite enrollment` with a separate new output directory to stop the QA process after the binding anchor is durable but before tag enrollment commits. The driver requires the fsynced test marker before force-stop and runs verification in a fresh process. Without this explicit driver, probe tests skip rather than claim process-death coverage. The identity suite proves single-tag-transaction rollback; enrollment proves fail-closed marker/map recovery and explicit re-enrollment, not a complete cross-database remote-apply coordinator.
+
+Compatibility: old schema-3 builds cannot import schema-4 tag archives. Older unanchored schema-4 preview contexts cannot be trusted automatically after this correction; capture fails closed until explicit recovery/reset. This is not a data migration for the real phone, which remains untouched.

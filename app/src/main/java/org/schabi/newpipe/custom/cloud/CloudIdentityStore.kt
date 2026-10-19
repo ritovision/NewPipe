@@ -85,11 +85,17 @@ internal object CloudIdentityStore {
         libraryId: Long,
         unavailableId: Long,
         expectedIncarnation: String?,
-        active: Set<NativeId>
+        active: Set<NativeId>,
+        enrollment: Boolean = false
     ): Pair<Context, Map<NativeId, String>> {
         check(TagRuntime.lock.isHeldByCurrentThread && db.inTransaction()) { "Cloud mapping changes require writer barrier and transaction" }
         check(active.size <= MAX_IDENTITIES) { "CLOUD_IDENTITY_LIMIT" }
         val old = context(db)
+        if (enrollment) {
+            check(old == null && expectedIncarnation == null) { "CLOUD_ALREADY_ENROLLED" }
+        } else {
+            check(old != null && expectedIncarnation != null) { "CLOUD_ENROLLMENT_REQUIRED" }
+        }
         check(old == null || old.scope == scope) { "CLOUD_SCOPE_MISMATCH" }
         check(old == null || old.libraryId == libraryId && old.unavailableId == unavailableId) { "CLOUD_BINDING_CHANGED" }
         check(expectedIncarnation == null || old?.incarnation == expectedIncarnation) { "CLOUD_INCARNATION_CHANGED" }

@@ -61,7 +61,8 @@ class CloudIdentityProcessDeathTest {
                         1,
                         2,
                         null,
-                        setOf(NativeId(Kind.PLAYLIST, 10), NativeId(Kind.TAG, 20))
+                        setOf(NativeId(Kind.PLAYLIST, 10), NativeId(Kind.TAG, 20)),
+                        enrollment = true
                     )
                 }
             }
@@ -86,7 +87,8 @@ class CloudIdentityProcessDeathTest {
                         100,
                         200,
                         null,
-                        setOf(NativeId(Kind.TAG, 999))
+                        setOf(NativeId(Kind.TAG, 999)),
+                        enrollment = true
                     )
                     writeSync(File(dir, "inside-transaction"), "ready-for-host-force-stop")
                     Thread.sleep(60_000)

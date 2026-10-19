@@ -22,7 +22,13 @@ class LibraryBindingStore(private val databasePath: Path) {
         context.getDatabasePath(AppDatabase.DATABASE_NAME).toPath()
     )
 
-    data class Binding(val playlistId: Long, val name: String, val unavailablePlaylistId: Long? = null)
+    data class Binding(
+        val playlistId: Long,
+        val name: String,
+        val unavailablePlaylistId: Long? = null,
+        val cloudIncarnation: String? = null,
+        val cloudPlaylistSequence: Long? = null
+    )
 
     private val atomicFile = AtomicFile(pathForDatabase(databasePath).toFile())
 
@@ -50,15 +56,20 @@ class LibraryBindingStore(private val databasePath: Path) {
         check(unavailable == null || unavailable > 0 && unavailable != id) {
             "Invalid Unavailable playlist identity"
         }
-        return Binding(id, name, unavailable)
+        val (incarnation, sequence) = cloudMarker(properties)
+        return Binding(id, name, unavailable, incarnation, sequence)
     }
 
     fun write(binding: Binding) {
         require(binding.playlistId > 0 && binding.name == LIBRARY_NAME)
+        require(binding.unavailablePlaylistId == null || binding.unavailablePlaylistId > 0 && binding.unavailablePlaylistId != binding.playlistId)
+        validateCloudMarker(binding.cloudIncarnation, binding.cloudPlaylistSequence)
         val values = Properties().apply {
             setProperty("playlist_id", binding.playlistId.toString())
             setProperty("name", binding.name)
             binding.unavailablePlaylistId?.let { setProperty("unavailable_playlist_id", it.toString()) }
+            binding.cloudIncarnation?.let { setProperty(CLOUD_INCARNATION, it) }
+            binding.cloudPlaylistSequence?.let { setProperty(CLOUD_SEQUENCE, it.toString()) }
         }
         val stream = atomicFile.startWrite()
         try {
@@ -73,6 +84,37 @@ class LibraryBindingStore(private val databasePath: Path) {
     companion object {
         const val LIBRARY_NAME = "Library"
         const val FILE_NAME = "ritovision-library.binding"
+        private const val CLOUD_INCARNATION = "cloud_incarnation"
+        private const val CLOUD_SEQUENCE = "cloud_playlist_sequence"
+        private val UUID_TEXT = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+        private fun validateCloudMarker(incarnation: String?, sequence: Long?) {
+            check(
+                incarnation == null && sequence == null ||
+                    incarnation != null && UUID_TEXT.matches(incarnation) && sequence != null && sequence >= 0
+            ) { "Invalid cloud catalog binding marker" }
+        }
+
+        /** Optional paired metadata; legacy bindings have neither field. */
+        fun cloudMarker(properties: Properties): Pair<String?, Long?> {
+            val incarnation = properties.getProperty(CLOUD_INCARNATION)
+            val raw = properties.getProperty(CLOUD_SEQUENCE)
+            val sequence = raw?.toLongOrNull()
+            check(raw == null || sequence != null && raw == sequence.toString()) { "Invalid cloud catalog sequence marker" }
+            validateCloudMarker(incarnation, sequence)
+            return incarnation to sequence
+        }
+
+        /** Staged backup copy ONLY; never call on the live binding. No auth/state travels in ZIPs. */
+        fun stripCloudMarkerFromCopy(path: Path) {
+            if (!Files.exists(path)) return
+            val p = Properties().also { properties -> Files.newInputStream(path).use { properties.load(it) } }
+            cloudMarker(p)
+            if (!p.containsKey(CLOUD_INCARNATION) && !p.containsKey(CLOUD_SEQUENCE)) return
+            p.remove(CLOUD_INCARNATION)
+            p.remove(CLOUD_SEQUENCE)
+            Files.newOutputStream(path).use { p.store(it, "RitoVision Library binding (runtime cloud marker excluded)") }
+        }
 
         @JvmStatic
         fun pathForDatabase(dbFile: Path): Path = dbFile.resolveSibling(FILE_NAME)

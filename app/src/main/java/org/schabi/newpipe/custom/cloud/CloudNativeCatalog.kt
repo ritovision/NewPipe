@@ -17,7 +17,14 @@ import org.schabi.newpipe.custom.tagging.TagRepository
 import org.schabi.newpipe.custom.tagging.TagRuntime
 
 /** Current display hints are not semantic content; they never affect the catalog fingerprint. */
-internal data class CloudMediaHint(val key: CloudKey, val title: String, val uploader: String, val thumbnail: String?)
+internal data class CloudMediaHint(
+    val key: CloudKey,
+    val title: String,
+    val uploader: String,
+    val thumbnail: String?,
+    val duration: Long,
+    val streamType: String
+)
 internal data class CloudOrphanAssignment(val key: CloudKey, val tagIds: List<String>)
 
 /** Owns the exact canonical bytes independently of any caller-mutated DTO. No native apply API. */
@@ -41,13 +48,22 @@ internal class CloudNativeSnapshot(
  * A shared TagRuntime barrier + a Room transaction fences Room writers during the snapshot.
  * The tag transaction commits only runtime UUID mapping changes after whole-catalog validation.
  */
-internal class CloudNativeCatalog(private val repository: TagRepository) {
+internal class CloudNativeCatalog(
+    private val repository: TagRepository,
+    private val afterBindingPersisted: (() -> Unit)? = null
+) {
     private data class NativePlaylist(val id: Long, val name: String?, val displayIndex: Long, val artwork: CloudKey?)
     private data class NativeCategory(val id: Long, val name: String, val nameKey: String)
     private data class NativeTag(val id: Long, val name: String, val nameKey: String, val categoryId: Long?)
     private data class NativeAssignment(val key: CloudKey, val tagId: Long)
 
-    fun capture(scope: CloudIdentityStore.Scope, expectedIncarnation: String? = null): CloudNativeSnapshot {
+    /** Explicit local identity enrollment only; never enables sync or obtains cloud authority. */
+    fun enroll(scope: CloudIdentityStore.Scope): CloudNativeSnapshot = snapshot(scope, null, true)
+
+    /** Capture cannot recreate absent identity state or silently enroll after restore. */
+    fun capture(scope: CloudIdentityStore.Scope, expectedIncarnation: String): CloudNativeSnapshot = snapshot(scope, expectedIncarnation, false)
+
+    private fun snapshot(scope: CloudIdentityStore.Scope, expectedIncarnation: String?, enrollment: Boolean): CloudNativeSnapshot {
         check(Looper.myLooper() != Looper.getMainLooper()) { "CLOUD_IO_ON_MAIN_THREAD" }
         return TagRuntime.lock.withLock {
             TagRuntime.assertAvailable()
@@ -62,7 +78,18 @@ internal class CloudNativeCatalog(private val repository: TagRepository) {
                         requireNoPendingRecovery(side)
                         val binding = repository.binding.read() ?: error("IDENTITY_REPAIR_REQUIRED")
                         val unavailable = binding.unavailablePlaylistId ?: error("IDENTITY_REPAIR_REQUIRED")
-                        val playlists = readPlaylists(main)
+                        val oldContext = CloudIdentityStore.context(side)
+                        if (enrollment) {
+                            check(oldContext == null) { "CLOUD_ALREADY_ENROLLED" }
+                        } else {
+                            check(oldContext != null) { "CLOUD_ENROLLMENT_REQUIRED" }
+                            check(oldContext.scope == scope) { "CLOUD_SCOPE_MISMATCH" }
+                            check(oldContext.incarnation == expectedIncarnation) { "CLOUD_INCARNATION_CHANGED" }
+                            check(binding.cloudIncarnation == oldContext.incarnation) { "CLOUD_MAIN_DATABASE_CHANGED" }
+                        }
+                        val sequence = playlistSequence(main)
+                        check(enrollment || sequence >= checkNotNull(binding.cloudPlaylistSequence)) { "CLOUD_PLAYLIST_SEQUENCE_REGRESSED" }
+                        val playlists = readPlaylists(main, setOf(binding.playlistId, unavailable))
                         check(
                             playlists.singleOrNull { it.id == binding.playlistId }?.name == LibraryBindingStore.LIBRARY_NAME &&
                                 playlists.singleOrNull { it.id == unavailable }?.name == UnavailableRepository.NAME
@@ -86,7 +113,8 @@ internal class CloudNativeCatalog(private val repository: TagRepository) {
                             binding.playlistId,
                             unavailable,
                             expectedIncarnation,
-                            active
+                            active,
+                            enrollment
                         )
                         fun portable(kind: Kind, id: Long): String = map[NativeId(kind, id)] ?: error("NATIVE_REFERENCE_MISSING")
                         val library = memberships[binding.playlistId].orEmpty()
@@ -111,6 +139,14 @@ internal class CloudNativeCatalog(private val repository: TagRepository) {
                         }.sortedWith(compareBy<CloudOrphanAssignment> { it.key.service }.thenBy { it.key.url })
                         // Re-read persisted role file: supported binding writers also hold TagRuntime.lock.
                         check(repository.binding.read() == binding) { "CLOUD_BINDING_CHANGED" }
+                        // Persist the file anchor before the tag transaction can commit. A failed
+                        // commit may leave an unclaimed marker, never trusted old mappings.
+                        val anchored = binding.copy(cloudIncarnation = context.incarnation, cloudPlaylistSequence = sequence)
+                        if (anchored != binding) {
+                            repository.binding.write(anchored)
+                            check(repository.binding.read() == anchored) { "CLOUD_BINDING_WRITE_FAILED" }
+                        }
+                        afterBindingPersisted?.invoke()
                         CloudNativeSnapshot(validated, context, map.toMap(), hints.toMap(), orphans, canonical)
                     }
                 }
@@ -128,7 +164,16 @@ internal class CloudNativeCatalog(private val repository: TagRepository) {
         }
     }
 
-    private fun readPlaylists(db: SupportSQLiteDatabase): List<NativePlaylist> {
+    private fun playlistSequence(db: SupportSQLiteDatabase): Long = db.query(
+        "SELECT seq,typeof(seq),(SELECT MAX(uid) FROM playlists) FROM sqlite_sequence WHERE name='playlists'"
+    ).use { c ->
+        check(c.moveToFirst() && c.getString(1) == "integer") { "CLOUD_PLAYLIST_SEQUENCE_INVALID" }
+        val sequence = c.getLong(0)
+        check(sequence > 0 && !c.isNull(2) && sequence >= c.getLong(2) && !c.moveToNext()) { "CLOUD_PLAYLIST_SEQUENCE_INVALID" }
+        sequence
+    }
+
+    private fun readPlaylists(db: SupportSQLiteDatabase, protectedIds: Set<Long>): List<NativePlaylist> {
         val rows = db.query(
             "SELECT p.uid,p.name,p.display_index,p.is_thumbnail_permanent,p.thumbnail_stream_id,s.service_id,s.url " +
                 "FROM playlists p LEFT JOIN streams s ON s.uid=p.thumbnail_stream_id " +
@@ -141,10 +186,10 @@ internal class CloudNativeCatalog(private val repository: TagRepository) {
                     check(id > 0) { "INVALID_NATIVE_ID" }
                     val permanent = c.getInt(3) != 0
                     val artworkId = c.getLong(4)
-                    val artwork = if (!permanent || artworkId == -1L) {
+                    val artwork = if (id in protectedIds || !permanent || artworkId == -1L) {
                         null
                     } else {
-                        check(artworkId > 0 && !c.isNull(5) && !c.isNull(6)) { "NATIVE_ARTWORK_UNRESOLVED" }
+                        check(artworkId > 0 && !c.isNull(5) && !c.isNull(6)) { "NATIVE_ARTWORK_UNRESOLVED:$id" }
                         nativeKey(c.getLong(5), c.getString(6))
                     }
                     add(NativePlaylist(id, if (c.isNull(1)) null else c.getString(1), c.getLong(2), artwork))
@@ -163,7 +208,7 @@ internal class CloudNativeCatalog(private val repository: TagRepository) {
         knownPlaylists: Set<Long>,
         hints: MutableMap<CloudKey, CloudMediaHint>
     ): Map<Long, List<CloudKey>> = db.query(
-        "SELECT j.playlist_id,j.stream_id,j.join_index,s.service_id,s.url,s.title,s.uploader,s.thumbnail_url " +
+        "SELECT j.playlist_id,j.stream_id,j.join_index,s.service_id,s.url,s.title,s.uploader,s.thumbnail_url,s.duration,s.stream_type " +
             "FROM playlist_stream_join j LEFT JOIN streams s ON s.uid=j.stream_id " +
             "ORDER BY j.playlist_id,j.join_index LIMIT ${CloudCatalogCodec.MAX_MEMBERSHIPS + 1}"
     ).use { c ->
@@ -179,7 +224,7 @@ internal class CloudNativeCatalog(private val repository: TagRepository) {
             check(index >= 0 && index <= Int.MAX_VALUE && (playlist != lastPlaylist || index > lastIndex)) { "NATIVE_INVALID_ORDER" }
             val key = nativeKey(c.getLong(3), c.getString(4))
             members.getOrPut(playlist) { ArrayList() }.add(key)
-            hints.putIfAbsent(key, CloudMediaHint(key, c.getString(5).orEmpty(), c.getString(6).orEmpty(), if (c.isNull(7)) null else c.getString(7)))
+            hints.putIfAbsent(key, CloudMediaHint(key, c.getString(5).orEmpty(), c.getString(6).orEmpty(), if (c.isNull(7)) null else c.getString(7), c.getLong(8), c.getString(9)))
             lastPlaylist = playlist
             lastIndex = index
         }
