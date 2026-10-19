@@ -310,7 +310,7 @@ object TagBackupCoordinator {
     internal fun sanitizeTagCopy(context: Context, path: Path) {
         val header = Files.newInputStream(path).use { it.readNBytes(64) }
         check(header.size == 64 && String(header.copyOfRange(0, 16), Charsets.US_ASCII) == "SQLite format 3\u0000") { "Invalid tag backup header" }
-        check(ByteBuffer.wrap(header).order(ByteOrder.BIG_ENDIAN).getInt(60) in 1..3) { "Unsupported tag database version" }
+        check(ByteBuffer.wrap(header).order(ByteOrder.BIG_ENDIAN).getInt(60) in 1..TagStore.SCHEMA_VERSION) { "Unsupported tag database version" }
         rejectExecutableSchema(path)
         val copy = TagStore(context.applicationContext, path.toAbsolutePath().toString())
         val expected = TagStore(context.applicationContext, null)

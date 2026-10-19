@@ -228,3 +228,14 @@ Checked 2026-10-19. These are platform facts, not measurements of this library o
 - [C8] Workers Free HTTP CPU budget is 10 ms, Paid default 30 seconds; awaiting D1/network is not CPU time. Our local runtime cannot certify deployed CPU/quota acceptance. https://developers.cloudflare.com/workers/platform/limits/
 - [C9] SQLite CHECK(NULL) passes, so admission explicitly uses NOT NULL and COUNT predicates. https://www.sqlite.org/lang_createtable.html#check_constraints
 - [C10] R2 non-final multipart parts must be >=5 MiB and equally sized; multipart ETag is not full-payload SHA-256. https://developers.cloudflare.com/r2/objects/upload-objects/
+
+
+### M1 native projection decision — 2026-10-19
+
+Implement native capture before record apply. Capture reads the actual Room catalog plus tags behind the shared writer barrier, requires existing verified persisted Library/Unavailable identities, and refuses pending native recovery rather than creating/rebinding protected roles or silently repairing data. It preserves native content; the only writes are portable identity mappings in the existing fork-owned tag store.
+
+Add tag schema **4** (main Room stays **9001**) with `cloud_catalog_context` and `cloud_catalog_identity`. One bound service/library scope and a random local incarnation identify the mapping set. UUIDs are assigned to native playlist/category/tag rows, never inferred from names; deleted mappings are pruned only after a complete valid capture. Binding changes or an expected-incarnation mismatch block capture. Native full export/import sanitizes all mapping/context rows in staged copies; missing-tag stock imports also sanitize retained tag copies. No token, endpoint, sync toggle, baseline or outbox is introduced in this migration. Ordinary app startup does not enable or invoke cloud capture.
+
+Supported restore paths replace/clear these runtime mappings and produce a fresh incarnation on subsequent explicit enrollment. This is not tamper detection for arbitrary out-of-band sqlite replacement. Stable ID adoption from another device and crash-safe record application are separate later work; this capture adapter cannot apply remote data.
+
+Query bounds and limits apply before mapping commits. Invalid stored name keys, dangling joins/artwork, duplicate protected membership or missing protected binding fail without silently dropping or normalizing content. Active assignments enter the portable catalog; orphan assignments remain intact locally and are exposed separately for future reconciliation. Native playlist rank uses display_index plus native case-insensitive name ordering and deterministic ID tie-break; remote bookmarks and numeric gaps are excluded.

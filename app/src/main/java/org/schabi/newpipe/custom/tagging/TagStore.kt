@@ -11,9 +11,10 @@ import android.database.sqlite.SQLiteOpenHelper
 import org.schabi.newpipe.custom.aicontrol.AiCommandReceipt
 
 /** Independently versioned metadata. No NewPipe Room table or migration is changed. */
-class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(context, name, null, 3) {
+class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(context, name, null, SCHEMA_VERSION) {
     companion object {
         const val FILE_NAME = "ritovision-tags.db"
+        const val SCHEMA_VERSION = 4
     }
 
     override fun onConfigure(db: SQLiteDatabase) {
@@ -32,14 +33,16 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
         db.execSQL("INSERT INTO catalog_meta VALUES(1,0)")
         createAiTables(db)
         createNativeBulkTable(db)
+        org.schabi.newpipe.custom.cloud.CloudIdentityStore.createTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        check(oldVersion in 1..2 && newVersion == 3) {
+        check(oldVersion in 1 until SCHEMA_VERSION && newVersion == SCHEMA_VERSION) {
             "Unsupported tag database upgrade; existing data was not modified"
         }
         if (oldVersion == 1) createAiTables(db)
-        createNativeBulkTable(db)
+        if (oldVersion <= 2) createNativeBulkTable(db)
+        org.schabi.newpipe.custom.cloud.CloudIdentityStore.createTables(db)
     }
 
     internal fun <T> transaction(action: (SQLiteDatabase) -> T): T {
@@ -311,6 +314,7 @@ class TagStore(context: Context, name: String? = FILE_NAME) : SQLiteOpenHelper(c
         db.delete("ai_removal_intent", null, null)
         db.delete("native_bulk_intent", null, null)
         db.delete("tag_command_receipt", null, null)
+        org.schabi.newpipe.custom.cloud.CloudIdentityStore.discard(db)
     }
 
     private fun nameValues(name: String) = ContentValues().apply {

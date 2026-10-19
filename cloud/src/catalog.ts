@@ -187,3 +187,6 @@ export function diffCatalog(beforeInput: Catalog, afterInput: Catalog) {
     playlistOrderChanged: JSON.stringify(before.playlists.map(p => p.id)) !== JSON.stringify(after.playlists.map(p => p.id)),
     playlists, categories: definitions(before.categories, after.categories), tags: definitions(before.tags, after.tags), assignments };
 }
+
+/** Strict shared media-key validator for typed delta/storage compilers. */
+export { key as readKey };
