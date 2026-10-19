@@ -66,7 +66,7 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
     if (url.origin !== origin.origin || url.search || url.hash || request.headers.has("origin") && request.headers.get("origin") !== origin.origin) fail("ORIGIN_REJECTED", 403);
     if (!paths.has(url.pathname)) fail("NOT_FOUND", 404);
     if (request.method !== "POST") fail("METHOD_NOT_ALLOWED", 405);
-    if (!env.REQUEST_LIMITER || !await env.REQUEST_LIMITER.limit({ key: request.headers.get("cf-connecting-ip") ?? "unknown" }).then(r => r.success)) fail("REQUEST_LIMIT", 429);
+    if (!env.REQUEST_LIMITER || !await env.REQUEST_LIMITER.limit({ key: "newpipe-cloud-sync-v1:" + (request.headers.get("cf-connecting-ip") ?? "unknown") }).then(r => r.success)) fail("REQUEST_LIMIT", 429);
     const authorization = request.headers.get("authorization") ?? "";
     if (!authorization.startsWith("Bearer ") || authorization.length > 204) fail("INVALID_CREDENTIAL", 401);
     const context = await authenticateToken(env.DB, authorization.slice(7), env.LIBRARY_ID, env.SERVICE_GENERATION);
