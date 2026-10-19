@@ -22,7 +22,8 @@ internal object CloudApplyCompiler {
         before: CloudNativeSnapshot,
         head: CloudHead,
         targetInput: CloudCatalog,
-        mediaHints: Collection<CloudMediaHint>
+        mediaHints: Collection<CloudMediaHint>,
+        reconcileOrphans: Boolean = false
     ): CloudApplyPlan {
         val main = repository.library.openHelper.writableDatabase
         val side = repository.store.writableDatabase
@@ -39,11 +40,14 @@ internal object CloudApplyCompiler {
         // reactivate divergent orphan metadata must go through explicit future recovery UI.
         for (orphan in before.orphaned) {
             check(
-                tags.containsAll(orphan.tagIds) &&
+                reconcileOrphans || tags.containsAll(orphan.tagIds) &&
                     (orphan.key !in targetKeys || orphan.tagIds.toSet() == assigned[orphan.key].orEmpty())
             ) { "CLOUD_ORPHAN_RECONCILIATION_REQUIRED" }
         }
+        // Explicit preview authorization may displace only associations whose definitions
+        // disappear or whose key becomes active with the exact target assignment set.
         val preserved = before.orphaned.filter { it.key !in targetKeys }
+            .map { it.copy(tagIds = it.tagIds.filter(tags::contains)) }.filter { it.tagIds.isNotEmpty() }
         CloudApplyBounds.requireAssignmentBudget(
             preserved.sumOf { it.tagIds.size.toLong() },
             target.assignments.sumOf { it.tags.size.toLong() }
@@ -77,7 +81,10 @@ internal object CloudApplyCompiler {
         }
         val slots = displaySlots(main, before, target, nativePlaylists)
         check(before.tagRevision < Long.MAX_VALUE) { "CLOUD_TAG_REVISION_EXHAUSTED" }
-        val affected = (before.catalog.library + target.library).distinct()
+        val preservedByKey = preserved.associate { it.key to it.tagIds.toSet() }
+        val changedOrphans = before.orphaned.filter { it.key in targetKeys || it.tagIds.toSet() != preservedByKey[it.key].orEmpty() }.map { it.key }
+        val affected = (before.catalog.library + target.library + changedOrphans).distinct()
+        check(affected.size <= CloudCatalogCodec.MAX_MEMBERSHIPS + CloudCatalogCodec.MAX_STREAMS * 2) { "CLOUD_AFFECTED_KEYS_LIMIT" }
         return CloudApplyPlan(
             UUID.randomUUID().toString(), before.identities, before.fingerprint, head, target,
             mapping, streams, deleted, slots, preserved, affected, before.tagRevision

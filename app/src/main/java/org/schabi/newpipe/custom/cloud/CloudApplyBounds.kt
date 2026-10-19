@@ -15,4 +15,4 @@ internal object CloudApplyBounds {
 }
 
 /** A selected complete native backup may replace both stores when this recovery state is blocked. */
-internal class CloudRecoveryBlockedException(cause: Exception) : IllegalStateException(cause.message ?: "CLOUD_RECOVERY_BLOCKED", cause)
+internal class CloudRecoveryBlockedException(cause: Throwable) : IllegalStateException(cause.message ?: "CLOUD_RECOVERY_BLOCKED", cause)

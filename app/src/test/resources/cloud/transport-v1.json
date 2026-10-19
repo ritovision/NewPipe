@@ -1,0 +1,2151 @@
+{
+  "vectors": [
+    {
+      "name": "empty-new",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [],
+        "unavailable": [],
+        "playlists": [],
+        "categories": [],
+        "tags": [],
+        "assignments": []
+      },
+      "previous": [],
+      "pages": [
+        {
+          "id": "4c94485e0c21ae6c41ce1dfe7b6bfaceea5ab68e40a2476f50208e526f506080",
+          "body": "[[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "5d1b52dbf459edb4f0d8e7fee363fb0004169f151145b732f221f8971925d129",
+      "upload": {
+        "header": {
+          "mode": "initialize",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "fb078721eeb32c778bfb69827e83967b4b871e86372a14ac343fc76598da4963",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 13,
+          "digest": "11735d98cd3d02a159be9c2e5e8f3fddae1faf14ccd8058525d68005e34603fe"
+        },
+        "chunks": [
+          [
+            {
+              "id": "4c94485e0c21ae6c41ce1dfe7b6bfaceea5ab68e40a2476f50208e526f506080",
+              "body": "[[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "empty-incremental",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [],
+        "unavailable": [],
+        "playlists": [],
+        "categories": [],
+        "tags": [],
+        "assignments": []
+      },
+      "previous": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "pages": [
+        {
+          "id": "4c94485e0c21ae6c41ce1dfe7b6bfaceea5ab68e40a2476f50208e526f506080",
+          "body": "[[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "5d1b52dbf459edb4f0d8e7fee363fb0004169f151145b732f221f8971925d129",
+      "upload": {
+        "header": {
+          "mode": "sync",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "fb078721eeb32c778bfb69827e83967b4b871e86372a14ac343fc76598da4963",
+          "chunkCount": 1,
+          "changeCount": 2,
+          "payloadBytes": 13,
+          "digest": "e4c36a611fe58b8c94d8ec9319e3e2afd6b744d3953556cfd5c698dfe5f12c9d"
+        },
+        "chunks": [
+          [
+            {
+              "id": "4c94485e0c21ae6c41ce1dfe7b6bfaceea5ab68e40a2476f50208e526f506080",
+              "body": "[[\"v\",[1,1]]]"
+            },
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": null
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "base-new",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "previous": [],
+      "pages": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "f9a108957a9fcc9214a37e7ae303bc204f1170f46be5beaa24a9632168a090c1",
+      "upload": {
+        "header": {
+          "mode": "initialize",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 1211,
+          "digest": "d9c82928db1e36adc32623758cd7699cd4d8374c3b10bc187ff93879372b581f"
+        },
+        "chunks": [
+          [
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "base-incremental",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "previous": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "pages": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "f9a108957a9fcc9214a37e7ae303bc204f1170f46be5beaa24a9632168a090c1",
+      "upload": null
+    },
+    {
+      "name": "semantic-order-new",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000001",
+              "20000000-0000-0000-0000-000000000002"
+            ]
+          },
+          {
+            "key": {
+              "service": 1,
+              "url": "https://example.test/β?x=1&x=2"
+            },
+            "tags": []
+          }
+        ]
+      },
+      "previous": [],
+      "pages": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "f9a108957a9fcc9214a37e7ae303bc204f1170f46be5beaa24a9632168a090c1",
+      "upload": {
+        "header": {
+          "mode": "initialize",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 1211,
+          "digest": "d9c82928db1e36adc32623758cd7699cd4d8374c3b10bc187ff93879372b581f"
+        },
+        "chunks": [
+          [
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "semantic-order-incremental",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000001",
+              "20000000-0000-0000-0000-000000000002"
+            ]
+          },
+          {
+            "key": {
+              "service": 1,
+              "url": "https://example.test/β?x=1&x=2"
+            },
+            "tags": []
+          }
+        ]
+      },
+      "previous": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "pages": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "f9a108957a9fcc9214a37e7ae303bc204f1170f46be5beaa24a9632168a090c1",
+      "upload": null
+    },
+    {
+      "name": "reorder-new",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          },
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "previous": [],
+      "pages": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/library/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "e7be2cf84c4f7a31f8918ba094c1ad75026a933e79caefc5e92d0cbd6e1fc46b",
+      "upload": {
+        "header": {
+          "mode": "initialize",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 1211,
+          "digest": "485b1cba8a388d43a832e0fc614f0f0740ffb4b4ac8d4a013c5acb6de5565811"
+        },
+        "chunks": [
+          [
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/library/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "reorder-incremental",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          },
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "previous": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "pages": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7ffffffffffffffe0000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7ffffffffffffffe0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "673dbf7c7b18ca0667d0a94483c26662b39054d1fa0d1895d3aea4e39835e4e2",
+      "upload": {
+        "header": {
+          "mode": "sync",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 1211,
+          "digest": "c254adb4d52a74c438487cd052bad20396b6e614779aea5f830176a95f9b3e04"
+        },
+        "chunks": [
+          [
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7ffffffffffffffe0000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7ffffffffffffffe0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "global-remove-new",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          }
+        ],
+        "assignments": []
+      },
+      "previous": [],
+      "pages": [
+        {
+          "id": "063cd0bd8fd86e35031253618ea8686141203e19ab9998f9a4726f9b70494cac",
+          "body": "[[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "9afe2eeb6827fd457391840cdf2dbd0ad3b95bf6abd8f702619353ec8362fb90",
+      "upload": {
+        "header": {
+          "mode": "initialize",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "fc8f5a3f5ef35a2e522b3f072a8563dc5c9e7a497e6a4a4b57a7585385427169",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 561,
+          "digest": "fa2b73844bea921bb4f4411952d7092eed2135189a5897529390130a4c1f70eb"
+        },
+        "chunks": [
+          [
+            {
+              "id": "063cd0bd8fd86e35031253618ea8686141203e19ab9998f9a4726f9b70494cac",
+              "body": "[[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "global-remove-incremental",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          }
+        ],
+        "assignments": []
+      },
+      "previous": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "pages": [
+        {
+          "id": "063cd0bd8fd86e35031253618ea8686141203e19ab9998f9a4726f9b70494cac",
+          "body": "[[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "87e4e89108fba7235d4ac076054d3175e9c37c71b173d1be43540904a1e911bf",
+      "upload": {
+        "header": {
+          "mode": "sync",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "fc8f5a3f5ef35a2e522b3f072a8563dc5c9e7a497e6a4a4b57a7585385427169",
+          "chunkCount": 1,
+          "changeCount": 2,
+          "payloadBytes": 561,
+          "digest": "1b1b047fb1411ac27ddc631f6085ff2e6757913fab9f3e42240b1823267eab09"
+        },
+        "chunks": [
+          [
+            {
+              "id": "063cd0bd8fd86e35031253618ea8686141203e19ab9998f9a4726f9b70494cac",
+              "body": "[[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+            },
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": null
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "rename-new",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix renamed",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "previous": [],
+      "pages": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix renamed\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "8de60d3cb7b1b403b902e6f0f46e77cabdf33dc67773ffb5e272e38d0a60e823",
+      "upload": {
+        "header": {
+          "mode": "initialize",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "fe26f08381c08f0fa633a3eb3156b3ffdf5693fa29e24ba3423f20caf968cee7",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 1219,
+          "digest": "9af10012c38d57cb6778efd832d6fa6b60a2c8cbbb3eb2ab165bf86afa889266"
+        },
+        "chunks": [
+          [
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix renamed\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "rename-incremental",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix renamed",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "previous": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "pages": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix renamed\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "8de60d3cb7b1b403b902e6f0f46e77cabdf33dc67773ffb5e272e38d0a60e823",
+      "upload": {
+        "header": {
+          "mode": "sync",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "fe26f08381c08f0fa633a3eb3156b3ffdf5693fa29e24ba3423f20caf968cee7",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 1219,
+          "digest": "84d46f1fc37afdea322469357b494f9537ae9d1bc026f99408e4315f08c5cf53"
+        },
+        "chunks": [
+          [
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix renamed\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "category-delete-new",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [],
+        "tags": [],
+        "assignments": []
+      },
+      "previous": [],
+      "pages": [
+        {
+          "id": "4d99eeeb1dc26dad7ca69cc6a47b2906ad27323ac8277a3c62d61b0f0cbdadb7",
+          "body": "[[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "b7b0a6312dc7251b4f56082903145e369314ace0841df316622676f43e5ff200",
+      "upload": {
+        "header": {
+          "mode": "initialize",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "43e001ae2788b175978d95419fa8b36c5209d6b72678d02ff5be36f995237883",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 693,
+          "digest": "1399d7779a34b7e28e2a27229d38b23fed8062f5ae7e3fac0d7aae530f80164e"
+        },
+        "chunks": [
+          [
+            {
+              "id": "4d99eeeb1dc26dad7ca69cc6a47b2906ad27323ac8277a3c62d61b0f0cbdadb7",
+              "body": "[[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "category-delete-incremental",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [],
+        "tags": [],
+        "assignments": []
+      },
+      "previous": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "pages": [
+        {
+          "id": "4d99eeeb1dc26dad7ca69cc6a47b2906ad27323ac8277a3c62d61b0f0cbdadb7",
+          "body": "[[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "b7b0a6312dc7251b4f56082903145e369314ace0841df316622676f43e5ff200",
+      "upload": {
+        "header": {
+          "mode": "sync",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "43e001ae2788b175978d95419fa8b36c5209d6b72678d02ff5be36f995237883",
+          "chunkCount": 1,
+          "changeCount": 2,
+          "payloadBytes": 693,
+          "digest": "9053b74e3ac727efc628ed5aee315f60cf8a264c538ae8f526f7167a106c8d59"
+        },
+        "chunks": [
+          [
+            {
+              "id": "4d99eeeb1dc26dad7ca69cc6a47b2906ad27323ac8277a3c62d61b0f0cbdadb7",
+              "body": "[[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"v\",[1,1]]]"
+            },
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": null
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "nullable-and-external-artwork-new",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": null,
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/not-saved"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "previous": [],
+      "pages": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[null,[0,\"https://example.test/not-saved\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "46f186d5777f0277efbd76310abcd889304bcef3418038935efd1aacd00c917f",
+      "upload": {
+        "header": {
+          "mode": "initialize",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "2026712d7d43438e66419813cdedba1706c7e91b3aa98b538f364f99e3c360e6",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 1218,
+          "digest": "35ae9764074acaad3cbaa0e5a886258e309072efda1f28d91a5eec39fd89351f"
+        },
+        "chunks": [
+          [
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[null,[0,\"https://example.test/not-saved\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "nullable-and-external-artwork-incremental",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": null,
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/not-saved"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/β?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "previous": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "pages": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[null,[0,\"https://example.test/not-saved\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "46f186d5777f0277efbd76310abcd889304bcef3418038935efd1aacd00c917f",
+      "upload": {
+        "header": {
+          "mode": "sync",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "2026712d7d43438e66419813cdedba1706c7e91b3aa98b538f364f99e3c360e6",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 1218,
+          "digest": "4cae3462f18107430a2726bff0ceee247e2091324837e44fc53045982bf9c17f"
+        },
+        "chunks": [
+          [
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[null,[0,\"https://example.test/not-saved\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "unicode-legacy-new",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/𐐀"
+          },
+          {
+            "service": 0,
+            "url": "https://example.test/"
+          }
+        ],
+        "unavailable": [],
+        "playlists": [],
+        "categories": [],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "  Jazz  ",
+            "nameKey": "jazz",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u001c Case　",
+            "nameKey": "case",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000003",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000004",
+            "name": "ΟΣ",
+            "nameKey": "ος",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000005",
+            "name": "𐐀",
+            "nameKey": "𐐨",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000006",
+            "name": "A👩‍💻",
+            "nameKey": "a👩‍💻",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000007",
+            "name": "﻿Old",
+            "nameKey": "﻿old",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000008",
+            "name": "old\u0001name",
+            "nameKey": "old\u0001name",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000009",
+            "name": "Old",
+            "nameKey": "old",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000010",
+            "name": "  Name ",
+            "nameKey": "name",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000011",
+            "name": "",
+            "nameKey": "",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          },
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/𐐀"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "previous": [],
+      "pages": [
+        {
+          "id": "c6a0af33a47e6811f165dc4340b0c906bbd2dafcfd3de92e752d3967d13f14ac",
+          "body": "[[\"a/[0,\\\"https://example.test/𐐀\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/𐐀\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/\",\"20000000-0000-0000-0000-000000000001\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/𐐀\"]],[\"s/library/80000000000000000000000000000000\",[0,\"https://example.test/\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"  Jazz  \",\"jazz\",null]],[\"t/20000000-0000-0000-0000-000000000002\",[\"\\u001c Case　\",\"case\",null]],[\"t/20000000-0000-0000-0000-000000000003\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"t/20000000-0000-0000-0000-000000000004\",[\"ΟΣ\",\"ος\",null]],[\"t/20000000-0000-0000-0000-000000000005\",[\"𐐀\",\"𐐨\",null]],[\"t/20000000-0000-0000-0000-000000000006\",[\"A👩‍💻\",\"a👩‍💻\",null]],[\"t/20000000-0000-0000-0000-000000000007\",[\"﻿Old\",\"﻿old\",null]],[\"t/20000000-0000-0000-0000-000000000008\",[\"old\\u0001name\",\"old\\u0001name\",null]],[\"t/20000000-0000-0000-0000-000000000009\",[\"Old\",\"old\",null]],[\"t/20000000-0000-0000-0000-000000000010\",[\"  Name \",\"name\",null]],[\"t/20000000-0000-0000-0000-000000000011\",[\"\",\"\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "8e578abfdfe2f8599f6184e634eb2305ce3a4eb0be7777b5a517451a4cfad095",
+      "upload": {
+        "header": {
+          "mode": "initialize",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "2a5e418451fbd781a842d2f802abcb964d1e69de8bb2af4858255180b8e7fa0e",
+          "chunkCount": 1,
+          "changeCount": 1,
+          "payloadBytes": 1239,
+          "digest": "0f71823ac05d2b0495fe2223d7b9da72e31a0f03f34f03ddaea392b0e03137d8"
+        },
+        "chunks": [
+          [
+            {
+              "id": "c6a0af33a47e6811f165dc4340b0c906bbd2dafcfd3de92e752d3967d13f14ac",
+              "body": "[[\"a/[0,\\\"https://example.test/𐐀\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/𐐀\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/\",\"20000000-0000-0000-0000-000000000001\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/𐐀\"]],[\"s/library/80000000000000000000000000000000\",[0,\"https://example.test/\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"  Jazz  \",\"jazz\",null]],[\"t/20000000-0000-0000-0000-000000000002\",[\"\\u001c Case　\",\"case\",null]],[\"t/20000000-0000-0000-0000-000000000003\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"t/20000000-0000-0000-0000-000000000004\",[\"ΟΣ\",\"ος\",null]],[\"t/20000000-0000-0000-0000-000000000005\",[\"𐐀\",\"𐐨\",null]],[\"t/20000000-0000-0000-0000-000000000006\",[\"A👩‍💻\",\"a👩‍💻\",null]],[\"t/20000000-0000-0000-0000-000000000007\",[\"﻿Old\",\"﻿old\",null]],[\"t/20000000-0000-0000-0000-000000000008\",[\"old\\u0001name\",\"old\\u0001name\",null]],[\"t/20000000-0000-0000-0000-000000000009\",[\"Old\",\"old\",null]],[\"t/20000000-0000-0000-0000-000000000010\",[\"  Name \",\"name\",null]],[\"t/20000000-0000-0000-0000-000000000011\",[\"\",\"\",null]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "unicode-legacy-incremental",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/𐐀"
+          },
+          {
+            "service": 0,
+            "url": "https://example.test/"
+          }
+        ],
+        "unavailable": [],
+        "playlists": [],
+        "categories": [],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "  Jazz  ",
+            "nameKey": "jazz",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u001c Case　",
+            "nameKey": "case",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000003",
+            "name": "İSTANBUL",
+            "nameKey": "i̇stanbul",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000004",
+            "name": "ΟΣ",
+            "nameKey": "ος",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000005",
+            "name": "𐐀",
+            "nameKey": "𐐨",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000006",
+            "name": "A👩‍💻",
+            "nameKey": "a👩‍💻",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000007",
+            "name": "﻿Old",
+            "nameKey": "﻿old",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000008",
+            "name": "old\u0001name",
+            "nameKey": "old\u0001name",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000009",
+            "name": "Old",
+            "nameKey": "old",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000010",
+            "name": "  Name ",
+            "nameKey": "name",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000011",
+            "name": "",
+            "nameKey": "",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          },
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/𐐀"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "previous": [
+        {
+          "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+          "body": "[[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/A\\\"]/20000000-0000-0000-0000-000000000002\",[0,\"https://example.test/A\",\"20000000-0000-0000-0000-000000000002\"]],[\"c/10000000-0000-0000-0000-000000000001\",[\"Genre\",\"genre\"]],[\"p/30000000-0000-0000-0000-000000000001\",[\"Mix\",[0,\"https://example.test/A\"],\"80000000000000000000000000000000\"]],[\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/A\"]],[\"s/library/80000000000000000000000000000000\",[1,\"https://example.test/β?x=1&x=2\"]],[\"s/unavailable/80000000000000000000000000000000\",[0,\"https://example.test/A\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"Jazz\",\"jazz\",\"10000000-0000-0000-0000-000000000001\"]],[\"t/20000000-0000-0000-0000-000000000002\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "pages": [
+        {
+          "id": "c6a0af33a47e6811f165dc4340b0c906bbd2dafcfd3de92e752d3967d13f14ac",
+          "body": "[[\"a/[0,\\\"https://example.test/𐐀\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/𐐀\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/\",\"20000000-0000-0000-0000-000000000001\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/𐐀\"]],[\"s/library/80000000000000000000000000000000\",[0,\"https://example.test/\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"  Jazz  \",\"jazz\",null]],[\"t/20000000-0000-0000-0000-000000000002\",[\"\\u001c Case　\",\"case\",null]],[\"t/20000000-0000-0000-0000-000000000003\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"t/20000000-0000-0000-0000-000000000004\",[\"ΟΣ\",\"ος\",null]],[\"t/20000000-0000-0000-0000-000000000005\",[\"𐐀\",\"𐐨\",null]],[\"t/20000000-0000-0000-0000-000000000006\",[\"A👩‍💻\",\"a👩‍💻\",null]],[\"t/20000000-0000-0000-0000-000000000007\",[\"﻿Old\",\"﻿old\",null]],[\"t/20000000-0000-0000-0000-000000000008\",[\"old\\u0001name\",\"old\\u0001name\",null]],[\"t/20000000-0000-0000-0000-000000000009\",[\"Old\",\"old\",null]],[\"t/20000000-0000-0000-0000-000000000010\",[\"  Name \",\"name\",null]],[\"t/20000000-0000-0000-0000-000000000011\",[\"\",\"\",null]],[\"v\",[1,1]]]"
+        }
+      ],
+      "manifest": "8e578abfdfe2f8599f6184e634eb2305ce3a4eb0be7777b5a517451a4cfad095",
+      "upload": {
+        "header": {
+          "mode": "sync",
+          "sequence": "2",
+          "before": {
+            "serviceGeneration": "service-a",
+            "library": "library-a",
+            "epoch": "epoch-a",
+            "revision": "1",
+            "headCounter": "1",
+            "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+          },
+          "targetFingerprint": "2a5e418451fbd781a842d2f802abcb964d1e69de8bb2af4858255180b8e7fa0e",
+          "chunkCount": 1,
+          "changeCount": 2,
+          "payloadBytes": 1239,
+          "digest": "7ae682d5cf34e87c5a22473f9a274f8b82eea43ba320c000b7a9c7d2dcd675ee"
+        },
+        "chunks": [
+          [
+            {
+              "id": "6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed",
+              "body": null
+            },
+            {
+              "id": "c6a0af33a47e6811f165dc4340b0c906bbd2dafcfd3de92e752d3967d13f14ac",
+              "body": "[[\"a/[0,\\\"https://example.test/𐐀\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/𐐀\",\"20000000-0000-0000-0000-000000000001\"]],[\"a/[0,\\\"https://example.test/\\\"]/20000000-0000-0000-0000-000000000001\",[0,\"https://example.test/\",\"20000000-0000-0000-0000-000000000001\"]],[\"s/library/7fffffffffffffff0000000000000000\",[0,\"https://example.test/𐐀\"]],[\"s/library/80000000000000000000000000000000\",[0,\"https://example.test/\"]],[\"t/20000000-0000-0000-0000-000000000001\",[\"  Jazz  \",\"jazz\",null]],[\"t/20000000-0000-0000-0000-000000000002\",[\"\\u001c Case　\",\"case\",null]],[\"t/20000000-0000-0000-0000-000000000003\",[\"İSTANBUL\",\"i̇stanbul\",null]],[\"t/20000000-0000-0000-0000-000000000004\",[\"ΟΣ\",\"ος\",null]],[\"t/20000000-0000-0000-0000-000000000005\",[\"𐐀\",\"𐐨\",null]],[\"t/20000000-0000-0000-0000-000000000006\",[\"A👩‍💻\",\"a👩‍💻\",null]],[\"t/20000000-0000-0000-0000-000000000007\",[\"﻿Old\",\"﻿old\",null]],[\"t/20000000-0000-0000-0000-000000000008\",[\"old\\u0001name\",\"old\\u0001name\",null]],[\"t/20000000-0000-0000-0000-000000000009\",[\"Old\",\"old\",null]],[\"t/20000000-0000-0000-0000-000000000010\",[\"  Name \",\"name\",null]],[\"t/20000000-0000-0000-0000-000000000011\",[\"\",\"\",null]],[\"v\",[1,1]]]"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "jsonStrings": [
+    "\"\\\n\t\b\f\r/",
+    "  ",
+    "é𐐀👩‍💻",
+    "\u0000\u001f"
+  ],
+  "sequences": [
+    {
+      "before": [],
+      "desired": [
+        {
+          "service": 0,
+          "url": "A"
+        },
+        {
+          "service": 0,
+          "url": "B"
+        },
+        {
+          "service": 0,
+          "url": "C"
+        }
+      ],
+      "after": [
+        {
+          "rank": "7fffffffffffffff0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "A"
+          }
+        },
+        {
+          "rank": "80000000000000000000000000000000",
+          "key": {
+            "service": 0,
+            "url": "B"
+          }
+        },
+        {
+          "rank": "80000000000000010000000000000000",
+          "key": {
+            "service": 0,
+            "url": "C"
+          }
+        }
+      ]
+    },
+    {
+      "before": [
+        {
+          "rank": "7fffffffffffffff0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "A"
+          }
+        },
+        {
+          "rank": "80000000000000000000000000000000",
+          "key": {
+            "service": 0,
+            "url": "B"
+          }
+        },
+        {
+          "rank": "80000000000000010000000000000000",
+          "key": {
+            "service": 0,
+            "url": "C"
+          }
+        }
+      ],
+      "desired": [
+        {
+          "service": 0,
+          "url": "C"
+        },
+        {
+          "service": 0,
+          "url": "A"
+        },
+        {
+          "service": 0,
+          "url": "A"
+        },
+        {
+          "service": 0,
+          "url": "B"
+        }
+      ],
+      "after": [
+        {
+          "rank": "7ffffffffffffffe0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "C"
+          }
+        },
+        {
+          "rank": "7fffffffffffffff0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "A"
+          }
+        },
+        {
+          "rank": "7fffffffffffffff8000000000000000",
+          "key": {
+            "service": 0,
+            "url": "A"
+          }
+        },
+        {
+          "rank": "80000000000000000000000000000000",
+          "key": {
+            "service": 0,
+            "url": "B"
+          }
+        }
+      ]
+    },
+    {
+      "before": [
+        {
+          "rank": "7ffffffffffffffe0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "C"
+          }
+        },
+        {
+          "rank": "7fffffffffffffff0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "A"
+          }
+        },
+        {
+          "rank": "7fffffffffffffff8000000000000000",
+          "key": {
+            "service": 0,
+            "url": "A"
+          }
+        },
+        {
+          "rank": "80000000000000000000000000000000",
+          "key": {
+            "service": 0,
+            "url": "B"
+          }
+        }
+      ],
+      "desired": [
+        {
+          "service": 0,
+          "url": "A"
+        },
+        {
+          "service": 0,
+          "url": "B"
+        },
+        {
+          "service": 0,
+          "url": "C"
+        },
+        {
+          "service": 0,
+          "url": "A"
+        }
+      ],
+      "after": [
+        {
+          "rank": "7ffffffffffffffc0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "A"
+          }
+        },
+        {
+          "rank": "7ffffffffffffffd0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "B"
+          }
+        },
+        {
+          "rank": "7ffffffffffffffe0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "C"
+          }
+        },
+        {
+          "rank": "7fffffffffffffff8000000000000000",
+          "key": {
+            "service": 0,
+            "url": "A"
+          }
+        }
+      ]
+    },
+    {
+      "before": [
+        {
+          "rank": "7ffffffffffffffc0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "A"
+          }
+        },
+        {
+          "rank": "7ffffffffffffffd0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "B"
+          }
+        },
+        {
+          "rank": "7ffffffffffffffe0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "C"
+          }
+        },
+        {
+          "rank": "7fffffffffffffff8000000000000000",
+          "key": {
+            "service": 0,
+            "url": "A"
+          }
+        }
+      ],
+      "desired": [
+        {
+          "service": 0,
+          "url": "A"
+        }
+      ],
+      "after": [
+        {
+          "rank": "7ffffffffffffffc0000000000000000",
+          "key": {
+            "service": 0,
+            "url": "A"
+          }
+        }
+      ]
+    }
+  ]
+}

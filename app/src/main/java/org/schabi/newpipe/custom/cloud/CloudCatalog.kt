@@ -111,7 +111,12 @@ object CloudCatalogCodec {
     /** The caller must bound transport bytes before parsing; this also bounds direct fixture inputs. */
     fun read(json: String): CloudCatalog {
         valid(json.length <= MAX_BYTES && json.toByteArray(Charsets.UTF_8).size <= MAX_BYTES, "input byte limit")
-        val o = objectFields(JsonParser.`object`().from(json), "version", "serviceMap", "library", "unavailable", "playlists", "categories", "tags", "assignments")
+        return readObject(JsonParser.`object`().from(json))
+    }
+
+    /** Decode an already bounded parsed object without serializing/parsing the catalog again. */
+    internal fun readObject(raw: JsonObject): CloudCatalog {
+        val o = objectFields(raw, "version", "serviceMap", "library", "unavailable", "playlists", "categories", "tags", "assignments")
         val c = CloudCatalog(
             version = int(o["version"]),
             serviceMap = int(o["serviceMap"]),

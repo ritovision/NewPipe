@@ -33,6 +33,7 @@ internal class CloudNativeApply(
         head: CloudHead,
         target: CloudCatalog,
         hints: Collection<CloudMediaHint> = emptyList(),
+        reconcileOrphans: Boolean = false,
         admit: () -> Unit = {}
     ): CloudNativeSnapshot {
         check(Looper.myLooper() != Looper.getMainLooper()) { "CLOUD_IO_ON_MAIN_THREAD" }
@@ -65,7 +66,7 @@ internal class CloudNativeApply(
                                 (head.epoch != previous.epoch || CloudCounter.parse(head.revision) >= CloudCounter.parse(previous.revision))
                         ) { "CLOUD_REMOTE_ROLLBACK_SUSPECTED" }
                     }
-                    val compiled = CloudApplyCompiler.compile(repository, current, head, target, hints)
+                    val compiled = CloudApplyCompiler.compile(repository, current, head, target, hints, reconcileOrphans)
                     // Round-trip the exact journal representation before anything can mutate Room.
                     val bytes = CloudApplyPlanJson.encode(compiled)
                     val immutable = CloudApplyPlanJson.decode(bytes)
@@ -183,13 +184,28 @@ internal class CloudNativeApply(
                 CloudApplyStore.pending(side)
             } catch (error: Exception) {
                 throw CloudRecoveryBlockedException(error)
-            } ?: return null
+            } catch (error: OutOfMemoryError) {
+                throw CloudRecoveryBlockedException(error)
+            }
+            if (pending == null) {
+                try {
+                    val witness = r.library.cloudApplyReceiptDao().current()
+                    val baseline = CloudApplyStore.baseline(side)
+                    check(witness == null || baseline != null && witness.incarnation == baseline.incarnation && witness.operationId == baseline.operation) {
+                        "CLOUD_RECOVERY_JOURNAL_LOST"
+                    }
+                } catch (error: Exception) { throw CloudRecoveryBlockedException(error) }
+                catch (error: OutOfMemoryError) { throw CloudRecoveryBlockedException(error) }
+                return null
+            }
             return try {
                 available(r)
                 recoverPending(r, main, side, pending)
             } catch (error: CloudRecoveryBlockedException) {
                 throw error
             } catch (error: Exception) {
+                throw CloudRecoveryBlockedException(error)
+            } catch (error: OutOfMemoryError) {
                 throw CloudRecoveryBlockedException(error)
             }
         }
@@ -359,7 +375,8 @@ internal class CloudNativeApply(
                     db.execSQL("INSERT INTO tag(id,name,name_key,category_id) VALUES(?,?,?,?)", arrayOf<Any?>(id, tag.name, tag.nameKey, category))
                 }
             }
-            val targetAssignments = p.target.assignments.associate { it.key to it.tags.map { tag -> ids.getValue(Kind.TAG to tag) }.toSet() }
+            val targetAssignments = p.target.assignments.associate { it.key to it.tags.map { tag -> ids.getValue(Kind.TAG to tag) }.toSet() } +
+                p.preservedOrphans.associate { it.key to it.tagIds.map { tag -> ids.getValue(Kind.TAG to tag) }.toSet() }
             for (key in p.affectedTagKeys) {
                 val wanted = targetAssignments[key].orEmpty()
                 val old = db.rawQuery("SELECT tag_id FROM assignment WHERE service_id=? AND url=?", arrayOf(key.service.toString(), key.url)).use { c ->

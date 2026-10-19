@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:title="@string/cloud_sync_title">
+    <Preference android:key="cloud_status" android:title="@string/cloud_status_title"
+        android:selectable="false" android:persistent="false" app:iconSpaceReserved="false" />
+    <Preference android:key="cloud_connect" android:title="@string/cloud_connection_title"
+        android:summary="@string/cloud_connection_summary" android:persistent="false" app:iconSpaceReserved="false" />
+    <Preference android:key="cloud_check" android:title="@string/cloud_check_connection"
+        android:persistent="false" app:iconSpaceReserved="false" />
+    <SwitchPreferenceCompat android:key="cloud_enabled" android:title="@string/cloud_sync_enabled"
+        android:summary="@string/cloud_sync_enabled_summary" android:persistent="false" app:iconSpaceReserved="false" />
+    <Preference android:key="cloud_now" android:title="@string/cloud_sync_now"
+        android:persistent="false" app:iconSpaceReserved="false" />
+    <Preference android:key="cloud_restore" android:title="@string/cloud_restore_once"
+        android:summary="@string/cloud_restore_once_summary" android:persistent="false" app:iconSpaceReserved="false" />
+    <Preference android:key="cloud_last" android:title="@string/cloud_last_sync"
+        android:selectable="false" android:persistent="false" app:iconSpaceReserved="false" />
+    <Preference android:key="cloud_pending" android:title="@string/cloud_resolve_pending"
+        android:summary="@string/cloud_resolve_pending_summary" android:persistent="false" app:iconSpaceReserved="false" />
+    <PreferenceCategory android:title="@string/cloud_backup_category" app:iconSpaceReserved="false">
+        <Preference android:key="cloud_local_restore" android:title="@string/cloud_local_recovery"
+            android:summary="@string/cloud_local_recovery_summary" android:persistent="false" app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+    <Preference android:key="cloud_forget" android:title="@string/cloud_forget"
+        android:summary="@string/cloud_forget_summary" android:persistent="false" app:iconSpaceReserved="false" />
+</PreferenceScreen>

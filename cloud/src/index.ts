@@ -78,7 +78,7 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
       case "/v1/head": {
         exact(data, []);
         return response({ protocol: 1, device: context.device, scope: { service: context.serviceGeneration, library: context.library },
-          ...await service.status(), limits: { ...limits, requestBytes: TRANSPORT_LIMITS.requestBytes, uploadLifetimeMs: TRANSPORT_LIMITS.stageLifetimeMs },
+          ...await service.status(), deviceState: await service.deviceState(), limits: { ...limits, requestBytes: TRANSPORT_LIMITS.requestBytes, uploadLifetimeMs: TRANSPORT_LIMITS.stageLifetimeMs },
           capabilities: context.writable ? ["catalog.read", "catalog.initialize", "catalog.sync", "operation.retire"] : ["catalog.read"],
           unavailableCapabilities: ["catalog.replace", "backup.r2"] });
       }
@@ -104,7 +104,10 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
     }
   } catch (error) {
     if (error instanceof CatalogError) return response({ error: error.code }, error.status);
-    if (error instanceof AdmissionError) return response({ error: error.message }, error.message === "AUTH_REJECTED" ? 403 : 409);
+    if (error instanceof AdmissionError) {
+      if (error.outcomeUnknown || error.message === "OUTCOME_UNKNOWN") return response({ error: error.message, outcome: "unknown" }, 503);
+      return response({ error: error.message }, error.message === "AUTH_REJECTED" ? 403 : 409);
+    }
     // Never return SQL, credential fragments, uploaded titles/URLs or internal exception stacks.
     if (String(error).toLowerCase().includes("constraint failed")) return response({ error: "PRECONDITION_FAILED" }, 409);
     return response({ error: "STORAGE_OR_SERVICE_UNAVAILABLE", outcome: "unknown" }, 503);

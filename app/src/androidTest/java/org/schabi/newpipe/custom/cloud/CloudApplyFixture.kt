@@ -25,6 +25,7 @@ internal class CloudApplyFixture(app: Context, val dir: Path, val scope: CloudId
     val context: Context = object : ContextWrapper(app) {
         override fun getApplicationContext(): Context = this
         override fun getCacheDir(): File = dir.toFile()
+        override fun getNoBackupFilesDir(): File = dir.resolve("private-nobackup").toFile().also { it.mkdirs() }
         override fun getDatabasePath(name: String): File = if (name.startsWith("/")) File(name) else dir.resolve(name).toFile()
     }
     lateinit var db: AppDatabase

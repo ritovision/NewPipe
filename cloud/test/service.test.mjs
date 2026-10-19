@@ -318,3 +318,25 @@ test('repeated retirement of a committed upload preserves committed receipt and 
  assert.deepEqual((await call('/v1/uploads/retire',first.ref)).data.receipt,committed);
  assert.equal((await call('/v1/uploads/status',second.ref)).data.status,'SEALED');await publish(second);
 });
+
+
+test('connection reports exact own sequence and active upload without leaking other device state',async()=>{
+ const before=await status();assert.deepEqual(before.deviceState,{resolvedSequence:'0',upload:null});
+ const u=await stage(catalog('base'),{seal:false});
+ const active=await status();assert.deepEqual(active.deviceState.upload,{sequence:'1',digest:u.ref.digest,status:'UPLOADING'});
+ assert.equal((await status(tokens.b)).deviceState.upload,null);
+ await call('/v1/uploads/retire',u.ref);assert.deepEqual((await status()).deviceState,{resolvedSequence:'1',upload:null});
+});
+
+
+test('unknown publication outcome is retryable 503 and never a definitive rejection',async()=>{
+ const u=await stage(catalog('base'));await controls({fault:'beforeCommit'});
+ const r=await call('/v1/uploads/publish',u.ref);assert.equal(r.status,503);assert.equal(r.data.error,'OUTCOME_UNKNOWN');assert.equal(r.data.outcome,'unknown');
+ const retired=await call('/v1/uploads/retire',u.ref);assert.equal(retired.data.receipt.outcome,'RETIRED');
+});
+
+test('revocation during post-batch resolution does not claim the request failed to commit',async()=>{
+ const u=await stage(catalog('base'));await controls({fault:'revokeBeforeCommit'});
+ const r=await call('/v1/uploads/publish',u.ref);assert.equal(r.status,503);assert.equal(r.data.error,'AUTH_REJECTED');assert.equal(r.data.outcome,'unknown');
+ assert.equal(await rows('cloud_catalog_pages'),0);
+});

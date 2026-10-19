@@ -75,22 +75,29 @@ internal object CloudApplyPlanJson {
             "orphans" to p.preservedOrphans.map { listOf(key(it.key), it.tagIds) },
             "affected" to p.affectedTagKeys.map(::key), "tagRevision" to p.tagRevision.toString()
         )
-        return JsonWriter.string().`object`(root).done().toByteArray(Charsets.UTF_8).also {
-            require(it.size <= CloudApplyStore.MAX_PAYLOAD_BYTES) { "CLOUD_PLAN_SIZE_LIMIT" }
+        val output = object : java.io.ByteArrayOutputStream() {
+            override fun write(value: Int) {
+                require(count < CloudApplyStore.payloadLimit()) { "CLOUD_PLAN_MEMORY_BUDGET" }; super.write(value)
+            }
+            override fun write(bytes: ByteArray, offset: Int, length: Int) {
+                require(count.toLong() + length <= CloudApplyStore.payloadLimit()) { "CLOUD_PLAN_MEMORY_BUDGET" }; super.write(bytes, offset, length)
+            }
         }
+        JsonWriter.on(output).`object`(root).done()
+        return output.toByteArray()
     }
     fun decode(bytes: ByteArray): CloudApplyPlan {
-        require(bytes.size in 1..CloudApplyStore.MAX_PAYLOAD_BYTES) { "CLOUD_PLAN_SIZE_LIMIT" }
-        val decoded = Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
-            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes)).toString()
-        val r = JsonParser.`object`().from(decoded)
+        require(bytes.size in 1..CloudApplyStore.payloadLimit()) { "CLOUD_PLAN_MEMORY_BUDGET" }
+        val decoder = Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+        val r = java.io.InputStreamReader(java.io.ByteArrayInputStream(bytes), decoder).use { JsonParser.`object`().from(it) }
         require(r.getInt("version") == 1 && r.keys == setOf("version", "operation", "context", "before", "head", "catalog", "mappings", "streams", "deletePlaylists", "displayOrder", "orphans", "affected", "tagRevision")) { "INVALID_CLOUD_PLAN" }
         val c = r.getArray("context")
         require(c.size == 5)
         val context = CloudIdentityStore.Context(CloudIdentityStore.Scope(c.getString(0), c.getString(1)), c.getString(2), positive(c.getString(3)), positive(c.getString(4)))
         require(context.libraryId != context.unavailableId)
         val head = readHead(r.getObject("head"))
-        val target = CloudCatalogCodec.read(JsonWriter.string().`object`(r.getObject("catalog")).done())
+        val target = CloudCatalogCodec.readObject(r.getObject("catalog"))
         require(CloudCatalogCodec.fingerprint(target) == head.fingerprint && context.scope.service == head.serviceGeneration && context.scope.library == head.library) { "INVALID_CLOUD_PLAN_TARGET" }
         val maps = r.getArray("mappings").map { raw ->
             val row = array(raw, 3)
@@ -124,7 +131,7 @@ internal object CloudApplyPlanJson {
             CloudOrphanAssignment(readKey(a[0]), (a[1] as JsonArray).map { it as String })
         }
         val affected = r.getArray("affected").map(::readKey)
-        require(orphans.size <= CloudCatalogCodec.MAX_MEMBERSHIPS && affected.size <= CloudCatalogCodec.MAX_STREAMS * 2)
+        require(orphans.size <= CloudCatalogCodec.MAX_MEMBERSHIPS && affected.size <= CloudCatalogCodec.MAX_MEMBERSHIPS + CloudCatalogCodec.MAX_STREAMS * 2)
         val before = r.getString("before")
         val operation = r.getString("operation")
         require(Regex("[0-9a-f]{64}").matches(before) && uuid.matches(operation) && uuid.matches(context.incarnation))

@@ -21,7 +21,8 @@ const SELECT_RECEIPT = `SELECT CAST(r.sequence AS TEXT) AS sequence,r.digest,r.o
  FROM cloud_receipts r JOIN cloud_devices d ON d.library_id=r.library_id AND d.device_id=r.device_id
  WHERE ${AUTH} AND r.sequence=CAST(? AS INTEGER)`;
 export class AdmissionError extends Error {
-  constructor(code: string) { super(code); this.name = "AdmissionError"; }
+  readonly outcomeUnknown: boolean;
+  constructor(code: string, outcomeUnknown = false) { super(code); this.name = "AdmissionError"; this.outcomeUnknown = outcomeUnknown; }
 }
 function fail(code: string): never { throw new AdmissionError(code); }
 function parameters(c: AdmissionContext): string[] {
@@ -66,7 +67,7 @@ async function afterFailure(db: D1Database, c: AdmissionContext, seq: string, di
     const r = await findReceipt(db, c, seq);
     if (r) return requireDigest(r, digest);
   } catch (lookupError) {
-    if (lookupError instanceof AdmissionError) throw lookupError;
+    if (lookupError instanceof AdmissionError) throw new AdmissionError(lookupError.message, true);
     fail("OUTCOME_UNKNOWN");
   }
   // A reported constraint failure rolls back the D1 batch. A timeout/network failure

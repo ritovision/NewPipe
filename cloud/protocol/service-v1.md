@@ -34,3 +34,6 @@ Cloudflare documents D1 batch rollback on statement failure and default-primary 
 https://developers.cloudflare.com/d1/worker-api/d1-database/
 https://developers.cloudflare.com/d1/best-practices/read-replication/
 https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
+
+
+Outcome contract: a timeout, expired upload response, authorization loss or error after a D1 publication attempt does not prove non-commit. `OUTCOME_UNKNOWN` and post-batch resolution failures return HTTP503 with `outcome: "unknown"`. Only a matching committed/retired receipt is definitive. Keep the same sequence/digest and resolve-or-retire rather than inventing a replacement operation identity.

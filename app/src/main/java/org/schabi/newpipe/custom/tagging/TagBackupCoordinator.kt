@@ -192,6 +192,7 @@ object TagBackupCoordinator {
                 }
                 val directory = context.getDatabasePath(DB).toPath().parent
                 Files.createDirectories(directory)
+                org.schabi.newpipe.custom.cloud.CloudScheduler.beforeImport(context)
                 TagRuntime.freezeForRestore()
                 CatalogOpenHelperFactory.drain(repository.library.openHelper)
                 // The new-open fence is active, but already-admitted Room transactions
@@ -227,7 +228,13 @@ object TagBackupCoordinator {
             TagRuntime.lock.withLock {
                 TagRuntime.assertAvailable()
                 val repository = TagRuntime.get(context)
-                repository.beforeLibraryMutation()
+                try {
+                    repository.beforeLibraryMutation()
+                } catch (_: org.schabi.newpipe.custom.cloud.CloudRecoveryBlockedException) {
+                    // Salvage the current pair under the writer barrier. Each staged DB is
+                    // validated and cloud authority/journal metadata scrubbed below. This
+                    // exports an unenrolled LOCAL catalog, never claims a recovered cloud target.
+                }
                 // VACUUM INTO gives a consistent SQLite-owned copy; never externally copy a
                 // live WAL database. Canonical/tag writers stay behind the shared barrier.
                 snapshotRoom(repository.library.openHelper.writableDatabase, stage.resolve(DB))

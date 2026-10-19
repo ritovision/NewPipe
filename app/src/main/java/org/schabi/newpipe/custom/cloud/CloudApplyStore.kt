@@ -4,7 +4,6 @@
 package org.schabi.newpipe.custom.cloud
 
 import android.database.sqlite.SQLiteDatabase
-import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import org.schabi.newpipe.custom.tagging.TagRuntime
 
@@ -12,6 +11,8 @@ import org.schabi.newpipe.custom.tagging.TagRuntime
 internal object CloudApplyStore {
     const val MAX_PAYLOAD_BYTES = 64 * 1024 * 1024
     private const val CHUNK_BYTES = 32 * 1024
+    fun payloadLimit(maxHeap: Long = Runtime.getRuntime().maxMemory()): Int =
+        minOf(MAX_PAYLOAD_BYTES.toLong(), maxOf(1024L * 1024, maxHeap / 12)).toInt()
     data class Pending(
         val operation: String,
         val incarnation: String,
@@ -71,7 +72,8 @@ internal object CloudApplyStore {
         value
     }
     fun payload(db: SQLiteDatabase, p: Pending): ByteArray {
-        val output = ByteArrayOutputStream(p.bytes)
+        check(p.bytes <= payloadLimit()) { "CLOUD_RECOVERY_MEMORY_BUDGET" }
+        val output = ByteArray(p.bytes)
         db.rawQuery("SELECT chunk_index,bytes FROM cloud_apply_payload WHERE slot=1 ORDER BY chunk_index LIMIT ?", arrayOf((p.chunks + 1).toString())).use { c ->
             var index = 0
             while (c.moveToNext()) {
@@ -79,17 +81,17 @@ internal object CloudApplyStore {
                 val bytes = c.getBlob(1)
                 val expected = if (index + 1 == p.chunks) p.bytes - index * CHUNK_BYTES else CHUNK_BYTES
                 check(bytes.size == expected) { "CORRUPT_CLOUD_PAYLOAD" }
-                output.write(bytes)
+                bytes.copyInto(output, index * CHUNK_BYTES)
                 index++
             }
             check(index == p.chunks) { "CORRUPT_CLOUD_PAYLOAD" }
         }
-        return output.toByteArray().also { check(hash(it) == p.digest) { "CORRUPT_CLOUD_PAYLOAD_DIGEST" } }
+        return output.also { check(hash(it) == p.digest) { "CORRUPT_CLOUD_PAYLOAD_DIGEST" } }
     }
     fun save(db: SQLiteDatabase, operation: String, incarnation: String, before: String, target: String, payload: ByteArray): Pending {
         check(TagRuntime.lock.isHeldByCurrentThread && db.inTransaction()) { "CLOUD_JOURNAL_REQUIRES_TRANSACTION" }
         check(pending(db) == null) { "CLOUD_APPLY_ALREADY_PENDING" }
-        check(payload.size in 1..MAX_PAYLOAD_BYTES) { "CLOUD_PLAN_SIZE_LIMIT" }
+        check(payload.size in 1..payloadLimit()) { "CLOUD_PLAN_SIZE_LIMIT" }
         val pending = Pending(operation, incarnation, before, target, hash(payload), payload.size, (payload.size + CHUNK_BYTES - 1) / CHUNK_BYTES)
         db.execSQL(
             "INSERT INTO cloud_apply_pending VALUES(1,?,?,?,?,?,?,?)",

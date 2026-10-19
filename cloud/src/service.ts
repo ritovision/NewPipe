@@ -148,6 +148,14 @@ export class CatalogService {
     return { sequence: u.sequence, digest: u.digest, status: u.status, nextChunk: u.received_chunks,
       expectedChunks: u.expected_chunks, expiresAt: String(u.expires_at), verifiedPages: u.verified_pages, verifiedBytes: u.verified_bytes };
   }
+  async deviceState(): Promise<{ resolvedSequence: string; upload: { sequence: string; digest: string; status: string } | null }> {
+    const row = await this.db.prepare(`SELECT CAST(d.resolved_sequence AS TEXT) AS sequence FROM cloud_devices d WHERE ${AUTH}`)
+      .bind(...args(this.context)).first<{ sequence: string }>();
+    if (!row) fail("AUTH_OR_LIBRARY_UNAVAILABLE", 401);
+    const upload = await this.getUpload();
+    return { resolvedSequence: row.sequence, upload: upload && (upload.status === "UPLOADING" || upload.status === "SEALED")
+      ? { sequence: upload.sequence, digest: upload.digest, status: upload.status } : null };
+  }
   async uploadStatus(sequence: string, digest: string) {
     const r = await this.resolve(sequence, digest); if (r) return { receipt: r };
     return this.view(await this.requireUpload(sequence, digest));

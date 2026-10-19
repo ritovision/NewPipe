@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cloud_sync_title">Cloud &amp; Sync</string>
+    <string name="cloud_sync_description">Cloud connection, library synchronization and recovery</string>
+    <string name="cloud_connection_title">Connect to a Worker</string>
+    <string name="cloud_connection_summary">Use your HTTPS Worker address and a device token</string>
+    <string name="cloud_check_connection">Check connection</string>
+    <string name="cloud_sync_enabled">Automatic synchronization</string>
+    <string name="cloud_sync_enabled_summary">When off, edits stay local. Your credentials remain saved.</string>
+    <string name="cloud_sync_now">Sync now</string>
+    <string name="cloud_restore_once">Restore cloud library once</string>
+    <string name="cloud_restore_once_summary">Review exactly what will change; does not enable automatic sync</string>
+    <string name="cloud_status_title">Cloud status</string>
+    <string name="cloud_last_sync">Last successful sync</string>
+    <string name="cloud_resolve_pending">Resolve interrupted upload</string>
+    <string name="cloud_resolve_pending_summary">Determine whether it committed, or retire it without uploading detached edits</string>
+    <string name="cloud_forget">Forget connection</string>
+    <string name="cloud_forget_summary">Remove this connection and its device credential. Keep the local library.</string>
+    <string name="cloud_forget_confirmation">Forget the saved cloud connection? This does not delete your local library or your cloud data.</string>
+    <string name="cloud_worker_origin">HTTPS Worker origin</string>
+    <string name="cloud_device_token">Worker-issued device token</string>
+    <string name="cloud_token_explanation">Use a separate token for each installation. This is not your Cloudflare account API key.</string>
+    <string name="cloud_connect_button">Connect</string>
+    <string name="cloud_preview_title">Review library changes</string>
+    <string name="cloud_preview_search">Search videos, playlists, tags or changes</string>
+    <string name="cloud_preview_expired">This preview is no longer available. Create a fresh comparison.</string>
+    <string name="cloud_local_recovery">Restore local safety backup</string>
+    <string name="cloud_local_recovery_summary">Recover the full local backup saved before the latest explicit cloud restore</string>
+    <string name="cloud_local_recovery_warning">Restore the local safety backup? This replaces the local library, playlists and tags, leaves your current settings unchanged, disables cloud sync and restarts NewPipe.</string>
+    <string name="cloud_backup_category">Backup and recovery</string>
+    <string name="cloud_recovery_backup">Back up to cloud</string>
+    <string name="cloud_recovery_backup_summary">Save one recoverable snapshot; no scheduled archive accumulation</string>
+    <string name="cloud_recovery_history">Cloud recovery copies</string>
+    <string name="cloud_replace_remote">Replace cloud with this device</string>
+    <string name="cloud_replace_remote_summary">Explicitly replace the shared library after previewing changes and preserving the outgoing cloud copy</string>
+</resources>

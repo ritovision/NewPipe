@@ -51,6 +51,7 @@ object TagRuntime {
     internal fun lookup(db: AppDatabase): TagRepository? = repositories[db]
 
     internal fun detach(db: AppDatabase) {
+        org.schabi.newpipe.custom.cloud.CloudScheduler.detached(db)
         repositories.remove(db)?.let {
             it.invalidate()
             it.store.close()
