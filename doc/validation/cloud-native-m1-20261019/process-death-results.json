@@ -1,0 +1,13 @@
+{
+  "candidate": "01fac87a762717e49f8a44a5c4d16a138d595af4",
+  "serial": "emulator-5590",
+  "user": 11,
+  "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+  "probe": "probe-2ca3790ec0ef4e0b",
+  "killed_pid": "28484",
+  "verified_marker": "rollback-restored-original-identities",
+  "actual_host_force_stop": true,
+  "scope": "tag-database runtime identity transaction only; not full cross-store native apply",
+  "prepare_pass": true,
+  "reopen_rollback_verification_pass": true
+}

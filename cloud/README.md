@@ -1,6 +1,6 @@
 # NewPipe Cloud — M1 foundation
 
-**Status:** Local protocol and admission foundations only. This is not a deployed sync service, whole M1 acceptance, a cloud settings feature, or a working multi-device synchronization engine.
+**Status:** Local protocol/admission foundations, sparse ordering, and native read-side snapshot/identity mapping are implemented. This is not a deployed sync service, whole M1 acceptance, a cloud settings feature, or a working multi-device synchronization engine.
 
 Source is deliberately separate from `gateway/`, the existing AI relay. Nothing here changes its deployment or authentication. No Cloudflare account credentials or resource IDs are needed to run these tests, and there is no deploy script/Wrangler config.
 
@@ -11,6 +11,9 @@ Source is deliberately separate from `gateway/`, the existing AI relay. Nothing 
 - Pure disabled/enrollment/conflict/rollback/unknown-operation decisions and exact preview binding checks. There is **no persistent network scheduler or native apply coordinator yet**.
 - Local D1 proof of the fail-closed atomic admission/receipt/revision batch and resolve-or-retire sequence fencing. The SQL file is a **proof control-plane schema**, not the production catalog schema or a migration to run remotely.
 - Shared independent golden vectors and the same Kotlin assertions for JVM/Android, plus actual Worker-runtime D1 race tests.
+- Native capture of real Room/tag records under the shared writer barrier, without changing native catalog content or silently repairing role identities.
+- Persisted portable UUID mappings in tag schema 4, preserved across ordinary reopen and removed from staged native backup/import copies. Main Room stays 9001. This adds no token, sync toggle, network endpoint or remote-apply controller.
+- Sparse 128-bit-text sequence labels with exact duplicate-aware edit planning, bounded rebalance and explicit write-budget checks; see [sequence contract](protocol/sequence-v1.md). Generic sealed D1 staging remains unimplemented.
 
 ## Run
 
@@ -47,4 +50,13 @@ The 20,000-stream / 100,000-ordinary-membership / 20,000-assignment fixture meas
 
 ## Remaining gates
 
-Generic large sealed-delta publication, sparse ordering and measured physical schema; real D1 CPU/row budget and account verification; stable native ID projection; protected-role admission; durable Room/tag/map apply and process-death recovery; full writer coverage; secure credentials and settings; authenticated network transport; exact visual preview; minimal R2 recovery; true two-device convergence; independent implementation review and release authorization. See the milestone plan for boundaries.
+Generic large sealed-delta publication, sparse ordering and measured physical schema; real D1 CPU/row budget and account verification; remote stable-ID adoption and write-side mapping; protected-role admission; durable Room/tag/map apply and process-death recovery; full writer coverage; secure credentials and settings; authenticated network transport; exact visual preview; minimal R2 recovery; true two-device convergence; independent implementation review and release authorization. See the milestone plan for boundaries.
+
+
+## Native capture and compatibility
+
+`CloudNativeCatalog.capture` requires off-main execution, the current registered repository, no unresolved native deletion intents, and verified persisted Library/Unavailable roles. It opens the guarded Room helper before binding reads, captures within Room/tag transactions under TagRuntime, then commits only validated runtime identity maps. Ordinary playlist duplicate occurrences and display rank are preserved; remote bookmarks, automatic artwork/cache refreshes and orphan assignments do not become portable semantic content. Orphan associations are retained and reported separately for later reconciliation.
+
+This is a read-side adapter. It does not apply a cloud library, recover a half-completed cross-store cloud apply, enable sync, or enroll a device. Proper native backup/restore invalidates runtime mappings; arbitrary out-of-band database replacement is not supported or claimed tamper-detectable. New tag-schema-4 databases/backups require this newer fork version; the older schema-3 application is not a supported downgrade reader. No physical owner installation has been upgraded.
+
+Capture owns a copy of exact canonical bytes; the caller must still bind any future preview to the documented live-state checks. The large native fixture measures an off-main full-catalog capture with writer locking; it is not proof of cheap per-edit sync or a user-interaction latency budget. The scheduler/delta pipeline must coalesce and measure production workloads before rollout.

@@ -131,3 +131,16 @@ The full-scale physical catalog schema, large staged publication, deployed CPU/r
 Implementation source `2f15bcaf6` on `feature/cloud-sync-v1-20261019`: portable Kotlin/TypeScript model/fingerprint/diff; pure state/preview rules; local D1 guarded commit/receipt/retirement proof. **111 Node tests, 322 full-suite JVM tests, and 24 executed Android instrumentation tests passed**, including 16 existing native backup regressions. See [evidence and limits](../validation/cloud-sync-m1-20261019/README.md).
 
 This completes the first foundation checkpoint only, not M1. No new native record-apply, remote endpoint, sync settings or R2 implementation exists yet. Next is the bounded real-catalog schema/generic large-delta proof and native projection/ID/binding integration, with durable apply and full writer audit still gating live synchronization. The scale fixture's 9.848-second emulator exercise is not a main-thread or deployed CPU acceptance. Keep work off main and measure incremental behavior before rollout. Account plan/deployed budgets and independent implementation review remain unverified.
+
+
+### Native read-side and sparse sequence checkpoint — 2026-10-19
+
+Production source `01fac87a7`, corrected migration test fixtures `6644b98e2`, same feature branch. Native Room/tag capture and persistent portable identity maps now exist; tag schema is 4, main Room remains 9001. Proper staged backup/import clears runtime maps, with no credential/state export. Sparse exact sequence compilation avoids dense row rewrites on routine edits; this is not yet a generic large-delta staging/publish service.
+
+Executed **133 backend tests, 322 full-suite JVM tests, 198 native tests**, plus a real host-induced QA-process kill during an open identity transaction and successful fresh-process rollback verification. Native testing used the idle existing 5590 emulator with the separate Cloud QA package, not a third emulator; both existing emulators remain running as requested. [Evidence, original failures and limitations](../validation/cloud-native-m1-20261019/README.md).
+
+A focused Opus Extra High independent review has been launched and its persistent session saved. Its completed verdict/adjudication is not yet recorded at this checkpoint. [Review handoff](../reviews/cloud-native-review-2026-10-19.md). Do not treat test success as final review approval or restart the reviewer after a usage reset.
+
+Read-side barrier inspection confirmed ordinary LocalPlaylistManager writes, AiCatalogExecutor authorization+TagRuntime paths, TagRepository mutations, Library and Unavailable repositories use existing native serialization seams. This is not the complete write-origin/outbox audit needed for automatic sync. Full-catalog capture currently holds writers for seconds on the synthetic 20k/100k scale; incremental/coalesced behavior and user-interaction budgets remain unproven.
+
+Next M1 dependencies: adjudicate the bounded read-side review, then implement real catalog/staged delta publication and native write-side mapping/recovery. Network/settings/preview UI/R2 remain later gates. No cloud resources or production/physical-phone installation were created.

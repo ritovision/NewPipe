@@ -1,0 +1,19 @@
+{
+  "source_commit": "6644b98e231c884fd9cab2a64271ec8f6be459d4",
+  "host": "NotCodex",
+  "serial": "emulator-5590",
+  "avd": "MusicYtdlp_16K_Temp_API35",
+  "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+  "files": [
+    {
+      "name": "native.apk",
+      "sha256": "84c05c6eaaeca0c432c2075589fe88ff94b1232fd004626a7c9d8b64d1f910bd",
+      "bytes": 34827077
+    },
+    {
+      "name": "native-tests.apk",
+      "sha256": "2438086bd0d42c236faace353035eb3d405e0382f3bf9ca5e0e21c8d9360c0a1",
+      "bytes": 2588377
+    }
+  ]
+}

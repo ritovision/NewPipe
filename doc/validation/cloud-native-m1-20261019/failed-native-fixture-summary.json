@@ -1,0 +1,12 @@
+{
+  "candidate": "01fac87a762717e49f8a44a5c4d16a138d595af4",
+  "total": 49,
+  "passed": 47,
+  "failed": 2,
+  "failed_methods": [
+    "TagBackupIntegrationTest.tagV1MigrationPreservesDefinitionsAndAssignments",
+    "TagBackupIntegrationTest.tagV2MigrationPreservesAssignmentsAndAcceptsNewBatchTable"
+  ],
+  "reason": "Fixtures were cloned from schema4 but mislabeled as schema1/2 without dropping cloud tables, and still expected target3. Corrected test fixtures, not relaxed production migration.",
+  "original_log_sha256": "91a0f045afb7e2b81c639b7881abd218b907ae3a5836cee9320a6ae41cd4a006"
+}
