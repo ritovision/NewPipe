@@ -537,6 +537,7 @@ class TagBackupIntegrationTest {
         assertEquals(setOf(later), repository.editor(key(b)).assigned)
         val created = repository.createTag("After recovery", null)
         repository.apply(b, setOf(created), repository.editor(key(b)).revision)
+        NewPipeDatabase.close()
         reopen()
         assertEquals(setOf(created), repository.editor(key(b)).assigned)
         assertTrue(repository.definitions().tags.any { it.name == "After recovery" })

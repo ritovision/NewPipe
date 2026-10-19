@@ -306,20 +306,18 @@ export class CatalogService {
     return { receipt };
   }
   async retire(sequence: string, digest: string): Promise<{ receipt: Receipt }> {
-    // Retire first: a timed-out original commit cannot reappear after payload deletion.
+    // Resolve sequence, terminalize the exact upload and delete its reserved payload
+    // in the SAME transaction. A lost reply cannot leave a retired active slot.
     const c = this.context;
     const stagedIdentity = this.db.prepare(`UPDATE cloud_commit_assertion SET ok=CASE WHEN EXISTS(
       SELECT 1 FROM cloud_uploads WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER) AND digest!=?
       ) THEN 0 ELSE 1 END WHERE slot=1`).bind(c.library, c.device, sequence, digest);
-    const receipt = await resolveOrRetire(this.db, c, sequence, digest, [stagedIdentity]);
-    await this.writeBatch(`EXISTS(SELECT 1 FROM cloud_receipts r WHERE r.library_id=d.library_id AND r.device_id=d.device_id
-      AND r.sequence=CAST(? AS INTEGER) AND r.digest=?) AND NOT EXISTS(
-      SELECT 1 FROM cloud_uploads u WHERE u.library_id=d.library_id AND u.device_id=d.device_id
-      AND u.sequence=CAST(? AS INTEGER) AND u.digest!=?)`, [sequence, digest, sequence, digest], [
-      this.db.prepare("UPDATE cloud_uploads SET status=? WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER) AND digest=?")
-        .bind(receipt.outcome === "COMMITTED" ? "COMMITTED" : "RETIRED", c.library, c.device, sequence, digest),
+    const mutations = [stagedIdentity,
+      this.db.prepare("UPDATE cloud_uploads SET status='RETIRED' WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER) AND digest=?")
+        .bind(c.library, c.device, sequence, digest),
       this.db.prepare("DELETE FROM cloud_upload_changes WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER)").bind(c.library, c.device, sequence),
-      this.db.prepare("DELETE FROM cloud_upload_chunks WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER)").bind(c.library, c.device, sequence)]);
+      this.db.prepare("DELETE FROM cloud_upload_chunks WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER)").bind(c.library, c.device, sequence)];
+    const receipt = await resolveOrRetire(this.db, c, sequence, digest, mutations);
     return { receipt };
   }
   async download(before: Head, cursor: string | null) {

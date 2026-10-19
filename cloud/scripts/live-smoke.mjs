@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Explicit synthetic HTTP integration test. No administrative API or credentials are bundled.
 import {parseArgs} from 'node:util';
-import {readFile,writeFile,stat,mkdir} from 'node:fs/promises';
-import {resolve} from 'node:path';
+import {readFile,writeFile,stat,mkdir,realpath} from 'node:fs/promises';
+import {resolve,relative,isAbsolute} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
 import {encodePages,readPages,changedPages,pageManifest,byteLength} from '../src/pages.ts';
 import {makeUpload} from '../src/service.ts';
@@ -12,6 +13,9 @@ import {fingerprint} from '../src/catalog.ts';
 const {values}=parseArgs({options:{credentials:{type:'string'},output:{type:'string'}}});
 if(!values.credentials||!values.output)throw new Error('Use --credentials <private QA JSON> --output <new result JSON>');
 const credentialsPath=resolve(values.credentials),output=resolve(values.output);
+const repo=await realpath(fileURLToPath(new URL('../../',import.meta.url)));
+const credentialRelative=relative(repo,await realpath(credentialsPath));
+if(!credentialRelative.startsWith('..'+(process.platform==='win32'?'\\':'/'))&&!isAbsolute(credentialRelative))throw new Error('QA credentials must be outside the repository');
 const mode=(await stat(credentialsPath)).mode&0o777;
 if(mode&0o077)throw new Error('QA credential file must not be readable by group/others');
 const config=JSON.parse(await readFile(credentialsPath,'utf8'));
@@ -50,9 +54,9 @@ async function download(token){
  const decoded=await readPages(pages);assert.equal(await fingerprint(decoded.catalog),current.head.fingerprint);
  return {...decoded,pages,status:current};
 }
-async function publish(target,token,sequence,prior){
+async function publish(target,token,sequence,prior,requiredMode){
  const before=await status(token),pages=await encodePages(target,prior),changes=changedPages(prior,pages);
- const upload=await makeUpload(before.initialized?'sync':'initialize',sequence,before.head,await fingerprint(target),changes);
+ const upload=await makeUpload(requiredMode??(before.initialized?'sync':'initialize'),sequence,before.head,await fingerprint(target),changes);
  assert.ok(upload.header.payloadBytes<=65536 && pages.length<=8);
  success(await call('/v1/uploads/start',upload.header,token));
  for(let i=0;i<upload.chunks.length;i++)success(await call('/v1/uploads/chunk',{sequence,index:i,changes:upload.chunks[i]},token));
@@ -64,7 +68,7 @@ async function publish(target,token,sequence,prior){
 const started=new Date().toISOString();
 const initial=await status();assert.equal(initial.initialized,false,'Refusing to replace an already initialized live catalog');assert.equal(initial.pages,0);
 assert.equal((await call('/v1/connect',{},'qa-invalid.'+'0'.repeat(64))).status,401);checks.push('invalid credentials rejected without catalog');
-const a=await publish(catalog('base'),config.tokens.a,'1',[]);checks.push('device A initializes exact synthetic catalog');
+const a=await publish(catalog('base'),config.tokens.a,'1',[],'initialize');checks.push('device A initializes exact synthetic catalog');
 const bBefore=await download(config.tokens.b);assert.equal(await fingerprint(bBefore.catalog),await fingerprint(catalog('base')));checks.push('device B downloads manifest-verified exact A state');
 const b=await publish(catalog('reorder'),config.tokens.b,'1',bBefore.pages);checks.push('device B publishes real reorder against current head');
 const aAfter=await download(config.tokens.a);assert.equal(await fingerprint(aAfter.catalog),await fingerprint(catalog('reorder')));checks.push('device A downloads B revision and exact order');

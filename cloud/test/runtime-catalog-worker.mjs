@@ -15,11 +15,14 @@ function measured(db){
  return {prepare:sql=>wrap(db.prepare(sql),sql),batch:async statements=>{
   const raw=statements.map(s=>sqlByStatement.get(s)??{s,sql:''});
   const publishes=raw.some(r=>r.sql.startsWith('UPDATE cloud_head SET'));
-  const current=publishes?fault:null;if(publishes)fault=null;
+  const retiring=raw.some(r=>r.sql.includes("SET status='RETIRED'"));
+  const current=(publishes||retiring)?fault:null;if(publishes||retiring)fault=null;
   if(current==='beforeCommit')throw new Error('simulated unknown network result');
   if(current==='revokeBeforeCommit')await db.prepare("UPDATE cloud_devices SET revoked=1 WHERE device_id='device-a'").run();
   stats.statements+=raw.length;stats.batches++;stats.maxBatch=Math.max(stats.maxBatch,raw.length);
-  const r=await db.batch(raw.map(x=>x.s));r.forEach(add);
+  const payload=raw.map(x=>x.s);
+  if(retiring&&current==='failRetirement')payload.push(db.prepare('INSERT INTO cloud_commit_assertion VALUES(1,0)'));
+  const r=await db.batch(payload);r.forEach(add);
   if(current==='afterCommit')throw new Error('simulated lost committed response');
   return r;
  }};

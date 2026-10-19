@@ -288,3 +288,33 @@ test('staged start racing mismatched retirement has one valid winner and no stuc
  const next=await stage(catalog('base'),{sequence:'2'});await publish(next);
  assert.equal((await status()).head.revision,'1');
 });
+
+
+test('retirement lost reply is resolved by status; next upload never requires a second retirement',async()=>{
+ const u=await stage(catalog('base'));
+ await controls({fault:'afterCommit'});
+ const result=await call('/v1/uploads/retire',u.ref);assert.equal(result.status,200,JSON.stringify(result.data));
+ assert.equal(result.data.receipt.outcome,'RETIRED');
+ const resolved=await call('/v1/uploads/status',u.ref);assert.deepEqual(resolved.data.receipt,result.data.receipt);
+ const state=(await sql("SELECT status FROM cloud_uploads WHERE device_id='device-a'"))[0].results[0];assert.equal(state.status,'RETIRED');
+ assert.equal(await rows('cloud_upload_chunks'),0);assert.equal(await rows('cloud_upload_changes'),0);
+ await mf.dispose();mf=await runtime();await mf.ready;
+ const next=await stage(catalog('base'),{sequence:'2'});await publish(next);assert.equal((await status()).head.revision,'1');
+});
+
+test('retirement failure rolls back sequence, terminal state and payload together',async()=>{
+ const u=await stage(catalog('base'));
+ const changes=await rows('cloud_upload_changes'),chunks=await rows('cloud_upload_chunks');
+ await controls({fault:'failRetirement'});failure(await call('/v1/uploads/retire',u.ref),'PRECONDITION_FAILED');
+ assert.equal(await rows('cloud_receipts'),0);
+ assert.equal((await call('/v1/uploads/status',u.ref)).data.status,'SEALED');
+ assert.equal(await rows('cloud_upload_changes'),changes);assert.equal(await rows('cloud_upload_chunks'),chunks);
+ await publish(u);assert.equal((await status()).head.revision,'1');
+});
+
+test('repeated retirement of a committed upload preserves committed receipt and newer upload',async()=>{
+ const first=await stage(catalog('base'));const committed=await publish(first);
+ const second=await stage(catalog('rename'),{previous:first.pages,sequence:'2'});
+ assert.deepEqual((await call('/v1/uploads/retire',first.ref)).data.receipt,committed);
+ assert.equal((await call('/v1/uploads/status',second.ref)).data.status,'SEALED');await publish(second);
+});
