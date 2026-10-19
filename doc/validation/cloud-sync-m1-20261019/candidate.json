@@ -1,0 +1,18 @@
+{
+  "candidate": "2f15bcaf6221a95705a7379be14d98b0105f60e6",
+  "serial": "emulator-5574",
+  "avd": "Pixel_3a_API_34",
+  "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+  "artifacts": [
+    {
+      "path": "/home/ritorhymes/.cache/newpipe-cloud-m1-20261019/cloud-m1.apk",
+      "bytes": 34629930,
+      "sha256": "9edac6a1cb82220bd7ff5705cfae37e0eccaaeb27d747094663fd3d999a4e29a"
+    },
+    {
+      "path": "/home/ritorhymes/.cache/newpipe-cloud-m1-20261019/cloud-m1-tests.apk",
+      "bytes": 2499225,
+      "sha256": "af00aa7f091f801a37f420809fa1c8b9aaf56c3fc8c4c0697d7bfd4182970774"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "status": "FOUNDATION_CHECKPOINT_PASS_NOT_FULL_M1",
+  "source_commit": "2f15bcaf6221a95705a7379be14d98b0105f60e6",
+  "node_tests": {
+    "total": 111,
+    "passed": 111,
+    "failed": 0,
+    "workerd_D1_race_tests": 28
+  },
+  "jvm_tests": {
+    "total": 322,
+    "passed": 322,
+    "failed": 0,
+    "new_cloud_groups": 8
+  },
+  "android_instrumentation": {
+    "total": 24,
+    "passed": 24,
+    "failed": 0,
+    "new_cloud_groups": 8,
+    "existing_backup_restore_regressions": 16,
+    "host": "NotCodex",
+    "serial": "emulator-5574",
+    "avd": "Pixel_3a_API_34",
+    "api": 34,
+    "runner_seconds": 21.805
+  },
+  "scale": {
+    "synthetic_streams": 20000,
+    "ordinary_memberships": 100000,
+    "assignments": 20000,
+    "canonical_bytes": 6402769,
+    "emulator_exercise_ms": 9848,
+    "not_a_deployed_cpu_or_quota_benchmark": true
+  },
+  "cloud_resources_created": false,
+  "phone_touched": false,
+  "production_gateway_modified": false,
+  "independent_implementation_review_completed": false,
+  "artifact_transport_copies_deleted_after_native_test": true,
+  "owned_emulator_stopped_after_tests": true,
+  "large_staging_and_native_apply_complete": false,
+  "evidence": {
+    "install-tests.log": "781a31c82430c97897af612ece5e0ca2205e301cb5ff121ce2660541ea5182c7",
+    "candidate.json": "022c664d9708943082ad4ad1a098cdcb33264ede84e47b50d00f5cf616f28e1d",
+    "install-app.log": "781a31c82430c97897af612ece5e0ca2205e301cb5ff121ce2660541ea5182c7",
+    "native-scale.log": "4cfa02d377d8af3fde1b33ab4d3c7af153cc1706ba2adeaf16285494e891d2af",
+    "native-tests-r1.log": "c14281120e6d239815768f89cc3b76e7edb0f0edb75d8f9675237a549ce290d2",
+    "jvm-results.json": "4c215d34577d88b559b487eafe42f5847154906edc3962b11855dd47ae184eb8",
+    "jvm-cloud-results.xml": "45d3783880ea7181ccd15f33b941e618485e4d773b8a0f3d6e282fc4d56ccec4",
+    "scoped-format.log": "6b87f44968885db82457645acd018f70ff89fbc2171174a2d90b87c2f0d06edc",
+    "android-build.log": "e84dfbae5241c350a3605ac995212c55ab134ee8fcd1092e487a126316090068",
+    "node-tests.log": "1f486693eb796b68b8463769d7ddafe5696c1b1f0e5c09d9f508d707c79f3266"
+  },
+  "original_log_sha256": {
+    "install-tests.log": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3",
+    "install-app.log": "c4aa470acafcf8576c15b0f0b5ae7e852d1ec5413372d0e6a9272e788e1306d3",
+    "native-scale.log": "8aedc1f4151a935c31ecc8c87c396d1c4e1c95dc83758bc98cc09e79e5c29679",
+    "native-tests-r1.log": "5c5f5c25d9fb557a071af6bfeb9ee5992166ac7b698c1b418b4e7ff3335fc1da",
+    "scoped-format.log": "fc345cecd8eeb0482f2daea4d0f3808087ba3862af4ee58c087ae84a72d0ef0c",
+    "android-build.log": "52d67d64a334ae9966108b54982f6ea6d4dd86a46c81936a3f025b5add163ac7",
+    "node-tests.log": "c077a43abf336033b247a1074e48ad726251d2e60b6afe664c03b0716ec06d6f"
+  },
+  "log_storage_note": "Repository log copies normalize line endings to LF and remove trailing horizontal whitespace/blank lines only. Original unmodified logs remain on their execution hosts; original hashes are retained separately."
+}

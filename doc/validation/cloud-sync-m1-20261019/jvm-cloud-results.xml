@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="org.schabi.newpipe.custom.cloud.CloudProtocolTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-19T10:09:56.183Z" hostname="Alexcomputer" time="0.508">
+  <properties />
+  <testcase name="largeCatalog" classname="org.schabi.newpipe.custom.cloud.CloudProtocolTest" time="0.414" />
+  <testcase name="golden" classname="org.schabi.newpipe.custom.cloud.CloudProtocolTest" time="0.032" />
+  <testcase name="policy" classname="org.schabi.newpipe.custom.cloud.CloudProtocolTest" time="0.011" />
+  <testcase name="previewCannotWiden" classname="org.schabi.newpipe.custom.cloud.CloudProtocolTest" time="0.004" />
+  <testcase name="callerMutationAndLimits" classname="org.schabi.newpipe.custom.cloud.CloudProtocolTest" time="0.012" />
+  <testcase name="exactDifferences" classname="org.schabi.newpipe.custom.cloud.CloudProtocolTest" time="0.019" />
+  <testcase name="rejectsInvalidCatalogs" classname="org.schabi.newpipe.custom.cloud.CloudProtocolTest" time="0.01" />
+  <testcase name="namesAndCounters" classname="org.schabi.newpipe.custom.cloud.CloudProtocolTest" time="0.004" />
+  <system-out>CLOUD_SCALE streams=20000 ordinary_memberships=100000 assignments=20000 canonical_bytes=6402769 duration_ms=395
+</system-out>
+  <system-err />
+</testsuite>
