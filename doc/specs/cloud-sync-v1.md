@@ -1,6 +1,6 @@
 # Cloud & Sync v1 — Product contract
 
-**Status:** Draft for independent design review. Documentation only; no cloud-sync implementation or deployment is claimed.
+**Status:** Design findings adjudicated; implementation authorized on 2026-10-19. This contract describes required behavior, not completed or deployed functionality. See the [adjudication](../reviews/cloud-sync-design-adjudication-2026-10-19.md).
 **Date:** 2026-10-19
 **Source baseline:** `custom/dev` at `f76d89a378e71625616bba160a42de24498ccfa1`.
 **Working branch:** `feature/cloud-sync-spec-20261019`.
@@ -16,7 +16,7 @@ The following detailed defaults are implementation proposals made explicit for r
 
 ### Active synchronization coverage
 
-Synchronize canonical Library membership; ordinary local playlist definitions, display order, artwork selection metadata and ordered memberships including duplicates; the protected Unavailable designation and membership; tag/category definitions and stream-tag assignments. Preserve the existing fork's semantics rather than deriving them from names.
+Synchronize canonical Library membership **and user-visible order**; ordinary local playlist definitions, display order, artwork selection metadata and ordered memberships including duplicates; the protected Unavailable designation and membership; tag/category definitions and stream-tag assignments. Preserve the existing fork's semantics rather than deriving them from names.
 
 Do not actively synchronize watch/search history, playback progress, current queue/player state, subscriptions, remote playlist bookmarks, device paths, UI/player preferences, pairing, credentials, receipts or recovery journals. A **full device backup** covers the supported native backup data more broadly and is labeled separately. Downloaded audio/video, cached image bytes, APKs and build artifacts are never uploaded by this feature.
 
@@ -48,15 +48,15 @@ Use **Replace cloud library**, not a misleading generic Backup label, for the ow
 
 **Conflict:** Local and cloud catalog both differ from the acknowledged baseline. In v1, pause automatic apply/publish and offer **Use cloud**, **Replace cloud with this device**, or **Keep sync off**. Even unrelated concurrent edits may require this choice: automatic multi-writer merging is deliberately not promised in v1. Do not discard either branch before the selected replacement has been previewed and backed up as appropriate.
 
-**In-flight disable:** Persist disable and a new local connection generation before canceling work. No work admitted afterward may contact the server or apply a result. A request already sent may have committed; cancellation cannot undo that. Record an unknown outcome for later explicit reconciliation and never claim that disabling rolls back an already committed remote write. Edits after disable cannot be included in that previously frozen request.
+**In-flight disable:** Persist disable and a new local connection generation under the same writer barrier used by sync apply before canceling work. An apply already admitted inside that barrier completes before disable linearizes; no later apply may start. No work admitted afterward may contact the server or apply a result. A request already sent may have committed; cancellation cannot undo that. Record an unknown outcome for later explicit reconciliation and never claim that disabling rolls back an already committed remote write. Edits after disable cannot be included in that previously frozen request.
 
 ### Enrollment and resumption
 
 Never infer an empty cloud from a timeout, authentication failure, missing page, unsupported schema or server error. The server distinguishes an authenticated **uninitialized** catalog from an initialized catalog with zero saved items.
 
-If cloud data exists and differs from local, enabling sync shows the replacement preview. The normal path is **Use cloud and enable sync**. Publishing a divergent local branch instead is the separately confirmed **Replace cloud** action. If both already match, establish identity/baseline without destructive replacement.
+If cloud data exists and differs from local, enabling sync shows the replacement preview. The normal path is **Use cloud and enable sync**. Publishing a divergent local branch instead is the separately confirmed **Replace cloud** action. If both already match, establish identity/baseline without destructive replacement. Resolve-or-retire every quarantined operation on the server before establishing this baseline: a missing receipt alone is not proof a delayed request cannot still commit. One-time actions retain valid cloud-ID maps even while ongoing sync remains off.
 
-A revoked credential or account/endpoint change immediately stops automatic work. A different service/library identity requires a new enrollment, even if display names match. Existing AI pairing does not grant cloud access.
+A revoked credential or account/endpoint change immediately stops automatic work. A different service/library identity requires a new enrollment, even if display names match. Existing AI pairing does not grant cloud access. Require verified Library and Unavailable bindings before enrollment/apply; unresolved identity repair blocks sync, not ordinary permitted local use. Unexpected decreasing cloud head counters, reused counters with different identity/digest, or service-generation changes stop automatic work for recovery/re-enrollment.
 
 ## 3. Domain invariants
 
@@ -82,7 +82,7 @@ Details include:
 - Tag/category creation, rename, move, deletion and assignment changes. Explain category cascades without double-counting saved videos as deleted.
 - Unique-video counts separate from membership-occurrence counts. Stable IDs distinguish rename from delete/create; uncertain legacy identity is disclosed, never guessed by title.
 
-Search and filter the full difference set and page results; no silent 100-item/first-page truncation. Reading all detail rows is optional, but every approved change must be discoverable. If a comparison cannot be completed, confirmation stays unavailable. No "everything is unchanged" claim based only on totals.
+Search and filter the full difference set and page results; no silent 100-item/first-page truncation. Reading all detail rows is optional, but every approved change must be discoverable. If a comparison cannot be completed, confirmation stays unavailable. No "everything is unchanged" claim based only on totals. Preview any recoverable orphan tag assignments displaced when cloud membership is materialized. Preserve unrelated orphans; an automatic remote addition that would reactivate divergent local orphan tags pauses for metadata review instead of silently deleting or publishing them.
 
 ### Frozen preview contract
 
@@ -108,7 +108,9 @@ An unfinished upload is not a usable backup. Verify size, manifest, version and 
 
 A **device backup** is the supported native ZIP. A **cloud-catalog recovery archive** is a portable, versioned export of the exact D1 catalog being replaced; it cannot contain unsynchronized phone settings/history. Label these accurately. A local ZIP of the incoming replacement is not a backup of the outgoing cloud catalog.
 
-Before destructive local replacement, keep one verified local recovery snapshot without uploading the private detached local branch. Before destructive cloud replacement, require a verified R2 archive of the exact outgoing cloud revision. Failure to make the required recovery point blocks that replacement, not ordinary local use or ordinary D1 sync.
+Before destructive local replacement, keep one verified local recovery snapshot without uploading the private detached local branch. Do not overwrite a protected local recovery point merely to receive a cloud replacement whose outgoing state is already verified recoverable in R2. Before destructive cloud replacement, require a verified R2 archive of the exact outgoing cloud revision. Failure to make the required recovery point blocks that replacement, not ordinary local use or ordinary D1 sync.
+
+Every replacement approval names the eligible archive that would be removed to free a slot. Any cloud-head change invalidates the approval: never silently re-preview or retry a replacement against newer data. Failed publication retains/reuses its same reservation until resolved; it cannot rotate out another historical archive on retry. Three slots are a rolling count limit, not a number of recovery days or a promise of three previous replacements. Backup kinds share these slots, and repeated separately approved replacements eventually displace older recovery points.
 
 Settings show archive type/date/source, count, measured bytes, last successful backup and cleanup errors. D1 Time Travel is additional operator recovery, not a user-visible promise of unlimited historical archives. R2 in the same Cloudflare account is not protection against loss of that entire account; native local export remains available.
 

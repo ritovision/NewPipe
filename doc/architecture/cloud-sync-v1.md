@@ -1,6 +1,6 @@
 # Cloud & Sync v1 — Architecture and failure model
 
-**Status:** Design-review candidate, not implemented. See [product contract](../specs/cloud-sync-v1.md) and [execution gates](cloud-sync-implementation-plan.md).
+**Status:** Amended after independent review; required architecture, not a completion claim. See [adjudication](../reviews/cloud-sync-design-adjudication-2026-10-19.md). See [product contract](../specs/cloud-sync-v1.md) and [execution gates](cloud-sync-implementation-plan.md).
 **Date:** 2026-10-19. Baseline `f76d89a378e71625616bba160a42de24498ccfa1`.
 
 ## 1. Components and isolation
@@ -34,12 +34,12 @@ Represent portable catalog semantics independently of NewPipe's local row IDs. U
 
 - `service_identity + exact saved URL` is the media key. Preserve existing numeric service identity only with an explicit protocol/service mapping version. Never deduplicate by title or speculative URL normalization.
 - Assign UUIDs to cloud playlists, tags and categories. Persist device-local mappings to native row IDs, scoped by service/library identity and **local database incarnation**. Maps from a restored/replaced database are invalid until re-enrollment.
-- Represent a playlist as an ordered sequence of media keys with duplicate occurrences retained. In v1 a sequence is versioned as a whole: positions are positions, not durable per-occurrence IDs. No attempt to merge two independent reorder/delete histories.
+- Represent a playlist as an ordered sequence of media keys with duplicate occurrences retained. Wire snapshots retain ordered duplicate media keys. Deltas use base-fenced edit scripts with occurrence positions relative to the exact base, not cross-device native row IDs. D1 ordering uses sparse/fractional labels (bounded rebalancing) rather than rewriting dense positions on every insertion/removal. No attempt to merge two independent reorder/delete histories. Freeze the physical ordering representation only after the large-delta proof.
 - Library and Unavailable use explicit protected roles/designations. Never claim a legacy playlist named Library/Unavailable by name alone. Preserve optional legacy bindings through the already validated native import path.
 - Define one canonical semantic fingerprint covering Library, playlist identities/names/order/artwork choices/memberships, protected roles, tag definitions and assignments. Exclude volatile caches, player state, network freshness and local integer IDs. A separate payload digest covers the exact transfer bytes, including display metadata used in the preview.
 - Encode 64-bit counters as validated decimal strings in JSON; no JavaScript precision loss. Use canonical ordering, explicit nullable fields and pinned normalization rules. Hash equality is meaningful only within the same codec version.
 
-Cloud head is `(service_generation, library_id, catalog_epoch, revision, active_generation)`. `revision` is a monotonically increasing counter within an epoch. A deliberate whole-cloud replacement creates a new random `catalog_epoch` and advances the published head. `service_generation` lives in Worker deployment configuration **outside D1** and is rotated for database rollback/disaster recovery; old tokens/requests cannot be replayed into a rewound database.
+Cloud head is `(service_generation, library_id, catalog_epoch, revision, head_counter, active_generation)`. `head_counter` advances on every publish, including epoch replacement; it must never intentionally decrease within a service generation. Clients retain the greatest observed counter and corresponding head identity/digest outside catalog backups. A lower counter, or equal counter with different epoch/revision/digest, means `ROLLBACK_SUSPECTED`, not a normal pull. `revision` is a monotonically increasing counter within an epoch. A deliberate whole-cloud replacement creates a new random `catalog_epoch` and advances the published head. `service_generation` lives in Worker deployment configuration **outside D1** and is rotated for database rollback/disaster recovery; old tokens/requests cannot be replayed into a rewound database.
 
 ### Proposed logical D1 tables
 
@@ -49,20 +49,39 @@ Names are illustrative; physical schema/migrations are a milestone deliverable.
 | --- | --- |
 | `catalog_head` | Initialized flag, epoch/revision, active dataset generation, current protocol |
 | `streams`, `library_members` | Portable saved stream references/metadata and canonical membership |
-| `playlists`, `playlist_items` | Stable playlist ID/role/order, content version, ordered stream references; native duplicates allowed |
+| `playlists`, `playlist_items` | Stable playlist ID/role, sparse order labels, ordered stream references; native duplicates allowed |
 | `categories`, `tags`, `assignments` | Portable definitions, normalized uniqueness and Library-only assignments |
-| `devices` | Token hash, grant set, revocation/auth generation, monotonic accepted operation sequence |
-| `operation_receipts` | Device sequence + operation UUID + request digest + exact committed result; bounded retention |
-| `changes` | Atomic revision-tagged deltas, including deletions and whole-playlist replacement references |
+| `devices` | Token hash, grant set, revocation/auth generation, enrolled service generation, monotonic resolved operation sequence |
+| `operation_receipts` | Device sequence + request digest + committed/retired result; bounded retention. Sequence is the operation identity; no redundant UUID |
+| `changes` | Atomic revision-tagged edit scripts, including deletions and large sealed-delta references |
 | `transfers`, staged rows | Owned immutable chunks/candidate digest, intended base, expiry, quota and validation status |
 | `backup_slots` | Three-slot reservation state, immutable R2 key/upload ID, declared/verified size, kind, digest and active-operation protection |
 | `commit_assertion` | Temporary CHECK-constrained guard rows used inside an atomic batch, removed before successful completion |
 
 Foreign keys/constraints enforce membership and definition references. Every active read is scoped to the authenticated library and active generation. Staged data never becomes visible merely because upload finished. Cloud tokens cannot submit SQL or choose arbitrary R2 keys.
 
+### Exact semantic projection (codec v1)
+
+| Native value | Fingerprint / application rule |
+| --- | --- |
+| Stream identity | Exact numeric service mapping version + saved URL; no URL/title equivalence |
+| Titles/uploader/duration/thumbnail cache | Transfer/display hints only, excluded from semantic fingerprint. Preserve existing native metadata; hints initialize genuinely new stream rows only |
+| Library and Unavailable | Verified role + ordered unique media keys. Library order is synchronized because native reorder and Tags Library sort expose it |
+| Ordinary playlists | Portable UUID, exact supported name, ordered keys with duplicate occurrences retained |
+| Playlist display_index | Rank among synchronized local playlists only; exclude gaps and remote bookmarks. Preserve remote bookmarks' relative placement on apply. Equal native indices use the existing deterministic order as captured, then persist portable rank |
+| Automatic playlist thumbnail | Excluded; refresh using native behavior after membership apply |
+| User-selected permanent thumbnail | Selected stream key or explicit null, never native stream UID; selection need not be a membership only if existing native policy allows it (prototype gate) |
+| Tag/category definition | Portable ID, exact stored display name, stored normalized key and category relationship. Preserve readable legacy names; new edits use TagNames.clean/key. Pin trim/case rules through Kotlin/TypeScript parity vectors, including non-ASCII and legacy controls |
+| Tag assignments | Only active Library keys enter sync. Unrelated recoverable orphan assignments remain local and are excluded, not purged |
+| Materializing an orphan key | Target assignments are exact cloud assignments. Divergent recoverable orphan metadata requires review and a local recovery point before replacement, including on an otherwise automatic addition |
+| Tag concurrency tokens | Local-only; apply increments catalog revision and affected stream revisions using native semantics |
+| Cloud/native maps, receipts, UI preferences | Excluded from portable semantic content; maps persist separately while disabled and invalidate on database incarnation changes |
+
+Canonical collection order is explicit, strings must be valid Unicode, numbers never pass through imprecise JS 64-bit arithmetic, and exact transfer digest is separate from semantic identity. Codec/normalization/counter vectors are shared between JVM, Android and TypeScript. Readable legacy data is never silently normalized into a different name or dropped to fit the cloud.
+
 ## 3. Normal synchronization protocol
 
-Android keeps one acknowledged baseline plus at most one frozen in-flight request. A persistent journal records operation UUID, monotonic device sequence, base cloud head, semantic before/after fingerprints, exact request bytes/digest and connection generation **before sending**. Local catalog changes remain usable while a network request is in flight.
+Android keeps one acknowledged baseline plus at most one frozen in-flight request. A persistent journal records monotonic device sequence, base cloud head, semantic before/after fingerprints, exact request bytes/digest and connection generation **before sending**. Local catalog changes remain usable while a network request is in flight.
 
 On app startup/foreground and sync work, compare the actual canonical catalog with the saved baseline under the writer barrier. In-memory observer events are wakeups, not the sole source of durable truth. This catches an edit committed immediately before process death even if scheduling never ran.
 
@@ -71,7 +90,7 @@ On app startup/foreground and sync work, compare the actual canonical catalog wi
 | Unchanged | Unchanged | No transfer; update verified status |
 | Changed | Unchanged | Send the frozen delta against that exact base; continue local editing independently |
 | Unchanged | Changed | Download validated changes/current snapshot and apply only if local still matches its captured fingerprint |
-| Changed | Changed | Pause for explicit reconciliation, even if the edits appear unrelated |
+| Changed | Changed | If a validated cloud snapshot exactly equals local, adopt it as baseline after resolving outstanding operations; otherwise pause for reconciliation |
 | Unknown receipt for an already sent operation | Any | Resolve the same operation's outcome first; never create a replacement request with a new identity |
 
 When a push succeeds, advance the baseline to the **acknowledged frozen candidate**, not to whatever is currently on-screen. Edits made during transmission remain a new local delta. A remote apply does not generate an echo upload. If the same known operation committed but its response was lost, return the existing receipt after authentication and request-digest verification.
@@ -80,19 +99,23 @@ When a push succeeds, advance the baseline to the **acknowledged frozen candidat
 
 A preflight SELECT followed by unguarded UPDATE is insufficient. For a small operation, one `D1Database.batch()` must cover: current authorization/head assertion, unique operation receipt/sequence admission, invariant-preserving record changes, change-journal entry, revision increment, and final result. A failed precondition must abort the **whole** batch, not just affect zero rows while later statements still write.
 
-Proposed assertion pattern: insert a row whose `CHECK(ok = 1)` value is computed by SQL from the expected head, active token/auth generation and device sequence. A mismatch attempts `ok = 0` and raises a constraint error. Mutation statements are only constructed from a validated bounded typed operation. Remove the guard row at the end. Unique receipt keys make concurrent duplicates conflict transactionally; after a duplicate error, read the existing receipt and require identical request bytes/digest before returning success. A replay with different bytes is rejected. Prove this on D1, not only generic SQLite.
+Assertion pattern: `ok INTEGER NOT NULL CHECK(ok = 1)`, populated with an **unconditional VALUES insert of a scalar SELECT COUNT(*)** over unique head/device rows satisfying every head, token hash, grant, enrollment/service generation, nonrevoked status and next-sequence predicate. Missing rows and NULL comparisons yield count 0, never a successful empty INSERT or NULL CHECK. Authorization-sensitive schema fields are NOT NULL. Remove the guard row at the end. After **any** failed batch, first reauthenticate and resolve the same (device, sequence) receipt: an identical committed digest returns its original result even when another concurrent request advanced the head. Changed digest is a replay error; missing receipt after an unclassified database/transport error remains outcome-unknown. Only proven precondition failures are definitive conflicts. Prove this on D1, not only generic SQLite.
 
 Validate domain changes against a primary, revision-fenced read; the commit's in-batch head assertion ensures that validation is still applicable. Use prepared statements. Budget each batch below the deployed plan's query, parameter and duration limits. Do not assume an arbitrary interactive BEGIN/await/COMMIT transaction exists in the Worker binding API.
 
 Receipt pruning does not permit replay: each device retains its accepted sequence high-water mark. An old sequence whose result has expired returns an explicit resynchronization/unknown-outcome error, never applies again. One active operation per device prevents skipped sequences from being silently treated as success. App data loss requires new device enrollment rather than guessing a sequence.
 
+**Resolve-or-retire:** for an authenticated next sequence, one guarded batch either discovers its existing receipt or writes a RETIRED receipt and advances the device high-water mark without changing the catalog. A delayed original commit must then fail. A concurrent winner is resolved by receipt lookup after the guard failure. Run this before discarding/quarantining work, re-enabling, or creating a destructive preview. Do not retire on mere timeout; unknown retirement outcomes are resolved with the same sequence. Expired receipts never make an old sequence admissible.
+
 ### Large operations and bounded transfers
 
-Normal edits update changed records only; do not clone or re-upload the entire catalog for each save. Large playlist rewrites may stage a versioned item sequence, validate it, then atomically switch that playlist's content-version pointer under the same catalog head/receipt guard. Whole-library replacements stage a complete new dataset generation and atomically switch the head only after validation and the required outgoing-cloud recovery archive exist.
+Normal edits update changed records only; never clone/re-upload the whole catalog for each save. All ordinary deltas, including Remove All Everywhere across thousands of items/playlists/tags, use the same admission/receipt/epoch semantics. Oversized ordinary deltas use one generic sealed staging flow: bounded typed chunks -> seal -> validate against exact base -> one guarded set-based publication. No R2 archive and no epoch reset are required for a routine large edit. Whole-cloud replacement remains a distinct explicitly approved operation with a new epoch and an outgoing recovery archive.
 
-Use stable-key pagination, bounded chunks and explicit manifests/counts/checksums. Defaults proposed for the proof: at most 256 KiB uncompressed per JSON chunk, at most 32 SQL statements per ordinary commit, at most one whole-catalog candidate per library, and explicit total staging/row/byte quotas. Measure aggregate quota values on the scale fixture before release; all endpoints must reject missing/exceeded limits. The proof must establish a supported maximum catalog, not leave production admission unbounded.
+The initial control-plane proof is plan-independent, local-only and targets **Workers Free limits** by default; it is not approval for a row-heavy production catalog on Free. No paid upgrade is authorized. Use sparse ordering and bounded set-based SQL; prototype packed bounded pages only if the measured row budget makes them necessary. Do not prematurely build a second chunk-store database just to avoid an unmeasured bill. Full-scale physical-schema/publication choice is a required later M1 gate, not part of the small admission skeleton.
 
-Chunk ownership includes library, initiating device, request UUID and expected epoch. Validate duplicate keys, dense sequence positions, referential integrity, protected designations and tag uniqueness. A sealed candidate is immutable; a changed chunk invalidates the seal. Publication references its verified digest, not client-supplied counts alone. Expired/canceled chunks are never publishable. Quota reservations and cleanup failures stop further staging growth.
+For that gate, measure 20,000 streams / 100,000 memberships plus tags locally, then run only an admitted **small synthetic** deployed sample after account/remaining-quota checks. Never exhaust the account allowance with a live scale fixture. Proposed Free safety budgets: <=32 SQL statements including recovery lookups per request, <=64 KiB JSON request for the first control-plane proof, <=8 ms measured deployed p95 CPU, <=50,000 project rows written / 2,000,000 read per UTC day including staging/indexes/cleanup, <=250 MB database. These are conservative application targets, not guaranteed unused account capacity; shared-account usage is checked independently. Daily-budget rejection keeps local changes and last cloud state intact. If full scale cannot meet them, leave large enrollment disabled and present the measured alternatives before changing a plan. Small local proofs may proceed without a paid-plan choice.
+
+Chunk ownership includes library, initiating device, sequence, exact base head, counts, digest, expiry and byte/row reservations. Sealed chunks are immutable; publication consumes exactly the validated seal. Missing/exceeded budgets fail before publication. Foreign keys/reference scans cover the resulting state, not only each chunk. Preserve occurrence order, Library uniqueness, Unavailable subset and reserved names; global removals affect all ordinary duplicates and assignments. Expired/canceled/ambiguous staging occupies its reservation until fenced cleanup; never silently allocate another generation. Bounded compaction/rebalancing must be measured; sparse labels are not infinitely divisible.
 
 The change journal is bounded by both age and bytes; it is not backup history. Initial proposal: up to 7 days and 16 MiB, whichever is reached first. Publish a minimum available cursor. A device behind it must fetch a fresh catalog; it must not interpret missing history as no changes. The strict base/epoch policy prevents old deletion replay or resurrection without permanent tombstones.
 
@@ -106,23 +129,25 @@ Stream the validated result to device staging; no permanent cloud copy is needed
 
 ### State and scheduling
 
-Durable states: `DISCONNECTED`, `DISABLED`, `ENROLLMENT_PREVIEW`, `ENABLED_CLEAN`, `ENABLED_PENDING`, `OFFLINE`, `CONFLICT`, `OUTCOME_UNKNOWN`, `APPLY_RECOVERY_REQUIRED`, and `AUTH_REVOKED`. A transient network failure is not user-disabled or an empty cloud. Persist desired mode separately from transient status.
+Durable states: `DISCONNECTED`, `DISABLED`, `ENROLLMENT_PREVIEW`, `ENABLED_CLEAN`, `ENABLED_PENDING`, `OFFLINE`, `CONFLICT`, `OUTCOME_UNKNOWN`, `IDENTITY_REPAIR_REQUIRED`, `LOCAL_METADATA_REVIEW`, `ROLLBACK_SUSPECTED`, `APPLY_RECOVERY_REQUIRED`, and `AUTH_REVOKED`. A transient network failure is not user-disabled or an empty cloud. Persist desired mode separately from transient status.
 
 Use one uniquely named sync-work chain per bound library/device, with connected-network constraints and backoff. Coalesce local events. Foreground entry and explicit Sync now request prompt checks; optional periodic background checks use WorkManager and do not promise instant delivery. No perpetual wake lock, playback foreground service or websocket is introduced. Existing AI foreground-service behavior is independent.
 
-A persisted connection generation fences callbacks and worker requests. Disable or endpoint changes invalidate old work before cancellation. WorkManager cancellation alone is not a network-commit barrier. An already submitted request can finish remotely; retain its receipt identity while refusing any stale callback's local apply.
+A persisted connection generation fences callbacks and worker requests. Disable or endpoint changes persist the generation under the shared apply writer barrier before cancellation. The linearization point is the committed disabled generation, not the initial button tap; an already admitted apply finishes before it. WorkManager cancellation alone is not a network-commit barrier. An already submitted request can finish remotely; retain its receipt identity while refusing any stale callback's local apply.
 
-### Record-level apply over two databases
+### Record-level apply: two databases and protected binding preconditions
 
 There is no cross-file SQLite atomic transaction. Hold the existing canonical/tag writer barrier only for local snapshot/admission/application, never while waiting on HTTPS or user confirmation. Preserve the established lock order: authorization admission/drain where applicable, TagRuntime barrier, Library monitor, then native transactions. Audit all native and AI writers before claiming coverage.
+
+Protected identities also live in `ritovision-library.binding`, outside both databases. Admission requires verified existing Library and Unavailable roles and successful existing identity/recovery checks. Sync apply does **not** create/rebind these roles; unresolved name collisions/identity repair block it and use existing explicit repair flows. Ordinary playlist names reserve trimmed case-insensitive `Unavailable`; roles are still never inferred from names. Library-name handling follows existing native policy, not an invented blanket ordinary-name ban.
 
 Proposed recoverable apply mechanism:
 
 1. Stage the complete target and a compact durable apply journal containing database incarnation, native ID mapping plan, exact old/target semantic projections, operation identity, and checksum. fsync required files and commit journal state before changing the native catalog.
-2. With the writer barrier held, recheck the local fingerprint/connection generation and complete prior domain recovery. Resolve/validate native IDs; create a durable mapping plan before any auto-increment allocation can become ambiguous after a crash. Never infer a new playlist's identity solely from its display name.
+2. With the writer barrier held, recheck the local fingerprint/connection generation and complete prior domain recovery. Resolve/validate native IDs; preassign new ordinary native playlist IDs under the shared allocation/writer barrier, persisting the exact IDs and incarnation before insertion. Read both sqlite_sequence and current maximum; use checked arithmetic and explicit IDs. Never rely on AUTOINCREMENT alone across restored databases or external manual ID insertions. This must be tested against every allocation path before production. Never infer a new playlist's identity solely from its display name.
 3. Apply the main catalog changes in one native Room transaction for the admitted bounded operation. For larger operations, use a separately proven bounded/recoverable path; never call a partially committed loop atomic. Preserve history, subscriptions and unrelated native metadata.
 4. Apply tag changes, cloud ID maps, baseline pointer and completion state in a tag-store transaction. The baseline payload is already durably staged before its pointer changes.
-5. Verify the complete target projection, publish UI invalidation only after coherent completion, then remove superseded temporary state.
+5. Verify the complete target projection and complete cloud-level notification, then remove superseded temporary state. Room observers may fire at Room commit: do not promise atomic visibility across stores. The Room phase must be invariant-valid by itself; tag/AI reads and writes must finish/reject pending recovery before observing mixed logical state. Reproduce native tag catalog/per-stream revision bumps so stale native/AI editors cannot overwrite an apply.
 
 Recovery runs **before catalog reads/writes, AI catalog access or sync resumes**. If the main projection equals the recorded old state, replay the frozen operation idempotently. If it equals the target, finish the tag/baseline phase. If it matches neither, fail closed and retain recovery evidence; do not replay a stale global delete into an unrelated local database. A process-local generation/lock alone is not recovery evidence. Map allocation and interruption at every boundary are explicit prototype gates, not claimed solved merely by writing a journal.
 
@@ -130,7 +155,7 @@ If this cannot be proved without an additive fork-owned Room receipt/migration, 
 
 ### Native import/export interaction
 
-Cloud credentials reside outside default preferences and outside all exported files, using Android Keystore-protected encryption for local token bytes. Exclude cloud endpoints, enablement, device identity, sequences, outbox, executable intents and local mappings from native backup restore activation. Restoring portable catalog content must not restore transport authority.
+Cloud credentials, Sync toggle, endpoint, connection generations and all cloud runtime state reside outside default preferences and outside all exported files, using Android Keystore-protected encryption for local token bytes. Exclude cloud endpoints, enablement, device identity, sequences, outbox, executable intents and local mappings from native backup restore activation. Restoring portable catalog content must not restore transport authority.
 
 Extend sanitization/version checks when adding tag-store cloud metadata. Existing `TagBackupCoordinator.prepare/install` is reused for **full ZIP restore**, not ordinary sync. Before any native import, fence cloud work and quarantine unknown remote outcomes; keep cloud credentials separately, restore with sync disabled and a new local database incarnation. Preserve the existing AI unpair/restart behavior for full restores; do not impose it on record sync.
 
@@ -154,6 +179,8 @@ A one-time local restore never publishes to D1. A historical cloud-catalog archi
 
 `cloud-catalog`: versioned portable catalog archive for the exact outgoing D1 epoch/revision, with integrity manifest and full reference coverage. It contains no D1 device-token table or native settings/history. Native Android restore uses the catalog adapter rather than pretending this file is a stock NewPipe ZIP.
 
+The replacing Android device produces the outgoing cloud-catalog archive from its exact downloaded preview pages. Worker-issued digests/MACs bind each page to the fenced head; final verification must validate the complete ordered manifest and exact uploaded bytes, not trust device-supplied hashes. Stream verification in bounded work; do not buffer/hash/decompress a 256 MiB archive in a Free Worker request. Freeze/test the concrete multipart and per-page verification format in M2 before allowing replace.
+
 The Worker can validate format/manifest/size and archive transfer integrity; Android's existing native DB integrity/schema checks remain required to call a device ZIP restorable. Do not claim a remotely accepted arbitrary upload passed native restore validation. Record producer validation plus checksum and exercise real round-trip restoration in acceptance.
 
 ### Three-slot admission and cleanup
@@ -162,7 +189,7 @@ Serialize reservation changes transactionally in D1. Each immutable object key b
 
 At three completed slots, verify two newer backups remain, select the oldest unprotected one, mark deletion in progress, delete through R2 and confirm absence, then free that slot. Only then admit the new upload. Do not free a slot merely because a timeout/lease expires: an outstanding upload/complete may still finish. Reconcile/abort it definitively or quarantine its slot and block further growth. Stale workers must not create new keys or repeat a completed rotation.
 
-Upload under bounded request sizes (proposed 8 MiB multipart parts, at most 32 for the 256 MiB archive cap). Validate each part's number, size and ownership; restrict concurrent part requests and retries to the reserved key/upload ID. Completion is idempotent. Count declared reservations until exact committed bytes are known. If verification fails, retain good archives and clean/quarantine the failed slot.
+Use multipart for every managed recovery payload, including a single final part for small archives, to retain a concrete abortable upload identity. Proposed part size is 8 MiB, <=32 parts for the 256 MiB cap; every non-final part is the same size and >=5 MiB. Multipart ETag is not a whole-archive SHA-256. Do not assert that abort alone resolves a raced completion: verify/clean any completed object before freeing a slot. Validate each part's number, size and ownership; restrict concurrent part requests and retries to the reserved key/upload ID. Completion is idempotent. Count declared reservations until exact committed bytes are known. If verification fails, retain good archives and clean/quarantine the failed slot.
 
 Include enough manifest metadata in the immutable object to rediscover recoverable objects after losing/rewinding the D1 backup index. D1/R2 have no shared transaction: an upload committed before its index write is an orphan to reconcile, not a reason to upload another key. Index-first records do not prove an object exists. Every listed recovery point must refer to verified extant bytes.
 
@@ -170,7 +197,7 @@ Use lifecycle rules only as a secondary incomplete-multipart cleanup backstop (p
 
 ### Before whole-cloud replacement
 
-Export and verify the **outgoing cloud catalog**, not the incoming local branch. Bind the R2 recovery record to its exact head/digest. If cloud changes during archival, do not overwrite: refresh/retry against the new head. Final D1 publication CAS checks both candidate seal and the matching verified recovery point. A failed CAS may leave one valid old-cloud recovery archive, within the same three slots, but must not delete the latest cloud state.
+Export and verify the **outgoing cloud catalog**, not the incoming local branch. Approval includes outgoing head, incoming digest and the specific eligible archive to evict. Final D1 publication CAS checks approval, seal and matching verified recovery point. Any head change invalidates approval and requires a new preview; no automatic reapproval or retry against latest. A stale-CAS archive remains linked to its failed attempt; resolve/clean it and reuse that same slot, without another historical eviction. Requests replay the same receipt/attempt identity and never rotate twice. Require a brief persisted per-library cooldown (proposed 60 seconds) and one active replacement, not a blanket one-replacement-per-day restriction. Repeated separately approved replacements can still exhaust old history: three mixed slots provide no fixed day count or guaranteed two/three-replacement depth. Communicate the actual retained list.
 
 ## 7. Authentication, privacy and account recovery
 
@@ -180,7 +207,7 @@ Verify authenticated service/library identity during connection. Do not forward 
 
 The service is cloud-readable, not end-to-end encrypted. The owner controls the Worker and account; provider transport/storage protections are not a zero-knowledge claim. Local exports provide an independent recovery option, since R2 and D1 in one account can both become inaccessible.
 
-For D1 Time Travel recovery, enter maintenance outside D1, record current recovery information, restore, rotate `service_generation`/authentication generation in Worker configuration, invalidate old device tokens and cursors, validate catalog invariants and reconcile the R2 index before reopening. Re-enroll devices with a preview. Never roll back the token table and thereby silently revive revoked devices. Never test Time Travel against the live owner's database.
+For D1 Time Travel recovery, enter maintenance outside D1, record current recovery information, restore, rotate `service_generation`/authentication generation in Worker configuration, invalidate old device tokens and cursors by requiring devices.enrolled_service_generation to match external configuration on every auth/guard, validate catalog invariants and reconcile the R2 index before reopening. Re-enroll devices with a preview. Never roll back the token table and thereby silently revive revoked devices. Never test Time Travel against the live owner's database.
 
 ## 8. Provider facts and verification sources
 
@@ -194,3 +221,10 @@ Checked 2026-10-19. These are platform facts, not measurements of this library o
 - [C6] R2 Standard includes 10 GB-month monthly storage allowance plus operation allowances; that is not a per-project guarantee or spending cap. Do not infer the account's unused allowance. https://developers.cloudflare.com/r2/pricing/
 - [A1] WorkManager periodic work has a minimum 15-minute interval and timing depends on OS constraints/optimization. Event-driven work improves responsiveness but is not an instant-delivery guarantee. https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work
 - [A2] Android Keystore protects cryptographic keys; encrypt stored token bytes with a Keystore-backed key and exclude them from backup. https://developer.android.com/privacy-and-security/keystore
+
+### Additional verified sources for adjudication
+
+- [C7] D1 pricing: Workers Free 100,000 written / 5,000,000 read rows per day; indexes add writes, staging and deletes count, limits reset at 00:00 UTC, exceeding a daily limit prevents D1 queries. These are shared-account limits, not a dedicated project allowance. https://developers.cloudflare.com/d1/platform/pricing/
+- [C8] Workers Free HTTP CPU budget is 10 ms, Paid default 30 seconds; awaiting D1/network is not CPU time. Our local runtime cannot certify deployed CPU/quota acceptance. https://developers.cloudflare.com/workers/platform/limits/
+- [C9] SQLite CHECK(NULL) passes, so admission explicitly uses NOT NULL and COUNT predicates. https://www.sqlite.org/lang_createtable.html#check_constraints
+- [C10] R2 non-final multipart parts must be >=5 MiB and equally sized; multipart ETag is not full-payload SHA-256. https://developers.cloudflare.com/r2/objects/upload-objects/

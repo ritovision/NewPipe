@@ -1,7 +1,7 @@
 # Cloud & Sync v1 — Independent design review handoff
 
 **Date:** 2026-10-19
-**Status at this checkpoint:** Claude review is actively reading the design and baseline native source; no completed findings or approval recorded yet. The last status inspection showed Read/Glob activity and Max-effort reasoning, with no usage-limit message. Do not treat this handoff as a review verdict.
+**Current status:** Completed at 2026-10-19 05:10 America/New_York after resuming the same session at Extra High (`xhigh`). Verdict: APPROVE_FOR_M1_PROTOTYPE, with nine substantive amendments before affected work. [Completed report](cloud-sync-claude-xhigh-2026-10-19.md) · [Adjudication](cloud-sync-design-adjudication-2026-10-19.md). Historical startup/Max/authentication notes below are retained as evidence, not current status.
 **Frozen candidate:** `529c3f211cffc0e5d7d67bc0a5bafd57ee65adca` — `docs: define cloud sync v1 contract and review gates`.
 **Branch:** `feature/cloud-sync-spec-20261019`; candidate verified committed, pushed and equal to its live remote head before review.
 
@@ -39,7 +39,7 @@ The owner reported 1% Claude usage remaining and a manual reset available. A hea
 
 On an actual usage-limit message, tell the owner to apply the reset. Preserve this exact session and candidate. After the owner reports reset, send `continue` to the existing idle reviewer session. Do not resubmit the initial prompt, launch another reviewer, silently change model, or interrupt an active response. A startup/process check is not a completed review; avoid repetitive progress polling.
 
-If the terminal has been lost or the computer rebooted, use the saved `resume-review.sh` in a new persistent interactive terminal on **primary NotCodex**. That script uses `--resume 01b01580-a181-4667-b0bf-bbaac3ce95ae` and the message `continue`, retaining the same read-only Max-effort configuration. Never run `start-review.sh` again for an existing review.
+If the terminal has been lost or the computer rebooted, use the saved `resume-review.sh` in a new persistent interactive terminal on **primary NotCodex**. That script uses `--resume 01b01580-a181-4667-b0bf-bbaac3ce95ae` and the message `continue`, retaining the same read-only configuration at the owner-requested Extra High effort. Never run `start-review.sh` again for an existing review.
 
 Before adjudication, verify the source-packet checksums, actual completed report, and current repository status. Any supported spec amendments must be recorded in a new commit; the original frozen candidate must not be rewritten while Claude is reviewing it.
 

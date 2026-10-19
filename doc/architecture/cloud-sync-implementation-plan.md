@@ -1,6 +1,6 @@
 # Cloud & Sync v1 — Execution, review and acceptance
 
-**Status:** Documentation/review milestone in progress. No production activation, live-data migration or physical-device installation is implied.
+**Status:** Design review complete and adjudicated; implementation authorized. Earliest local protocol/native safety proofs are next; later gates remain outstanding. No production activation, live-data migration or physical-device installation is implied.
 **Date:** 2026-10-19
 **Canonical documents:** [Product contract](../specs/cloud-sync-v1.md) · [Architecture](cloud-sync-v1.md).
 **Baseline:** `custom/dev` at `f76d89a378e71625616bba160a42de24498ccfa1`; documentation branch `feature/cloud-sync-spec-20261019`.
@@ -11,7 +11,7 @@ Implement directly through the coordinating assistant; **Claude and Codex/Astra 
 
 The owner requested documentation first and then execution, with a heads-up before Claude starts. On 2026-10-19 the owner reported **1% Claude usage remaining** and an immediately available manual usage reset. Start one real review, not a token-burning authentication/model probe. If it stops for usage, report the actual stop and ask the owner to apply the reset. Preserve the exact session and resume it with **continue**; do not launch a new review or switch providers silently. Do not repeatedly poll a working reviewer.
 
-Use Claude **Opus, Max effort**, in a persistent interactive terminal, with only read-only tools. Disable edits, command execution, tests, subagents, browser/MCP operations and web/delegation. Record the exact candidate commit, session UUID, terminal name and resume command before sending the review. A terminal that remains alive does not prove Claude is still thinking; inspect actual review status/output when needed. No claimed approval without a completed report.
+The owner subsequently reset usage and requested **Opus, Extra High (`xhigh`)**, which completed this review. Use that effort for subsequent authorized Claude reviews, in a persistent interactive terminal, with only read-only tools. Disable edits, command execution, tests, subagents, browser/MCP operations and web/delegation. Record the exact candidate commit, session UUID, terminal name and resume command before sending the review. A terminal that remains alive does not prove Claude is still thinking; inspect actual review status/output when needed. No claimed approval without a completed report.
 
 **Machine roles:** NotCodex-2 owns source/documentation, headless builds and unit/backend tests. Primary NotCodex owns emulator/native UI work. Do not launch emulators/GUI on NotCodex-2. Do not disturb an emulator/session belonging to Sleep or Music. Use isolated synthetic data and a dedicated test package; never clear or overwrite the owner's library. No phone install, merge to `custom/dev`, production activation or destructive real-cloud action without a separate explicit release instruction.
 
@@ -41,7 +41,7 @@ These are recorded observations, not permanent authentication guarantees. Rechec
 
 Write product behavior, architecture/failure model and this test/rollout plan. Update the documentation indexes and mark the older exploration historical. Check links, whitespace, conflicting requirements, secret leakage and scope drift. Commit and push a clean documentation checkpoint before Claude reads it.
 
-Run one independent Opus Max read-only review against a compact frozen source/docs snapshot. Ask for prioritized concrete failures, affected paragraphs/source seams, reproducible scenarios, and minimum corrections. Require a verdict and distinguish blockers, substantive risks and optional ideas. Do not show another reviewer's conclusions.
+Run one independent Opus Extra High read-only review against a compact frozen source/docs snapshot. Ask for prioritized concrete failures, affected paragraphs/source seams, reproducible scenarios, and minimum corrections. Require a verdict and distinguish blockers, substantive risks and optional ideas. Do not show another reviewer's conclusions.
 
 Adjudicate findings against the actual code and product choices. Fix supported issues; document disagreements and accepted limitations. Commit the amended design and review/adjudication record. Do not call it approved while the review is rate-limited or incomplete.
 
@@ -49,7 +49,7 @@ Adjudicate findings against the actual code and product choices. Fix supported i
 
 Implement canonical codec/diff vectors, domain validation, state transitions and revision/receipt behavior with synthetic fixtures. Build a local Worker/D1 skeleton in isolated `cloud/`; no changes to `gateway/`. Prove the atomic CHECK-guard/receipt/CAS pattern on the D1-compatible test runtime and subsequently the dedicated synthetic D1 deployment before relying on it.
 
-Prove large staged publication and versioned playlist-sequence replacement without copying the whole catalog per routine edit. Define/freeze all row, byte, stage, batch and retry limits in one configuration contract; test rejection at each boundary. Measure the 20,000-stream fixture and propose any necessary reviewed adjustments before release.
+Prove generic large staged-delta publication and sparse playlist ordering without copying the whole catalog per routine edit. Define/freeze all row, byte, stage, batch and retry limits in one configuration contract; test rejection at each boundary. Measure the 20,000-stream fixture and propose any necessary reviewed adjustments before release.
 
 Prove the native snapshot fingerprint and a record-level recoverable apply prototype, including native-ID mapping across interrupted insertions. Audit every UI/AI writer for writer-barrier coverage. If the two-store/native-ID design needs a small fork-owned migration, document and review it; never simply remove the crash-safety requirement.
 
@@ -83,7 +83,7 @@ Produce one current candidate APK and required test APK, concise results, source
 | Credentials | Wrong/revoked token, wrong host/service/library, malicious redirect, forgotten key and cross-device token revocation; no secrets in exports/logs |
 | Disable | No new network work after disable; late callbacks cannot apply; previously sent commit ambiguity recorded honestly; later local edits remain detached |
 | Offline | Local commit followed by immediate process death still detected; offline is not disabled; no lost acknowledged baseline |
-| Push retry | Commit then lost response; repeated identical request; same UUID/sequence with changed payload; receipt expiry; no duplicate application |
+| Push retry | Commit then lost response; repeated identical request; same sequence with changed payload; receipt expiry; no duplicate application |
 | Concurrent commits | Two devices submit the same base at once: only one commits; rejected batch has no domain/receipt/revision side effects |
 | Conflict | Both local/cloud changed, even unrelated edits: pause; no silent whole-device winner or accidental merge |
 | Local edits during upload | Acknowledgment advances only to the frozen submitted candidate; later edits remain pending |
@@ -91,7 +91,7 @@ Produce one current candidate APK and required test APK, concise results, source
 | Preview | Exact videos/playlists/tags discoverable beyond page one; changed local or cloud revision invalidates approval; confirm never fetches unreviewed latest bytes |
 | Native preview races | AI/native write and same-count reorder/rename while preview open; process-local restore generation alone cannot pass |
 | Domain fidelity | Library uniqueness, ordinary duplicates/order, same-title different videos, special-role identity, Unavailable subset, global delete cascade, tag/category semantics |
-| Local cross-store apply | Kill before/after journal, Room commit, tag/map/baseline commit and notification; deterministic completion or explicit recovery block; no partial catalog exposed |
+| Local cross-store apply | Kill before/after journal, Room commit, tag/map/baseline commit and notification; deterministic completion or explicit recovery block; Room phase invariant-valid on its own; tag-dependent access recovers or blocks |
 | Native ID mapping | Crash after playlist insertion but before sidecar completion; same-name playlists; DB restore/reused integer IDs; no mistaken binding |
 | Restore scope | D1 one-time pull preserves non-sync native data; device ZIP restores supported broad data; cloud-catalog archive never claims settings/history coverage |
 | Import interactions | Import/restore while work is queued/in flight; cloud stays disabled; old outbox/mappings/AI receipts cannot execute against replacement data |
@@ -118,3 +118,9 @@ Record the exact review session and prompt paths so a machine reboot or usage re
 ## 6. Current checkpoint
 
 2026-10-19: confirmed the documentation branch is clean at the original baseline before writing this packet; live `origin/custom/dev` matches that baseline. No prior cloud spec files had been saved, no cloud-specific reviewer session was running, and no cloud implementation existed. Documentation creation and design review are the current milestone. Update the dedicated review record with subsequent exact commit/session/status evidence; do not rewrite this historical observation as a later implementation claim.
+
+### Adjudicated implementation checkpoint — 2026-10-19
+
+The owner authorized adjudication, doc changes and implementation, with native/emulator work on primary NotCodex. Completed Claude report: [raw report](../reviews/cloud-sync-claude-xhigh-2026-10-19.md); coordinator decisions: [adjudication](../reviews/cloud-sync-design-adjudication-2026-10-19.md). M1 begins with portable semantic codec/diff/state vectors and a local D1 admission/receipt/retirement proof. These have no production endpoint or schema migration and do not depend on enrolling a paid plan. Native test execution uses a separate Cloud QA package on an otherwise unallocated primary-host emulator; active Music/Sleep emulators are not reused or stopped.
+
+The full-scale physical catalog schema, large staged publication, deployed CPU/row budget, durable native record apply/mapping, and writer audit remain M1 gates; a passing first foundation checkpoint is not the whole M1 or finished sync. The Cloudflare browser read timed out during this adjudication, so actual account plan/remaining quota remains unverified. Free limits are the conservative design target, not a claim about the account subscription. No payment/subscription changes or live scale load are authorized incidentally.
