@@ -1,0 +1,2631 @@
+{
+  "oracle": "Independent Python UTF-8 netstring encoder; synthetic example.test metadata only",
+  "catalogs": [
+    {
+      "name": "empty",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [],
+        "unavailable": [],
+        "playlists": [],
+        "categories": [],
+        "tags": [],
+        "assignments": []
+      },
+      "sha256": "fb078721eeb32c778bfb69827e83967b4b871e86372a14ac343fc76598da4963",
+      "bytes": 116
+    },
+    {
+      "name": "base",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "sha256": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+      "bytes": 740
+    },
+    {
+      "name": "semantic-order",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000001",
+              "20000000-0000-0000-0000-000000000002"
+            ]
+          },
+          {
+            "key": {
+              "service": 1,
+              "url": "https://example.test/\u03b2?x=1&x=2"
+            },
+            "tags": []
+          }
+        ]
+      },
+      "sha256": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+      "bytes": 740
+    },
+    {
+      "name": "reorder",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          },
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "sha256": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059",
+      "bytes": 740
+    },
+    {
+      "name": "global-remove",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": []
+      },
+      "sha256": "fc8f5a3f5ef35a2e522b3f072a8563dc5c9e7a497e6a4a4b57a7585385427169",
+      "bytes": 506
+    },
+    {
+      "name": "rename",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix renamed",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "sha256": "fe26f08381c08f0fa633a3eb3156b3ffdf5693fa29e24ba3423f20caf968cee7",
+      "bytes": 749
+    },
+    {
+      "name": "category-delete",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [],
+        "tags": [],
+        "assignments": []
+      },
+      "sha256": "43e001ae2788b175978d95419fa8b36c5209d6b72678d02ff5be36f995237883",
+      "bytes": 402
+    },
+    {
+      "name": "nullable-and-external-artwork",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": null,
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/not-saved"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "sha256": "2026712d7d43438e66419813cdedba1706c7e91b3aa98b538f364f99e3c360e6",
+      "bytes": 742
+    },
+    {
+      "name": "unicode-legacy",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/\ud801\udc00"
+          },
+          {
+            "service": 0,
+            "url": "https://example.test/\ue000"
+          }
+        ],
+        "unavailable": [],
+        "playlists": [],
+        "categories": [],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "  Jazz  ",
+            "nameKey": "jazz",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u001c\u00a0Case\u3000",
+            "nameKey": "case",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000003",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000004",
+            "name": "\u039f\u03a3",
+            "nameKey": "\u03bf\u03c2",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000005",
+            "name": "\ud801\udc00",
+            "nameKey": "\ud801\udc28",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000006",
+            "name": "A\ud83d\udc69\u200d\ud83d\udcbb",
+            "nameKey": "a\ud83d\udc69\u200d\ud83d\udcbb",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000007",
+            "name": "\ufeffOld",
+            "nameKey": "\ufeffold",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000008",
+            "name": "old\u0001name",
+            "nameKey": "old\u0001name",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000009",
+            "name": "\u0085Old\u0085",
+            "nameKey": "\u0085old\u0085",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000010",
+            "name": "\u2000\u202fName\u205f",
+            "nameKey": "name",
+            "category": null
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000011",
+            "name": "",
+            "nameKey": "",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/\ue000"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          },
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/\ud801\udc00"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      },
+      "sha256": "2a5e418451fbd781a842d2f802abcb964d1e69de8bb2af4858255180b8e7fa0e",
+      "bytes": 1034
+    }
+  ],
+  "invalid": [
+    {
+      "name": "duplicate-library",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          },
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "outside-unavailable",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 0,
+            "url": "https://example.test/not-saved"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "reserved-name",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "\u00a0UNAVAILABLE\u2003",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "orphan-assignment",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          },
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/not-saved"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "codec-version",
+      "catalog": {
+        "version": 2,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "unsupported-field",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ],
+        "nativeRowId": 12
+      }
+    },
+    {
+      "name": "wrong-name-key",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "JAZZ",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate-tag-id",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "unknown-category",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "30000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "outside-playlist",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/not-saved"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate-playlist-id",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          },
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate-assignment",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          },
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate-assigned-tag",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "Mix",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "unpaired-surrogate",
+      "catalog": {
+        "version": 1,
+        "serviceMap": 1,
+        "library": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 1,
+            "url": "https://example.test/\u03b2?x=1&x=2"
+          }
+        ],
+        "unavailable": [
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ],
+        "playlists": [
+          {
+            "id": "30000000-0000-0000-0000-000000000001",
+            "name": "\ud800",
+            "artwork": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "items": [
+              {
+                "service": 1,
+                "url": "https://example.test/\u03b2?x=1&x=2"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              },
+              {
+                "service": 0,
+                "url": "https://example.test/A"
+              }
+            ]
+          }
+        ],
+        "categories": [
+          {
+            "id": "10000000-0000-0000-0000-000000000001",
+            "name": "Genre",
+            "nameKey": "genre"
+          }
+        ],
+        "tags": [
+          {
+            "id": "20000000-0000-0000-0000-000000000001",
+            "name": "Jazz",
+            "nameKey": "jazz",
+            "category": "10000000-0000-0000-0000-000000000001"
+          },
+          {
+            "id": "20000000-0000-0000-0000-000000000002",
+            "name": "\u0130STANBUL",
+            "nameKey": "i\u0307stanbul",
+            "category": null
+          }
+        ],
+        "assignments": [
+          {
+            "key": {
+              "service": 0,
+              "url": "https://example.test/A"
+            },
+            "tags": [
+              "20000000-0000-0000-0000-000000000002",
+              "20000000-0000-0000-0000-000000000001"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "normalization": [
+    [
+      "  Jazz  ",
+      "jazz"
+    ],
+    [
+      "\u001c\u00a0Case\u3000",
+      "case"
+    ],
+    [
+      "\u0130STANBUL",
+      "i\u0307stanbul"
+    ],
+    [
+      "\u039f\u03a3",
+      "\u03bf\u03c2"
+    ],
+    [
+      "\ud801\udc00",
+      "\ud801\udc28"
+    ],
+    [
+      "A\ud83d\udc69\u200d\ud83d\udcbb",
+      "a\ud83d\udc69\u200d\ud83d\udcbb"
+    ],
+    [
+      "\ufeffOld",
+      "\ufeffold"
+    ],
+    [
+      "old\u0001name",
+      "old\u0001name"
+    ],
+    [
+      "\u0085Old\u0085",
+      "\u0085old\u0085"
+    ],
+    [
+      "\u2000\u202fName\u205f",
+      "name"
+    ],
+    [
+      "",
+      ""
+    ]
+  ],
+  "validCounters": [
+    "0",
+    "1",
+    "9007199254740991",
+    "9007199254740992",
+    "9007199254740993",
+    "9223372036854775807"
+  ],
+  "invalidCounters": [
+    "",
+    "-1",
+    "+1",
+    "01",
+    "-0",
+    "1.0",
+    "1e3",
+    " 1",
+    "1\n",
+    "9223372036854775808",
+    "18446744073709551615"
+  ],
+  "policies": [
+    {
+      "name": "disabled-never-needs-network",
+      "expected": "DISABLED",
+      "input": {
+        "enabled": false,
+        "identityReady": true,
+        "unresolvedOperation": true,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": null,
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "identity-repair",
+      "expected": "IDENTITY_REPAIR_REQUIRED",
+      "input": {
+        "enabled": true,
+        "identityReady": false,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": null,
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "enrollment",
+      "expected": "ENROLLMENT_REQUIRED",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": null,
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "highestObserved": null
+      }
+    },
+    {
+      "name": "unchanged",
+      "expected": "NOOP",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "local-only",
+      "expected": "PUSH",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "fe26f08381c08f0fa633a3eb3156b3ffdf5693fa29e24ba3423f20caf968cee7",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "cloud-only",
+      "expected": "PULL",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "11",
+          "headCounter": "11",
+          "fingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "both-diverged",
+      "expected": "CONFLICT",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "fe26f08381c08f0fa633a3eb3156b3ffdf5693fa29e24ba3423f20caf968cee7",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "11",
+          "headCounter": "11",
+          "fingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "equal-after-divergence",
+      "expected": "ADOPT_BASELINE",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "11",
+          "headCounter": "11",
+          "fingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "unknown-result-first",
+      "expected": "RESOLVE_OPERATION",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": true,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "counter-regressed",
+      "expected": "ROLLBACK_SUSPECTED",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "9",
+          "headCounter": "9",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "old-epoch-counter",
+      "expected": "ROLLBACK_SUSPECTED",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "old-epoch",
+          "revision": "10",
+          "headCounter": "9",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "same-counter-new-epoch",
+      "expected": "ROLLBACK_SUSPECTED",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "new-epoch",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "same-counter-other-content",
+      "expected": "ROLLBACK_SUSPECTED",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "fe26f08381c08f0fa633a3eb3156b3ffdf5693fa29e24ba3423f20caf968cee7"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "same-epoch-revision-regressed",
+      "expected": "ROLLBACK_SUSPECTED",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "9",
+          "headCounter": "11",
+          "fingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "service-reset",
+      "expected": "REENROLL_REQUIRED",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-b",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "other-library",
+      "expected": "REENROLL_REQUIRED",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-b",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "clean-new-epoch",
+      "expected": "PULL",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-b",
+          "revision": "0",
+          "headCounter": "11",
+          "fingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "dirty-new-epoch",
+      "expected": "CONFLICT",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "fe26f08381c08f0fa633a3eb3156b3ffdf5693fa29e24ba3423f20caf968cee7",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-b",
+          "revision": "0",
+          "headCounter": "11",
+          "fingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    },
+    {
+      "name": "highest-head-regression",
+      "expected": "ROLLBACK_SUSPECTED",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "10",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "11",
+          "headCounter": "11",
+          "fingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "12",
+          "headCounter": "12",
+          "fingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059"
+        }
+      }
+    },
+    {
+      "name": "above-js-safe-integer",
+      "expected": "PULL",
+      "input": {
+        "enabled": true,
+        "identityReady": true,
+        "unresolvedOperation": false,
+        "localFingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+        "baseline": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "9007199254740992",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        },
+        "remote": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "11",
+          "headCounter": "9007199254740993",
+          "fingerprint": "c4416231097c78a965fa737ed46afc4005a52f726dede4acdeecac7e0d6b7059"
+        },
+        "highestObserved": {
+          "serviceGeneration": "service-a",
+          "library": "library-a",
+          "epoch": "epoch-a",
+          "revision": "10",
+          "headCounter": "9007199254740992",
+          "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+        }
+      }
+    }
+  ],
+  "diffs": [
+    {
+      "before": "empty",
+      "after": "base",
+      "added": 2,
+      "removed": 0,
+      "playlists": 1,
+      "occurrencesAdded": 3,
+      "occurrencesRemoved": 0,
+      "tagsAdded": 2,
+      "tagsRemoved": 0,
+      "categoriesRemoved": 0,
+      "assignments": 1
+    },
+    {
+      "before": "base",
+      "after": "semantic-order",
+      "added": 0,
+      "removed": 0,
+      "playlists": 0,
+      "occurrencesAdded": 0,
+      "occurrencesRemoved": 0,
+      "tagsAdded": 0,
+      "tagsRemoved": 0,
+      "categoriesRemoved": 0,
+      "assignments": 0
+    },
+    {
+      "before": "base",
+      "after": "global-remove",
+      "added": 0,
+      "removed": 1,
+      "playlists": 1,
+      "occurrencesAdded": 0,
+      "occurrencesRemoved": 2,
+      "tagsAdded": 0,
+      "tagsRemoved": 0,
+      "categoriesRemoved": 0,
+      "assignments": 1
+    },
+    {
+      "before": "base",
+      "after": "rename",
+      "added": 0,
+      "removed": 0,
+      "playlists": 1,
+      "occurrencesAdded": 0,
+      "occurrencesRemoved": 0,
+      "tagsAdded": 0,
+      "tagsRemoved": 0,
+      "categoriesRemoved": 0,
+      "assignments": 0
+    },
+    {
+      "before": "base",
+      "after": "reorder",
+      "added": 0,
+      "removed": 0,
+      "playlists": 1,
+      "occurrencesAdded": 0,
+      "occurrencesRemoved": 0,
+      "tagsAdded": 0,
+      "tagsRemoved": 0,
+      "categoriesRemoved": 0,
+      "assignments": 0
+    },
+    {
+      "before": "base",
+      "after": "category-delete",
+      "added": 0,
+      "removed": 0,
+      "playlists": 0,
+      "occurrencesAdded": 0,
+      "occurrencesRemoved": 0,
+      "tagsAdded": 0,
+      "tagsRemoved": 2,
+      "categoriesRemoved": 1,
+      "assignments": 1
+    }
+  ]
+}

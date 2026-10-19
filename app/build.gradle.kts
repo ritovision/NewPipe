@@ -116,6 +116,11 @@ configure<ApplicationExtension> {
     sourceSets {
         getByName("androidTest") {
             assets.directories += "$projectDir/schemas"
+            assets.directories += "$projectDir/src/test/resources/cloud"
+            kotlin.directories += "$rootDir/cloud/test-support"
+        }
+        getByName("test") {
+            kotlin.directories += "$rootDir/cloud/test-support"
         }
     }
 
