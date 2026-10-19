@@ -264,11 +264,14 @@ class TagBackupIntegrationTest {
             old.execSQL("DROP TABLE tag_command_receipt")
             old.execSQL("DROP TABLE ai_removal_intent")
             old.execSQL("DROP TABLE native_bulk_intent")
+            // Build a genuine historical fixture, not a v4 DB mislabeled as v1.
+            old.execSQL("DROP TABLE cloud_catalog_identity")
+            old.execSQL("DROP TABLE cloud_catalog_context")
             old.version = 1
         }
         TagBackupCoordinator.sanitizeTagCopy(context, target)
         TagStore(context, target.toString()).use { upgraded ->
-            assertEquals(3, upgraded.readableDatabase.version)
+            assertEquals(TagStore.SCHEMA_VERSION, upgraded.readableDatabase.version)
             assertEquals(setOf(tag), upgraded.assigned(key(media)))
         }
     }
@@ -280,11 +283,14 @@ class TagBackupIntegrationTest {
         TagBackupCoordinator.snapshotTag(repository.store, target)
         android.database.sqlite.SQLiteDatabase.openDatabase(target.toString(), null, 0).use { old ->
             old.execSQL("DROP TABLE native_bulk_intent")
+            // Build a genuine historical fixture, not a v4 DB mislabeled as v2.
+            old.execSQL("DROP TABLE cloud_catalog_identity")
+            old.execSQL("DROP TABLE cloud_catalog_context")
             old.version = 2
         }
         TagBackupCoordinator.sanitizeTagCopy(context, target)
         TagStore(context, target.toString()).use { upgraded ->
-            assertEquals(3, upgraded.readableDatabase.version)
+            assertEquals(TagStore.SCHEMA_VERSION, upgraded.readableDatabase.version)
             assertEquals(setOf(tag), upgraded.assigned(key(media)))
             assertTrue(upgraded.pendingNativeBulks().isEmpty())
         }
