@@ -119,13 +119,15 @@ export async function guardedCommit(db: D1Database, c: AdmissionContext, o: Oper
 }
 
 /** Fences delayed submissions. Resolves a commit OR retires exactly the next device sequence. */
-export async function resolveOrRetire(db: D1Database, c: AdmissionContext, sequence: string, digest: string): Promise<Receipt> {
+export async function resolveOrRetire(db: D1Database, c: AdmissionContext, sequence: string, digest: string,
+  domainAssertions: readonly D1PreparedStatement[] = []): Promise<Receipt> {
+  if (domainAssertions.length > 4) fail("STATEMENT_BUDGET_EXCEEDED");
   const existing = await beforeAttempt(db, c, sequence, digest);
   if (existing) return existing;
   const guard = db.prepare(`INSERT INTO cloud_commit_assertion(slot,ok) VALUES(1,
     (SELECT COUNT(*) FROM cloud_head h JOIN cloud_devices d ON d.library_id=h.library_id
      WHERE ${AUTH} AND d.resolved_sequence=CAST(? AS INTEGER)-1))`).bind(...parameters(c), sequence);
-  const statements = [guard,
+  const statements = [guard, ...domainAssertions,
     db.prepare(`INSERT INTO cloud_receipts(library_id,device_id,sequence,digest,outcome,epoch,revision,head_counter,fingerprint)
       SELECT library_id,?,CAST(? AS INTEGER),?,'RETIRED',epoch,revision,head_counter,fingerprint
       FROM cloud_head WHERE library_id=?`).bind(c.device, sequence, digest, c.library),

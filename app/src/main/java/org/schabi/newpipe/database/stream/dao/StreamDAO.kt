@@ -119,6 +119,10 @@ abstract class StreamDAO : BasicDAO<StreamEntity> {
 
         AND NOT EXISTS (SELECT 1 FROM feed f
         WHERE f.stream_id = streams.uid)
+
+        AND NOT EXISTS (SELECT 1 FROM playlists artwork
+        WHERE artwork.is_thumbnail_permanent = 1
+            AND artwork.thumbnail_stream_id = streams.uid)
         """
     )
     abstract fun deleteOrphans(): Int

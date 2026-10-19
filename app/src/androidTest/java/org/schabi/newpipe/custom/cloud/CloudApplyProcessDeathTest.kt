@@ -74,8 +74,16 @@ class CloudApplyProcessDeathTest {
         CloudNativeApply(f.repo) { point ->
             if (point == wanted) {
                 check(TagRuntime.lock.isHeldByCurrentThread)
-                val pending = checkNotNull(CloudApplyStore.pending(f.repo.store.readableDatabase))
-                writeSync(File(dir, "pending-operation"), pending.operation)
+                val operation = if (point == CloudNativeApply.Phase.BEFORE_TAG_COMMIT) {
+                    // Pending is deleted within this still-open tag transaction. Its
+                    // committed prior version returns after a process-kill rollback.
+                    check(f.repo.store.writableDatabase.inTransaction())
+                    check(CloudApplyStore.pending(f.repo.store.readableDatabase) == null)
+                    checkNotNull(f.db.cloudApplyReceiptDao().current()).operationId
+                } else {
+                    checkNotNull(CloudApplyStore.pending(f.repo.store.readableDatabase)).operation
+                }
+                writeSync(File(dir, "pending-operation"), operation)
                 writeSync(File(dir, "inside-transaction"), "ready-for-host-force-stop")
                 Thread.sleep(60_000)
                 error("Host did not terminate the isolated cloud apply process")

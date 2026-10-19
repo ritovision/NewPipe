@@ -1,23 +1,18 @@
-# NewPipe Cloud — M1 foundation
+# NewPipe Cloud — catalog service and native apply
 
-**Status:** Local protocol/admission foundations, sparse ordering, and native read-side snapshot/identity mapping are implemented. This is not a deployed sync service, whole M1 acceptance, a cloud settings feature, or a working multi-device synchronization engine.
+**Implemented:** typed Worker/D1 catalog publication, packed-page transfer, native Room/tag catalog capture, journaled native apply and recovery, stable identity mapping, exact diffs and sparse ordering.
 
-Source is deliberately separate from `gateway/`, the existing AI relay. Nothing here changes its deployment or authentication. No Cloudflare account credentials or resource IDs are needed to run these tests, and there is no deploy script/Wrangler config.
+**Not yet an operational end-user sync feature:** Android network/settings integration, automatic background scheduling, the visual preview/recovery controls, forced cloud replacement and three-slot R2 backups remain separate work. The checked-in Worker configuration is API-disabled and restricted to small synthetic deployment tests. Existing Music/AI infrastructure is not part of this service.
 
-## Implemented in this checkpoint
+## Backend
 
-- Typed, bounded Kotlin/TypeScript semantic catalog model, canonical bytes and SHA-256 fingerprints.
-- Exact Library/Unavailable/playlist membership differences, duplicate occurrences, order/rename/artwork changes, tag/category changes and assignments. UI search/paging/confirmation controls are **not yet implemented**.
-- Pure disabled/enrollment/conflict/rollback/unknown-operation decisions and exact preview binding checks. There is **no persistent network scheduler or native apply coordinator yet**.
-- Local D1 proof of the fail-closed atomic admission/receipt/revision batch and resolve-or-retire sequence fencing. The SQL file is a **proof control-plane schema**, not the production catalog schema or a migration to run remotely.
-- Shared independent golden vectors and the same Kotlin assertions for JVM/Android, plus actual Worker-runtime D1 race tests.
-- Native capture of real Room/tag records under the shared writer barrier, without changing native catalog content or silently repairing role identities.
-- Persisted portable UUID mappings in tag schema 4, preserved across ordinary reopen and removed from staged native backup/import copies. Main Room stays 9001. This adds no token, sync toggle, network endpoint or remote-apply controller.
-- Sparse 128-bit-text sequence labels with exact duplicate-aware edit planning, bounded rebalance and explicit write-budget checks; see [sequence contract](protocol/sequence-v1.md). Generic sealed D1 staging remains unimplemented.
+`src/index.ts` is the typed Worker entry point. Authenticated device tokens derive authority from the configured library and service generation; request bodies cannot select another database/account or submit SQL. `src/service.ts` stages immutable chunks, validates/seals the actual complete target, and publishes pages, catalog metadata, head revision and operation receipt atomically. Retirement fences both sequence and staged digest before deleting payloads. `src/pages.ts` packs ordered semantic records without one D1 write for every occurrence.
 
-## Run
+`src/admission.ts` supplies fail-closed atomic guards/receipts; its prepared SQL arguments are internal compiler seams, never an HTTP interface. `test/runtime-worker.mjs` and `test/runtime-catalog-worker.mjs` intentionally expose synthetic SQL/fault injection **only inside local tests**; never deploy them.
 
-Use Node 24 (tested 24.21.0) and the checked-in lockfile:
+See [service contract and deployment gates](protocol/service-v1.md), [semantic codec](protocol/codec-v1.md), and [sparse sequence contract](protocol/sequence-v1.md).
+
+Run on Node24:
 
 ```sh
 cd cloud
@@ -26,11 +21,21 @@ npm run check
 npm test
 ```
 
-Tests run entirely locally. D1 tests execute the actual admission implementation **inside workerd through Miniflare**, not through a hand-written SQLite mock. The harness is ephemeral and does not use remote bindings. `test/runtime-worker.mjs` intentionally accepts test SQL and **must never be deployed or exposed**. It is not a mobile API. Source TS is stripped by Node's built-in test-time helper; `npm run check` independently type-checks it.
+The D1 tests execute real local workerd bindings via Miniflare, not a hand-written database mock. The 20k-stream / 100k-membership scale fixture is local-only; it is not deployed Free-tier CPU, quota or production latency acceptance. Fixtures use synthetic example.test metadata.
 
-The SQL mutation list accepted by `guardedCommit` is an **internal seam for a future trusted typed operation compiler**. HTTP clients must never provide those statements or assert their own trusted request digest. Production use is blocked until the typed domain validator, exact canonical request digest, primary-read/base fencing, staging budgets, external-service-generation binding and network security boundary are implemented and tested. The test-only mutation table is not a catalog.
+## Native capture, apply and recovery
 
-Android/JVM:
+`CloudNativeCatalog.enroll(scope)` explicitly establishes local identity mappings. `capture(scope, requiredIncarnation)` cannot silently enroll after restore. It validates the persisted binding lifetime marker and playlist-sequence high-water, then projects real Room/tag records behind the shared writer barrier. Cached stream metadata and remote bookmarks are not semantic catalog content; orphan tag associations remain local and are separately accounted for.
+
+`CloudNativeApply.apply(...)` is the internal exact-candidate write adapter. It revalidates the native snapshot and caller admission before modification, compiles portable IDs to preassigned native IDs, and persists the typed chunked plan before the Room transaction changes data. The same Room transaction commits a receipt proving those changes. On restart, the guarded Room helper resolves any native file-swap journal **before tags open**. A pending cloud operation without a matching commit witness is discarded only after proving the before-state; a matching witness permits idempotent tag/map/baseline completion, never replay of main deletions.
+
+The adapter does not grant cloud authentication or replace the future preview/connection-generation/local-safety-backup UI. Its internal caller must supply that admission. It preserves existing stream metadata, subscriptions, history, progress, protected role IDs and remote bookmarks. Only new stream rows use cloud hints. Permanent-artwork-only streams are protected from native orphan cleanup without silently saving them to Library.
+
+The complete resulting native assignment count—retained orphans plus target active assignments—must fit the receiver limit before journaling. Conflicting orphan reactivation/deletion blocks for explicit metadata reconciliation. A damaged journal raises a distinct blocked-recovery error: a user-selected validated **complete** native backup may replace both stores; a stock backup retaining live tags may not bypass that failure.
+
+Main schema is **NP9/RV2 9002**, adding only `rv_cloud_apply_receipt`; explicit migrations retain9001 and upstream9 input. Tag schema **5** adds a single pending plan, bounded chunks and baseline to schema4 identities. Standard backup/export sanitizes runtime receipts, pending payloads, baselines, identity mappings and binding markers from staged copies. Older applications are not supported downgrade readers for these newer schemas.
+
+Build with JDK21:
 
 ```sh
 export JAVA_HOME=/path/to/jdk-21
@@ -38,48 +43,30 @@ export PATH="$JAVA_HOME/bin:$PATH"
 ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
 ```
 
-`cloud/test-support/CloudProtocolAssertions.kt` is test-only Kotlin source included in JVM and instrumentation source sets. The single fixture file lives at `app/src/test/resources/cloud/golden-v1.json`; Android tests package it as a test asset. No JUnit/test fixture enters production source.
+`test-support/CloudProtocolAssertions.kt` and the new native fixtures are test-only. The independent Python codec oracle is regenerated explicitly, never during test execution. Full-catalog native capture/apply can hold the writer barrier for seconds on large emulated fixtures; this is not a per-edit/UI-latency guarantee. Coalesced/incremental scheduling and real-device performance remain rollout requirements.
 
-## Format and limits
+## Reproduce process death, not just exception injection
 
-See [codec format](protocol/codec-v1.md), [product contract](../doc/specs/cloud-sync-v1.md), [architecture](../doc/architecture/cloud-sync-v1.md), and [adjudication](../doc/reviews/cloud-sync-design-adjudication-2026-10-19.md).
-
-`protocol/generate-golden.py` is an independent Python encoder. Regeneration is explicit, never part of a test run; compare any changed expectations before committing. It has no provider/user-data inputs.
-
-The 20,000-stream / 100,000-ordinary-membership / 20,000-assignment fixture measures local codec/diff behavior, not D1 row/CPU/storage acceptance. No such scale fixture is uploaded to Cloudflare. Format ceilings are not an admission promise for the Free tier.
-
-## Remaining gates
-
-Generic large sealed-delta publication, sparse ordering and measured physical schema; real D1 CPU/row budget and account verification; remote stable-ID adoption and write-side mapping; protected-role admission; durable Room/tag/map apply and process-death recovery; full writer coverage; secure credentials and settings; authenticated network transport; exact visual preview; minimal R2 recovery; true two-device convergence; independent implementation review and release authorization. See the milestone plan for boundaries.
-
-
-## Native capture and compatibility
-
-`CloudNativeCatalog.capture(scope, requiredIncarnation)` never enrolls or resets identities; `enroll(scope)` is a separate explicit local-identity action. Capture requires off-main execution, the current registered repository, no unresolved native deletion intents, and verified persisted Library/Unavailable roles. It opens the guarded Room helper before binding reads, captures within Room/tag transactions under TagRuntime, then commits validated runtime identity maps only after verifying the atomic binding lifetime anchor and playlist-sequence high-water. These are runtime-only metadata; native content is unchanged. Ordinary playlist duplicate occurrences and display rank are preserved; remote bookmarks, automatic artwork/cache refreshes and orphan assignments do not become portable semantic content. Orphan associations are retained and reported separately for later reconciliation.
-
-This is a read-side adapter. It does not apply a cloud library, recover a half-completed cross-store cloud apply, enable sync, or enroll a device. Proper native backup/restore invalidates runtime mappings; arbitrary out-of-band database replacement is not supported or claimed tamper-detectable. New tag-schema-4 databases/backups require this newer fork version; the older schema-3 application is not a supported downgrade reader. No physical owner installation has been upgraded.
-
-Capture owns a copy of exact canonical bytes; the caller must still bind any future preview to the documented live-state checks. The large native fixture measures an off-main full-catalog capture with writer locking; it is not proof of cheap per-edit sync or a user-interaction latency budget. The scheduler/delta pipeline must coalesce and measure production workloads before rollout.
-
-
-## Reproduce host-induced process death
-
-After installing the exact Cloud QA app/test build on an explicitly selected primary-host emulator, run the committed driver. This never selects a physical phone, changes Android users, clears app data, or touches another package:
+The committed driver requires an explicit emulator serial, exact AVD, Android user, installed isolated QA package, source commit and a fresh output directory. It never chooses a physical phone, switches users, clears app data or stops an unrelated app. It kills only the QA process **after** an fsynced marker proves the selected transaction boundary is reached, then verifies recovery in a fresh process.
 
 ```sh
 python3 cloud/test-support/run-identity-process-death.py \
-  --adb /path/to/adb --serial emulator-5590 \
-  --avd MusicYtdlp_16K_Temp_API35 --user 11 \
+  --adb /path/to/adb --serial emulator-5576 --avd Pixel_9_API_35 --user 0 \
   --package org.schabi.newpipe.debug.featurecloudsyncv120261019 \
-  --suite identity --source-commit <full-40-character-tested-commit> \
-  --output /path/to/new-identity-evidence-directory
+  --suite apply-after-room --source-commit <full-tested-commit> \
+  --output /path/to/new-evidence-directory
 ```
 
-Run `--suite enrollment` with a separate new output directory to stop the QA process after the binding anchor is durable but before tag enrollment commits. The driver requires the fsynced test marker before force-stop and runs verification in a fresh process. Without this explicit driver, probe tests skip rather than claim process-death coverage. The identity suite proves single-tag-transaction rollback; enrollment proves fail-closed marker/map recovery and explicit re-enrollment, not a complete cross-database remote-apply coordinator.
+Suites: `apply-before-room`, `apply-after-room`, `apply-before-tags`, plus prior `identity` and `enrollment`. The first three exercise the actual native apply coordinator. They are not proof of cloud transport recovery or sudden power-loss durability. Without the explicit host driver, the probe test methods skip rather than fabricate coverage.
 
-Compatibility: old schema-3 builds cannot import schema-4 tag archives. Older unanchored schema-4 preview contexts cannot be trusted automatically after this correction; capture fails closed until explicit recovery/reset. This is not a data migration for the real phone, which remains untouched.
+## Deployment and live synthetic test
 
+`cloud/scripts/wrangler.sh` selects the isolated Ritorhymes OAuth profile and pins the dedicated account, clearing conflicting credential environment overrides. It does not change the default Matthew login. `wrangler.jsonc` has no secrets and targets only `newpipe-cloud-sync-v1` / D1 `bde936ac-caa7-42bb-a931-208118a8cd6a`.
 
-## Review-fix acceptance checkpoint
+The default API gate is off; bounds are64KiB/eight pages with a per-location120/minute limiter. After review, a small synthetic live activation can verify the actual Worker/D1 path. `scripts/live-smoke.mjs` requires a private600-mode QA credential file, refuses an already initialized catalog, and uses two separately authenticated HTTP clients. It does not represent two Android devices or a complete end-user sync test. The coordinator must subsequently revoke those credentials, remove verified test-only state, and leave the default API gate disabled unless a later release explicitly enables it.
 
-The native read-side review fixes at 5dba4d5cf have final Astra Extra High source approval and executed **140 backend / 327 JVM / 211 native** passing tests, plus two actual process-kill probes. [Evidence and reproduction](../doc/validation/cloud-native-fixes-20261019/README.md). Native acceptance is API35 with 4KiB pages; special 16KiB emulator runs were aborted by ART/runtime crashes and are not passing compatibility evidence. Cloud transport/apply/UI/R2 remain unimplemented.
+No R2 binding is used for everyday synchronization. The previously provisioned private recovery bucket remains empty until backup implementation. Do not add archive-per-sync behavior.
+
+## Remaining release gates
+
+Production housekeeping for revoked/abandoned stages and receipt retention; durable daily-account resource budgets; actual deployed large-catalog CPU/latency admission; Android transport and persistent credential/settings integration; automatic sync orchestration and comprehensive write-origin capture; exact visual preview and local safety backups; approved forced-replace flow with minimal R2 rotation; actual multi-device end-to-end acceptance; independent source review and release authorization. Historical validation checkpoints under `doc/validation/` apply only to their exact commits and stated emulator page sizes.

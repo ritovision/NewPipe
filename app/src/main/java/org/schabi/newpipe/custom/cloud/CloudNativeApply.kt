@@ -61,7 +61,8 @@ internal class CloudNativeApply(
                         check(previous.serviceGeneration == head.serviceGeneration && previous.library == head.library) { "CLOUD_BASELINE_SCOPE_CHANGED" }
                         check(
                             CloudCounter.parse(head.headCounter) >= CloudCounter.parse(previous.headCounter) &&
-                                (head.headCounter != previous.headCounter || head == previous)
+                                (head.headCounter != previous.headCounter || head == previous) &&
+                                (head.epoch != previous.epoch || CloudCounter.parse(head.revision) >= CloudCounter.parse(previous.revision))
                         ) { "CLOUD_REMOTE_ROLLBACK_SUSPECTED" }
                     }
                     val compiled = CloudApplyCompiler.compile(repository, current, head, target, hints)
@@ -173,10 +174,31 @@ internal class CloudNativeApply(
 
         /** Called before native/AI operations and standalone cloud capture; no main deletion is replayed. */
         fun recoverLocked(r: TagRepository): CloudNativeSnapshot? {
-            val side = r.store.writableDatabase
-            val pending = CloudApplyStore.pending(side) ?: return null
-            available(r)
+            check(TagRuntime.lock.isHeldByCurrentThread) { "CLOUD_APPLY_BARRIER_REQUIRED" }
+            // A native file-swap journal can replace BOTH databases. Resolve it via
+            // the guarded Room helper before a tag connection opens, even unenrolled.
             val main = r.library.openHelper.writableDatabase
+            val side = r.store.writableDatabase
+            val pending = try {
+                CloudApplyStore.pending(side)
+            } catch (error: Exception) {
+                throw CloudRecoveryBlockedException(error)
+            } ?: return null
+            return try {
+                available(r)
+                recoverPending(r, main, side, pending)
+            } catch (error: CloudRecoveryBlockedException) {
+                throw error
+            } catch (error: Exception) {
+                throw CloudRecoveryBlockedException(error)
+            }
+        }
+        private fun recoverPending(
+            r: TagRepository,
+            main: SupportSQLiteDatabase,
+            side: SQLiteDatabase,
+            pending: CloudApplyStore.Pending
+        ): CloudNativeSnapshot? {
             check(Looper.myLooper() != Looper.getMainLooper()) { "CLOUD_RECOVERY_REQUIRES_BACKGROUND" }
             check(!main.inTransaction() && !side.inTransaction()) { "CLOUD_RECOVERY_NESTED_TRANSACTION" }
             val bytes = CloudApplyStore.payload(side, pending)

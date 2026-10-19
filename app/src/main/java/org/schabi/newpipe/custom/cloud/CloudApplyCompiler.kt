@@ -44,6 +44,10 @@ internal object CloudApplyCompiler {
             ) { "CLOUD_ORPHAN_RECONCILIATION_REQUIRED" }
         }
         val preserved = before.orphaned.filter { it.key !in targetKeys }
+        CloudApplyBounds.requireAssignmentBudget(
+            preserved.sumOf { it.tagIds.size.toLong() },
+            target.assignments.sumOf { it.tags.size.toLong() }
+        )
         val prior = before.nativeIds.entries.associate { (native, portable) -> (native.kind to portable) to native.id }
         val mapping = LinkedHashMap<NativeId, String>()
         fun identities(kind: Kind, ids: List<String>, initial: Long) {

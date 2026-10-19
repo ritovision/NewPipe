@@ -179,6 +179,10 @@ object TagBackupCoordinator {
                     // intent is executed or discarded in the live database here.
                     // Stock backups retaining current tags may not bypass recovery.
                     if (!Files.exists(tags)) throw blocked
+                } catch (blocked: org.schabi.newpipe.custom.cloud.CloudRecoveryBlockedException) {
+                    // A user-selected complete validated backup is the recovery escape
+                    // hatch for a damaged cloud journal. Never retain its live tag store.
+                    if (!Files.exists(tags)) throw blocked
                 }
                 if (!Files.exists(tags)) {
                     // A stock backup does not authorize deleting recoverable unmatched tags.

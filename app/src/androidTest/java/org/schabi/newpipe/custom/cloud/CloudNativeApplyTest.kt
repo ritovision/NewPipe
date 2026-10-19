@@ -13,6 +13,9 @@ import com.grack.nanojson.JsonWriter
 import java.nio.file.Files
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 import kotlin.concurrent.withLock
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -464,5 +467,120 @@ class CloudNativeApplyTest {
         assertEquals(1000L, f.scalar("SELECT COUNT(*) FROM streams"))
         assertEquals(0L, f.scalar("SELECT COUNT(*) FROM playlist_stream_join"))
         println("CLOUD_NATIVE_APPLY_SCALE streams=1000 ordinary_memberships=5000 full_apply_and_remove_ms=${(System.nanoTime() - start) / 1_000_000}")
+    }
+
+    @Test fun higherHeadCounterCannotHideARevisionRollbackWithinTheSameEpoch() {
+        val before = f.seed()
+        val after = apply(before, revision = 4)
+        val regressed = f.head(before.catalog, 3).copy(headCounter = "5")
+        rejects("CLOUD_REMOTE_ROLLBACK_SUSPECTED") { CloudNativeApply(f.repo).apply(after, regressed, before.catalog) }
+        assertEquals(after.fingerprint, f.capture().fingerprint)
+    }
+
+    @Test fun twoIndependentNativeCatalogsExchangeContentWithoutSharingNativeIds() {
+        val a = f
+        val source = a.seed()
+        val app = ApplicationProvider.getApplicationContext<Context>()
+        val secondDir = Files.createTempDirectory(app.cacheDir.toPath(), "cloud-other-install-")
+        val b = CloudApplyFixture(app, secondDir)
+        try {
+            b.initialize()
+            b.main("UPDATE sqlite_sequence SET seq=500 WHERE name='playlists'")
+            b.playlist("Unrelated local", listOf(b.media("B-local")))
+            val beforeB = b.capture()
+            val appliedB = CloudNativeApply(b.repo).apply(beforeB, b.head(source.catalog), source.catalog, source.hints.values)
+            assertEquals(source.fingerprint, appliedB.fingerprint)
+            val aIds = source.nativeIds.filterKeys { it.kind == Kind.PLAYLIST }.entries.associate { it.value to it.key.id }
+            val bIds = appliedB.nativeIds.filterKeys { it.kind == Kind.PLAYLIST }.entries.associate { it.value to it.key.id }
+            assertEquals(aIds.keys, bIds.keys)
+            assertTrue(aIds.keys.all { aIds[it] != bIds[it] })
+            b.media("B-new")
+            val changedB = b.capture()
+            a.reopen()
+            a.initialize()
+            val beforeA = a.capture()
+            val appliedA = CloudNativeApply(a.repo).apply(beforeA, a.head(changedB.catalog, 2), changedB.catalog, changedB.hints.values)
+            assertEquals(changedB.fingerprint, appliedA.fingerprint)
+            assertEquals(aIds, appliedA.nativeIds.filterKeys { it.kind == Kind.PLAYLIST }.entries.associate { it.value to it.key.id })
+            assertTrue(appliedA.catalog.library.contains(CloudKey(0, "https://example.test/B-new")))
+        } finally {
+            b.close()
+            CatalogFileSwap.deleteTree(secondDir)
+        }
+    }
+
+    @Test fun permanentArtworkOutsideLibrarySurvivesNativeOrphanCleanup() {
+        val before = f.capture()
+        val artwork = CloudKey(0, "https://example.test/art-only")
+        val target = CloudCatalog(playlists = listOf(CloudPlaylist("30000000-0000-0000-0000-000000000123", "Artwork only", artwork, emptyList())))
+        val applied = apply(before, target)
+        f.rawMain("INSERT INTO streams(uid,service_id,url,title,stream_type,duration,uploader) VALUES(900,0,'https://example.test/disposable','Disposable','NONE',-1,'')")
+        assertEquals(1, f.db.streamDAO().deleteOrphans())
+        assertEquals(1L, f.scalar("SELECT COUNT(*) FROM streams"))
+        assertEquals(applied.fingerprint, f.capture().fingerprint)
+        assertTrue(f.capture().catalog.library.isEmpty())
+    }
+
+    @Test fun permanentArtworkCleanupBetweenRoomCommitAndRecoveryIsSafe() {
+        val before = f.capture()
+        val artwork = CloudKey(0, "https://example.test/pending-art")
+        val target = CloudCatalog(playlists = listOf(CloudPlaylist("30000000-0000-0000-0000-000000000123", "Artwork only", artwork, emptyList())))
+        interrupt(CloudNativeApply.Phase.ROOM_COMMITTED, before, target)
+        assertEquals(0, f.db.streamDAO().deleteOrphans())
+        f.reopen()
+        f.initialize()
+        assertEquals(f.head(target).fingerprint, f.capture().fingerprint)
+        assertNull(CloudApplyStore.pending(f.repo.store.readableDatabase))
+    }
+
+    private fun recoveryBackup(name: String): Pair<java.nio.file.Path, StoredFileHelper> {
+        val output = Files.createFile(f.dir.resolve(name))
+        val helper = StoredFileHelper(f.context, null, Uri.fromFile(output.toFile()), "cloud-recovery-test")
+        TagBackupCoordinator.export(f.context, f.context.getSharedPreferences("cloud-recovery-fixture", Context.MODE_PRIVATE), helper)
+        return output to helper
+    }
+
+    @Test fun completeValidatedNativeBackupCanReplaceACorruptCloudJournal() {
+        val before = f.seed()
+        val (_, backup) = recoveryBackup("before-corruption.zip")
+        interrupt(CloudNativeApply.Phase.ROOM_COMMITTED, before)
+        f.repo.store.writableDatabase.execSQL("UPDATE cloud_apply_payload SET bytes=zeroblob(length(bytes)) WHERE chunk_index=0")
+        assertEquals("CORRUPT_CLOUD_PAYLOAD_DIGEST", assertThrows(CloudRecoveryBlockedException::class.java) { f.repo.definitions() }.message)
+        TagBackupCoordinator.prepare(f.context, backup).use { TagBackupCoordinator.installWithShutdown(f.context, it) {} }
+        f.reopen()
+        f.initialize()
+        assertNull(CloudApplyStore.pending(f.repo.store.readableDatabase))
+        assertNull(CloudApplyStore.baseline(f.repo.store.readableDatabase))
+        assertNull(f.db.cloudApplyReceiptDao().current())
+        assertNull(CloudIdentityStore.context(f.repo.store.readableDatabase))
+        val restored = f.capture()
+        assertEquals(before.catalog.library, restored.catalog.library)
+        assertEquals(before.catalog.playlists.map { it.name to it.items }, restored.catalog.playlists.map { it.name to it.items })
+        assertEquals(before.catalog.tags.map { it.name }, restored.catalog.tags.map { it.name })
+        assertNotEquals(before.identities.incarnation, restored.identities.incarnation)
+    }
+
+    @Test fun stockBackupMayNotRetainTagsFromABlockedCloudRecovery() {
+        val before = f.seed()
+        val (full, _) = recoveryBackup("complete.zip")
+        val path = f.dir.resolve("stock.zip")
+        ZipFile(full.toFile()).use { input ->
+            ZipOutputStream(Files.newOutputStream(path)).use { output ->
+                for (entry in input.entries().toList().filter { it.name != TagStore.FILE_NAME }) {
+                    output.putNextEntry(ZipEntry(entry.name))
+                    input.getInputStream(entry).use { it.copyTo(output) }
+                    output.closeEntry()
+                }
+            }
+        }
+        interrupt(CloudNativeApply.Phase.ROOM_COMMITTED, before)
+        f.repo.store.writableDatabase.execSQL("UPDATE cloud_apply_payload SET bytes=zeroblob(length(bytes)) WHERE chunk_index=0")
+        val helper = StoredFileHelper(f.context, null, Uri.fromFile(path.toFile()), "cloud-recovery-test")
+        TagBackupCoordinator.prepare(f.context, helper).use { prepared ->
+            assertThrows(CloudRecoveryBlockedException::class.java) { TagBackupCoordinator.installWithShutdown(f.context, prepared) {} }
+        }
+        assertFalse(TagRuntime.restoring)
+        assertNotNull(CloudApplyStore.pending(f.repo.store.readableDatabase))
+        assertEquals(2L, f.scalar("SELECT COUNT(*) FROM playlist_stream_join WHERE playlist_id=${before.identities.libraryId}"))
     }
 }

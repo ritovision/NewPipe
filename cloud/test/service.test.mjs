@@ -261,3 +261,30 @@ test('large catalog initializes then globally removes all saved items without ro
  const final=await download(tokens.b);assert.equal(final.catalog.library.length,0);assert.equal(final.catalog.tags.length,1);assert.equal(final.catalog.playlists.length,5);assert.ok(final.catalog.playlists.every(p=>p.items.length===0));
  console.log('CLOUD_SERVICE_SCALE '+JSON.stringify({streams:20000,memberships:100000,assignments:20000,pages:initialized.pages,bytes:initialized.bytes,init:initialMetrics,globalRemove:metrics,durationMs:Math.round(performance.now()-started),deployedCpuAcceptance:false}));
 });
+
+
+test('retire with a different digest cannot destroy or strand the active upload',async()=>{
+ const u=await stage(catalog('base'),{seal:false});const wrong='9'.repeat(64);
+ const originalChunks=await rows('cloud_upload_changes');assert.ok(originalChunks>0);
+ failure(await call('/v1/uploads/retire',{sequence:'1',digest:wrong}));
+ assert.equal(await rows('cloud_upload_changes'),originalChunks);assert.equal(await rows('cloud_receipts'),0);
+ const active=(await call('/v1/uploads/status',u.ref)).data;assert.equal(active.digest,u.ref.digest);assert.equal(active.status,'UPLOADING');
+ const retired=await call('/v1/uploads/retire',u.ref);assert.equal(retired.status,200);assert.equal(retired.data.receipt.outcome,'RETIRED');
+ const next=await stage(catalog('base'),{sequence:'2'});await publish(next);assert.equal((await status()).head.revision,'1');
+});
+
+test('staged start racing mismatched retirement has one valid winner and no stuck slot',async()=>{
+ const before=await status(),pages=await encodePages(catalog('base'));
+ const u=await makeUpload('initialize','1',before.head,await fingerprint(catalog('base')),changedPages([],pages));
+ const wrong={sequence:'1',digest:'9'.repeat(64)};
+ const [started,retired]=await Promise.all([call('/v1/uploads/start',u.header),call('/v1/uploads/retire',wrong)]);
+ assert.notEqual(started.status===200&&retired.status===200,true,JSON.stringify([started,retired]));
+ if(started.status===200){
+  assert.notEqual(retired.status,200);assert.equal(await rows('cloud_receipts'),0);
+  assert.equal((await call('/v1/uploads/retire',{sequence:'1',digest:u.header.digest})).status,200);
+ }else{
+  assert.equal(retired.status,200,JSON.stringify(retired));assert.equal(await rows('cloud_uploads'),0);
+ }
+ const next=await stage(catalog('base'),{sequence:'2'});await publish(next);
+ assert.equal((await status()).head.revision,'1');
+});

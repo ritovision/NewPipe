@@ -141,6 +141,10 @@ internal object CloudApplyPlanJson {
         val savedKeys = target.library.toHashSet()
         require(orphans.map { it.key }.toSet().size == orphans.size && orphans.none { it.key in savedKeys }) { "INVALID_PLAN_ORPHANS" }
         require(orphans.all { it.tagIds.size == it.tagIds.toSet().size && targetTags.containsAll(it.tagIds) }) { "INVALID_PLAN_ORPHAN_TAGS" }
+        CloudApplyBounds.requireAssignmentBudget(
+            orphans.sumOf { it.tagIds.size.toLong() },
+            target.assignments.sumOf { it.tags.size.toLong() }
+        )
         return CloudApplyPlan(operation, context, before, head, target, maps.toMap(), streams, delete, display, orphans, affected, CloudCounter.parse(r.getString("tagRevision")))
     }
     private fun readKey(raw: Any?): CloudKey {
