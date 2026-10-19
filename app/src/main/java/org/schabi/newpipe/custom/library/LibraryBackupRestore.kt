@@ -110,8 +110,11 @@ object LibraryBackupRestore {
 
             LibraryRepository.suspendForRestore()
             try {
-                Files.move(tempDb, locator.db, REPLACE_EXISTING)
+                // Invalidate every old binding sidecar BEFORE replacing the main DB. A crash
+                // here may require explicit identity repair, but cannot reuse old cloud maps
+                // against a newly installed database with coincidentally identical native IDs.
                 LibraryBindingStore.deleteForDatabase(locator.db)
+                Files.move(tempDb, locator.db, REPLACE_EXISTING)
                 if (foundBinding) {
                     Files.move(tempBinding, binding, REPLACE_EXISTING)
                 }

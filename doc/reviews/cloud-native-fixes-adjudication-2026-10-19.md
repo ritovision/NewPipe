@@ -27,3 +27,10 @@ The guarded helper and NewPipeDatabase source were inspected, not omitted as in 
 ## Required closure
 
 Executed backend/JVM/native regressions, host-driven process-death evidence, immutable Astra read-only candidate with full relevant dependency/driver coverage, finding adjudication, clean pushed checkpoint. Results and verdict must be filled only from actual execution. No cloud resources, physical phone or existing AI gateway changes in this fix pass.
+
+
+## Astra first-pass disposition
+
+Astra Extra High reviewed candidate 01a5c022a with full dependency packet and base diff, reported **no confirmed P1/P2 findings** and **APPROVE_FIX_CHECKPOINT**. [Unmodified report](cloud-native-fixes-astra-xhigh-r1-2026-10-19.md). Both optional suggestions are accepted: invalidate the legacy helper's old binding before moving the new main database (its active UI reachability was not established), and assert cumulative interior writes plus uneven-label/mixed-base workloads. No full-library minimum-edit guarantee for arbitrary duplicate reorders is introduced.
+
+During native execution the Android API35 16KiB runtime SIGSEGV occurred in ArtMethod lookup while the newly added test-only roomContentDigest helper was executing, before scale capture. Evidence identifies the failing frame but not a proven platform/compiler root cause. Replace the nested collection digest with a small test-only Java streaming SQL digest, preserving every table/cell/type and adding its own value/null sensitivity test. The database-preservation check is not disabled. Final native rerun and a bounded Astra delta review must cover these subsequent changes.

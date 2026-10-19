@@ -119,7 +119,7 @@ for(const direction of ['append','prepend','interior'])test(`20k repeated ${dire
   else if(p.rebalanced){assert.ok(p.remove.length<=MAX_LOCAL_REBALANCE);assert.ok(p.put.length<=MAX_LOCAL_REBALANCE);}
   maxWrites=Math.max(maxWrites,writes);totalWrites+=writes;rebalances+=Number(p.rebalanced);rows=p.rows;
  }
- if(direction==='interior')assert.ok(rebalances>0,'must exercise exhausted interior gaps');
+ if(direction==='interior'){assert.ok(rebalances>0,'must exercise exhausted interior gaps');assert.ok(totalWrites<=iterations*4,'cumulative interior writes remain bounded in the repeated-insert workload');}
  console.log(`CLOUD_SPARSE_REPEAT direction=${direction} base=20000 edits=${iterations} max_writes=${maxWrites} total_writes=${totalWrites} rebalances=${rebalances} duration_ms=${Math.round(performance.now()-started)}`);
 });
 test('local rebalance leaves distant ranks unchanged',()=>{
@@ -139,4 +139,17 @@ test('rank reuse is safe only with remove-before-put and exact base fencing',()=
  const before=seeded([A,X,B]),p=planSequence(before,[A,C,B]);
  assert.deepEqual(apply(before,p),[A,C,B]);assert.equal(p.remove.length,1);assert.equal(p.put.length,1);
  assert.equal(p.put[0].rank,before[1].rank);
+});
+
+test('repeated fresh inserts into mixed duplicates and uneven labels stay bounded',()=>{
+ const keys=Array.from({length:1000},(_,i)=>[A,B,C][i%3]);
+ let rows=keys.map((key,i)=>({rank:((1n<<110n)+BigInt(i+1)*(1n<<64n)+BigInt(i*i)).toString(16).padStart(32,'0'),key}));
+ let writes=0;
+ for(let i=0;i<160;i++){
+  keys.splice(500,0,key(`mixed-new-${i}`));const p=planSequence(rows,keys);
+  writes+=p.remove.length+p.put.length;requireSequenceBudget(p,2*MAX_LOCAL_REBALANCE);
+  assert.deepEqual(apply(rows,p),keys);rows=p.rows;
+ }
+ assert.ok(writes<=640,`unexpected cumulative writes: ${writes}`);
+ console.log(`CLOUD_SPARSE_MIXED base=1000 edits=160 total_writes=${writes}`);
 });

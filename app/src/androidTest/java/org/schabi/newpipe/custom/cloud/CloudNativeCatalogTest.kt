@@ -12,7 +12,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
-import java.security.MessageDigest
 import java.util.Properties
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
@@ -74,38 +73,7 @@ class CloudNativeCatalogTest {
     private fun rejects(code: String, operation: () -> Unit) {
         assertEquals(code, assertThrows(IllegalStateException::class.java, operation).message)
     }
-    private fun roomContentDigest(): String {
-        val sql = db.openHelper.readableDatabase
-        val tables = sql.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").use { c ->
-            buildList { while (c.moveToNext()) add(c.getString(0)) }
-        }
-        val hash = MessageDigest.getInstance("SHA-256")
-        for (table in tables) {
-            hash.update(table.toByteArray())
-            val escaped = table.replace("\"", "\"\"")
-            val rows = sql.query("SELECT * FROM \"$escaped\"").use { c ->
-                buildList {
-                    while (c.moveToNext()) {
-                        add(
-                            (0 until c.columnCount).joinToString("|") { i ->
-                                val value = when (c.getType(i)) {
-                                    android.database.Cursor.FIELD_TYPE_NULL -> "NULL"
-                                    android.database.Cursor.FIELD_TYPE_BLOB -> c.getBlob(i).joinToString("") { (it.toInt() and 255).toString(16).padStart(2, '0') }
-                                    else -> c.getString(i)
-                                }
-                                "${c.getType(i)}:${value.length}:$value"
-                            }
-                        )
-                    }
-                }
-            }
-            rows.sorted().forEach {
-                hash.update(it.toByteArray(Charsets.UTF_8))
-                hash.update(0.toByte())
-            }
-        }
-        return hash.digest().joinToString("") { (it.toInt() and 255).toString(16).padStart(2, '0') }
-    }
+    private fun roomContentDigest(): String = CloudRoomContentDigest.of(db.openHelper.readableDatabase)
 
     @Before fun setup() {
         val app = ApplicationProvider.getApplicationContext<Context>()
@@ -756,5 +724,19 @@ class CloudNativeCatalogTest {
         val next = CloudNativeCatalog(repository).enroll(scope)
         assertEquals(old.catalog.library, next.catalog.library)
         assertNotEquals(old.identities.incarnation, next.identities.incarnation)
+    }
+
+    @Test fun roomContentDigestDetectsMetadataAndNullVersusEmpty() {
+        val a = media("Digest")
+        val first = roomContentDigest()
+        assertEquals(first, roomContentDigest())
+        main("UPDATE streams SET title='Changed' WHERE uid=?", a.uid)
+        val titleChanged = roomContentDigest()
+        assertNotEquals(first, titleChanged)
+        main("UPDATE streams SET thumbnail_url='' WHERE uid=?", a.uid)
+        val empty = roomContentDigest()
+        assertNotEquals(titleChanged, empty)
+        main("UPDATE streams SET thumbnail_url=NULL WHERE uid=?", a.uid)
+        assertEquals(titleChanged, roomContentDigest())
     }
 }
