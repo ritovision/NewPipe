@@ -1,3 +1,5 @@
+> **Historical exploration — superseded for current scope on 2026-10-19.** See [Cloud & Sync v1](../specs/cloud-sync-v1.md), [architecture](../architecture/cloud-sync-v1.md), and [execution/acceptance](../architecture/cloud-sync-implementation-plan.md). The owner chose D1 synchronization, minimal three-slot R2 recovery and explicit reconciliation rather than the broader automatic-merge/scheduled-backup alternatives below. Those new documents are under design review, not evidence of implementation. This older proposal is preserved as historical context, not an active execution mandate.
+
 # Cloud Backup and Multi-Device Sync — Exploration
 
 **Status:** Planning proposal / unresolved; no implementation authorized
