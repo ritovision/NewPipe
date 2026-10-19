@@ -1,0 +1,24 @@
+{
+  "source_commit": "01a5c022a3e30fbdb8541685d94ab6daebd8c978",
+  "serial": "emulator-5590",
+  "avd": "MusicYtdlp_16K_Temp_API35",
+  "user": 11,
+  "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+  "files": [
+    {
+      "name": "app.apk",
+      "sha256": "9bff745a841626726e2febf510126a71edb762a0b79de29296b017327e220add",
+      "bytes": 34905149
+    },
+    {
+      "name": "tests.apk",
+      "sha256": "d1c535eb5b70d4b2cba3c1a3698ab0e7e83d97810fca1e890f836afd3d68d6d8",
+      "bytes": 2547707
+    },
+    {
+      "name": "run-identity-process-death.py",
+      "sha256": "86912e925505b9c5983afa6994983daf852c04fb3a3d06623c18e574d3347cd6",
+      "bytes": 6423
+    }
+  ]
+}

@@ -144,3 +144,16 @@ A focused Opus Extra High independent review has been launched and its persisten
 Read-side barrier inspection confirmed ordinary LocalPlaylistManager writes, AiCatalogExecutor authorization+TagRuntime paths, TagRepository mutations, Library and Unavailable repositories use existing native serialization seams. This is not the complete write-origin/outbox audit needed for automatic sync. Full-catalog capture currently holds writers for seconds on the synthetic 20k/100k scale; incremental/coalesced behavior and user-interaction budgets remain unproven.
 
 Next M1 dependencies: adjudicate the bounded read-side review, then implement real catalog/staged delta publication and native write-side mapping/recovery. Network/settings/preview UI/R2 remain later gates. No cloud resources or production/physical-phone installation were created.
+
+
+### Native review-fix closure — 2026-10-19 (current)
+
+Final source **5dba4d5cfae477d1fbe5fd7e33f2f95314f43564** closes the native read-side review's three P2 findings and justified optional issues. Astra Extra High completed both the main fix review and a final delta review, with no confirmed substantive P1/P2 and **APPROVE_FINAL_FIX_CHECKPOINT** for the final candidate. No Claude inference was launched for this fix pass.
+
+Executed **140 backend tests, 327 full-suite JVM tests, 211 native tests**, plus two deliberate QA-process kill/recovery probes. Final native acceptance is on primary NotCodex's existing **Pixel_9_API_35 / emulator-5576 / API35 / 4KiB / user0**. Both probe drivers are committed and reproducible; neither claims a completed remote cross-database apply controller. [Complete evidence and remaining limits](../validation/cloud-native-fixes-20261019/README.md).
+
+The special 16KiB emulator had a QA ART SIGSEGV on the earlier test helper and an actual system_server ART GC crash on the final-candidate rerun. Those attempts are retained as failures, not passes; 16KiB verification remains unresolved. A first-install startup ANR on the standard emulator was followed by an unchanged-APK passing focused retry and full suite. No emulator restart, Android user switch, app clear or global runtime timeout change was used by the coordinator.
+
+Current identity behavior: explicit enroll versus required-incarnation capture; paired binding lifetime/playlist-sequence anchor checked against tag mapping context; recreated main database cannot trust matching native role IDs alone. Staged restore scrubs markers; legacy restore invalidates old binding before the main swap. Sparse head/tail growth is fixed-stride with bounded local interior redistribution and explicit cumulative row budgets. Room remains 9001 and tag schema4; native catalog contents are unchanged by capture.
+
+**This review-fix checkpoint is closed. M1 as a whole and Cloud & Sync remain unfinished.** Next dependencies are real catalog/staged D1 publication and native remote-apply/ID adoption/recovery, then complete writer capture, network credentials/settings, visual preview and three-slot R2 implementation. No full-cloud/16KiB compatibility release, custom/dev merge or live deployment is implied. Full-catalog capture still holds writers for seconds at the synthetic 20k/100k size and is not a per-edit latency guarantee.

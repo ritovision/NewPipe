@@ -1,0 +1,28 @@
+[
+  {
+    "candidate": "01a5c022a3e30fbdb8541685d94ab6daebd8c978",
+    "base": "d1aa5936c923424dedac80cdd395f76acbdc3e33",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "thread": "01a15477-c4be-7902-9ce9-c3a57c0280af",
+    "report": "cloud-native-fixes-astra-xhigh-r1-2026-10-19.md",
+    "report_sha256": "ae8fe652b800e5a048913c598d3f229c747911a0504b20fbde4fe8e5642a3dd1",
+    "packet_files": 74,
+    "packet_unchanged": true,
+    "changes_made_by_reviewer": false,
+    "tests_run_by_reviewer": false
+  },
+  {
+    "candidate": "5dba4d5cfae477d1fbe5fd7e33f2f95314f43564",
+    "base": "01a5c022a3e30fbdb8541685d94ab6daebd8c978",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "thread": "01a15487-4c4b-7cd1-9ea3-bfdffb92d58c",
+    "report": "cloud-native-fixes-astra-xhigh-final-2026-10-19.md",
+    "report_sha256": "ce33d2b3cdf27e23e707419b88a9a4b036a579f550964a7bc51bc699b2cd5e2c",
+    "packet_files": 76,
+    "packet_unchanged": true,
+    "changes_made_by_reviewer": false,
+    "tests_run_by_reviewer": false
+  }
+]

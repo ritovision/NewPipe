@@ -25,3 +25,8 @@ The initial packet preparation referenced a Java filename that is Kotlin in this
 The first complete native run executed 49 tests: all 25 new native capture tests, 8 protocol groups and 14 backup regressions passed; two older backup-migration fixture tests failed. Those fixtures had been synthesized from the current tag DB and merely relabeled as v1/v2 while retaining the newly added v4 cloud tables, and still expected target version 3. The correction removes v4 tables before assigning the historical version and expects `TagStore.SCHEMA_VERSION`. It does not weaken production migration validation with CREATE IF NOT EXISTS or drop user tables. Rerun results are recorded separately after execution.
 
 An earlier post-install emulator startup ANR happened before tests began. An unchanged-APK focused retry passed; it is recorded as an initial failed run, not as a pass or a proven 16 KiB compatibility defect.
+
+
+## Resolution (supersedes pending follow-up notes)
+
+The owner-requested corrections are completed in 5dba4d5cf and approved by Astra Extra High's final delta review. [Adjudication](cloud-native-fixes-adjudication-2026-10-19.md) · [Final Astra verdict](cloud-native-fixes-astra-xhigh-final-2026-10-19.md) · [Executed test evidence and 16KiB limitation](../validation/cloud-native-fixes-20261019/README.md). No new Claude run was used. This resolves the bounded read-side review, not the full cloud feature.

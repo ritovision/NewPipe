@@ -78,3 +78,8 @@ python3 cloud/test-support/run-identity-process-death.py \
 Run `--suite enrollment` with a separate new output directory to stop the QA process after the binding anchor is durable but before tag enrollment commits. The driver requires the fsynced test marker before force-stop and runs verification in a fresh process. Without this explicit driver, probe tests skip rather than claim process-death coverage. The identity suite proves single-tag-transaction rollback; enrollment proves fail-closed marker/map recovery and explicit re-enrollment, not a complete cross-database remote-apply coordinator.
 
 Compatibility: old schema-3 builds cannot import schema-4 tag archives. Older unanchored schema-4 preview contexts cannot be trusted automatically after this correction; capture fails closed until explicit recovery/reset. This is not a data migration for the real phone, which remains untouched.
+
+
+## Review-fix acceptance checkpoint
+
+The native read-side review fixes at 5dba4d5cf have final Astra Extra High source approval and executed **140 backend / 327 JVM / 211 native** passing tests, plus two actual process-kill probes. [Evidence and reproduction](../doc/validation/cloud-native-fixes-20261019/README.md). Native acceptance is API35 with 4KiB pages; special 16KiB emulator runs were aborted by ART/runtime crashes and are not passing compatibility evidence. Cloud transport/apply/UI/R2 remain unimplemented.

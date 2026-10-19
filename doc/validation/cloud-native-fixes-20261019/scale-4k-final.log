@@ -1,0 +1,4 @@
+I/System.out(14526): CLOUD_NATIVE_SCALE streams=20000 ordinary_memberships=100000 assignments=20000 canonical_bytes=6402851 seed_ms=20705 capture_ms=13146 repeat_ms=10449
+I/System.out(14526): CLOUD_SCALE streams=20000 ordinary_memberships=100000 assignments=20000 canonical_bytes=6402769 duration_ms=5668
+I/System.out(14714): CLOUD_IDENTITY_PROCESS_DEATH_PASS
+I/System.out(14876): CLOUD_ENROLLMENT_PROCESS_DEATH_PASS

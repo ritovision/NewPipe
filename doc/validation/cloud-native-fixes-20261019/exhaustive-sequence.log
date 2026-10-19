@@ -1,0 +1,1 @@
+{"status":"PASS","exhaustive_sequence_transitions":9680,"prior_max_length":3,"target_max_length":4,"alphabet":3,"label_layouts":["centered","dense"],"domain":"synthetic only"}

@@ -1,0 +1,34 @@
+10-19 10:20:00.221 32038 32038 F DEBUG   : Revision: '0'
+10-19 10:20:00.222 32038 32038 F DEBUG   : ABI: 'x86_64'
+10-19 10:20:00.222 32038 32038 F DEBUG   : Timestamp: 2026-10-19 10:19:55.955369800-0400
+10-19 10:20:00.222 32038 32038 F DEBUG   : Process uptime: 41113s
+10-19 10:20:00.222 32038 32038 F DEBUG   : Page size: 16384 bytes
+10-19 10:20:00.222 32038 32038 F DEBUG   : Cmdline: system_server
+10-19 10:20:00.222 32038 32038 F DEBUG   : pid: 583, tid: 595, name: HeapTaskDaemon  >>> system_server <<<
+10-19 10:20:00.224 32038 32038 F DEBUG   : uid: 1000
+10-19 10:20:00.224 32038 32038 F DEBUG   : signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x000000000000000c
+10-19 10:20:00.224 32038 32038 F DEBUG   : Cause: null pointer dereference
+10-19 10:20:00.224 32038 32038 F DEBUG   :     rax 0000000000000000  rbx 00000000157bff48  rcx 00000000000050ad  rdx 00000000000050ac
+10-19 10:20:00.225 32038 32038 F DEBUG   :     r8  007ffffffffe9464  r9  00007034e9fee900  r10 000000000001cfa0  r11 00007032f92d0698
+10-19 10:20:00.225 32038 32038 F DEBUG   :     r12 00007034e9fee910  r13 00007034e9fee900  r14 0000703389ffcf58  r15 00007034e9fee900
+10-19 10:20:00.225 32038 32038 F DEBUG   :     rdi 00007034e9fee900  rsi 00000000157bff48
+10-19 10:20:00.225 32038 32038 F DEBUG   :     rbp 00007034e9feec20  rsp 00007032742481c0  rip 00007032f8b05f94
+10-19 10:20:00.225 32038 32038 F DEBUG   : 17 total frames
+10-19 10:20:00.225 32038 32038 F DEBUG   : backtrace:
+10-19 10:20:00.225 32038 32038 F DEBUG   :       #00 pc 0000000000641f94  /apex/com.android.art/lib64/libart.so (void art::gc::collector::MarkCompact::ScanObject<true>(art::mirror::Object*)+36) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+10-19 10:20:00.228 32038 32038 F DEBUG   :       #01 pc 0000000000636b3d  /apex/com.android.art/lib64/libart.so (art::gc::collector::MarkCompact::MarkingPhase()+1165) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+10-19 10:20:00.228 32038 32038 F DEBUG   :       #02 pc 00000000006356c3  /apex/com.android.art/lib64/libart.so (art::gc::collector::MarkCompact::RunPhases()+451) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+10-19 10:20:00.228 32038 32038 F DEBUG   :       #03 pc 000000000062eb37  /apex/com.android.art/lib64/libart.so (art::gc::collector::GarbageCollector::Run(art::gc::GcCause, bool)+311) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+10-19 10:20:00.228 32038 32038 F DEBUG   :       #04 pc 000000000066aaeb  /apex/com.android.art/lib64/libart.so (art::gc::Heap::CollectGarbageInternal(art::gc::collector::GcType, art::gc::GcCause, bool, unsigned int)+2683) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+10-19 10:20:00.228 32038 32038 F DEBUG   :       #05 pc 0000000000682ebb  /apex/com.android.art/lib64/libart.so (art::gc::Heap::ConcurrentGCTask::Run(art::Thread*)+171) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+10-19 10:20:00.228 32038 32038 F DEBUG   :       #06 pc 00000000006be615  /apex/com.android.art/lib64/libart.so (art::gc::TaskProcessor::RunAllTasks(art::Thread*)+501) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+10-19 10:20:00.228 32038 32038 F DEBUG   :       #07 pc 00000000000161d3  /system/framework/x86_64/boot-core-libart.oat (art_jni_trampoline+131) (BuildId: 2745a90d2047b0ef078df0f659dab52c701a4608)
+10-19 10:20:00.228 32038 32038 F DEBUG   :       #08 pc 0000000000048cbc  /system/framework/x86_64/boot-core-libart.oat (java.lang.Daemons$HeapTaskDaemon.runInternal+188) (BuildId: 2745a90d2047b0ef078df0f659dab52c701a4608)
+10-19 10:20:00.228 32038 32038 F DEBUG   :       #09 pc 0000000000023b58  /system/framework/x86_64/boot-core-libart.oat (java.lang.Daemons$Daemon.run+120) (BuildId: 2745a90d2047b0ef078df0f659dab52c701a4608)
+10-19 10:20:00.229 32038 32038 F DEBUG   :       #10 pc 000000000015c3ba  /system/framework/x86_64/boot.oat (java.lang.Thread.run+74) (BuildId: 68b5d9df423be4ebd4a6c38087fc90e635afb135)
+10-19 10:20:00.229 32038 32038 F DEBUG   :       #11 pc 0000000000212154  /apex/com.android.art/lib64/libart.so (art_quick_invoke_stub+756) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+10-19 10:20:00.229 32038 32038 F DEBUG   :       #12 pc 0000000000563fd5  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+181) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+10-19 10:20:00.229 32038 32038 F DEBUG   :       #13 pc 00000000009b5243  /apex/com.android.art/lib64/libart.so (art::Thread::CreateCallback(void*)+1427) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+10-19 10:20:00.229 32038 32038 F DEBUG   :       #14 pc 00000000009b4ca5  /apex/com.android.art/lib64/libart.so (art::Thread::CreateCallbackWithUffdGc(void*)+5) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+10-19 10:20:00.229 32038 32038 F DEBUG   :       #15 pc 000000000006d62a  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+58) (BuildId: eb58b4d427279994f00c0e1818477e4f)
+10-19 10:20:00.229 32038 32038 F DEBUG   :       #16 pc 0000000000060348  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+56) (BuildId: eb58b4d427279994f00c0e1818477e4f)

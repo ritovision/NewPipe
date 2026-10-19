@@ -34,3 +34,15 @@ Executed backend/JVM/native regressions, host-driven process-death evidence, imm
 Astra Extra High reviewed candidate 01a5c022a with full dependency packet and base diff, reported **no confirmed P1/P2 findings** and **APPROVE_FIX_CHECKPOINT**. [Unmodified report](cloud-native-fixes-astra-xhigh-r1-2026-10-19.md). Both optional suggestions are accepted: invalidate the legacy helper's old binding before moving the new main database (its active UI reachability was not established), and assert cumulative interior writes plus uneven-label/mixed-base workloads. No full-library minimum-edit guarantee for arbitrary duplicate reorders is introduced.
 
 During native execution the Android API35 16KiB runtime SIGSEGV occurred in ArtMethod lookup while the newly added test-only roomContentDigest helper was executing, before scale capture. Evidence identifies the failing frame but not a proven platform/compiler root cause. Replace the nested collection digest with a small test-only Java streaming SQL digest, preserving every table/cell/type and adding its own value/null sensitivity test. The database-preservation check is not disabled. Final native rerun and a bounded Astra delta review must cover these subsequent changes.
+
+
+## Final Astra source verdict
+
+The supplemental final Astra Extra High review covers candidate **5dba4d5cfae477d1fbe5fd7e33f2f95314f43564**, including legacy binding-before-main ordering, the Java streaming test digest and strengthened cumulative/mixed ordering tests. It reports **no confirmed substantive P1/P2 findings** and **APPROVE_FINAL_FIX_CHECKPOINT**. [Unmodified final report](cloud-native-fixes-astra-xhigh-final-2026-10-19.md), SHA-256 ce33d2b3cdf27e23e707419b88a9a4b036a579f550964a7bc51bc699b2cd5e2c. No code, tests, builds or edits were delegated; both Astra reviews inspected immutable source only. No Claude run was started for this fix pass.
+
+Astra appropriately leaves actual test execution, OS/power-loss behavior, crash root cause and legacy helper reachability unverified. Those are not source-approval claims. Actual test evidence must be read separately, and the 16KiB system_server ART crash is not converted into a pass or claimed fixed by the helper change.
+
+
+## Executed closure
+
+Final source 5dba4d5cf: **140 backend, 327 JVM, 211 standard-page native tests passed**; both committed actual process-kill probes passed on the same source. All three P2 findings are closed for this read-side checkpoint. [Evidence](../validation/cloud-native-fixes-20261019/README.md) explicitly retains the earlier QA ART crash, final-candidate 16KiB system_server crash and standard-emulator first-install ANR. Final 4KiB native acceptance does not erase those failures or establish 16KiB compatibility. No production/cloud rollout is claimed; full remote apply and the rest of Cloud & Sync remain separate milestones.

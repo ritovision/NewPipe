@@ -1,0 +1,1085 @@
+{
+  "status": "PASS",
+  "source_commit": "5dba4d5cfae477d1fbe5fd7e33f2f95314f43564",
+  "serial": "emulator-5576",
+  "avd": "Pixel_9_API_35",
+  "api": 35,
+  "page_size_bytes": 4096,
+  "android_user": 0,
+  "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+  "total": 211,
+  "passed": 211,
+  "failed": 0,
+  "skipped": 0,
+  "runner_seconds": 103.03,
+  "per_class": {
+    "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest": 38,
+    "org.schabi.newpipe.custom.cloud.CloudProtocolNativeTest": 8,
+    "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest": 16,
+    "org.schabi.newpipe.custom.tagging.TagRepositoryTest": 16,
+    "org.schabi.newpipe.custom.library.LibraryRepositoryTest": 35,
+    "org.schabi.newpipe.custom.library.UnavailableRepositoryTest": 19,
+    "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest": 25,
+    "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest": 53,
+    "org.schabi.newpipe.custom.aicontrol.AiDatabaseMigrationTest": 1
+  },
+  "cases": [
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "schemaOneTwoThreeUpgradePreservesDefinitionsAndAssignments",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "duplicateProtectedMembershipIsNotSilentlyDeduplicated",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "reservedOrdinaryNameBlocksWithoutRenamingIt",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "realDatabaseScaleCaptureDoesNotRewriteNativeCatalog",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "realMergedPlaylistOrderingMatchesPortableRank",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "pendingRecoveryIsNotExecutedByCloudSnapshot",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "failedCaptureAfterHighWaterAdvanceKeepsExistingIdentity",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "identitiesPersistAcrossRenameReorderAndReopen",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "captureCannotEnrollOrReplaceExistingEnrollment",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "exporterRemovesMappingsOnlyFromStagedCopy",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "invalidCatalogRollsBackNewMappingsAndContext",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "realSnapshotPreservesOrderDuplicatesTagsAndPermanentArtwork",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "stockRestoreAlsoClearsRetainedTagMappingsButPreservesOrphans",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "roomContentDigestDetectsMetadataAndNullVersusEmpty",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "captureWaitsForExistingWriterAndSeesCompleteCommit",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "unresolvedPermanentArtworkIsNotSilentlyErased",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "mappingTransactionFailureCannotPersistPartialScope",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "pruningOldMappingsRollsBackAfterLateContentValidationFailure",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "sameRoleIdsWithoutBindingMarkerDoNotProveDatabaseLifetime",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "sameLibraryRebindAndUnavailableBindingCopyPreserveLifetimeAnchor",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "failedEnrollmentAfterBindingPersistDoesNotCreateTrustedMaps",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "mainThreadRejectedBeforeOpeningOrMapping",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "durationAndTypeHintsUpdateWithoutChangingSemanticContent",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "sameNameNativePlaylistsNeverShareIdentity",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "ignoredProtectedArtworkDoesNotBlockCapture",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "nativeCacheAndDisplayIndexGapsDoNotChangeFingerprint",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "legacyV3TagArchiveCompletesPrepareSanitizeAndInstall",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "recreatedMainDatabaseCannotReuseSurvivingTagIdentities",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "remoteBookmarksNeverEnterPortableCatalogOrChangeRelativeRank",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "missingBindingDoesNotCreateOrAdoptProtectedPlaylists",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "staleBindingIsRejectedEvenWhenNativeSessionWasCached",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "deletedMappingsArePrunedButNewSameNameUsesNewUuid",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "playlistSequenceRegressionBlocksOldMapsEvenWithMatchingMarker",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "orphanAssignmentsRemainLocalAndAreReportedSeparately",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "missingUnavailableDesignationIsNotAutomaticallyCreated",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "changedVerifiedBindingRequiresExplicitReenrollment",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "scopeAndIncarnationNeverSwitchImplicitly",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudNativeCatalogTest",
+      "method": "fullRestoreInvalidatesOldMapContextAndOldCaptureHandle",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudProtocolNativeTest",
+      "method": "largeCatalog",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudProtocolNativeTest",
+      "method": "golden",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudProtocolNativeTest",
+      "method": "policy",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudProtocolNativeTest",
+      "method": "previewCannotWiden",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudProtocolNativeTest",
+      "method": "callerMutationAndLimits",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudProtocolNativeTest",
+      "method": "exactDifferences",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudProtocolNativeTest",
+      "method": "rejectsInvalidCatalogs",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.cloud.CloudProtocolNativeTest",
+      "method": "namesAndCounters",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "malformedBindingExportDoesNotOverwriteDestination",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "malformedDatabaseDoesNotFenceOrAlterExistingCatalog",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "stockImportRetainsUnmatchedTagsButDiscardsOldDeletionIntents",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "unknownExpressionDefaultAndTriggerAreRejectedBeforeMigration",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "tagV1MigrationPreservesDefinitionsAndAssignments",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "fileSwapFaultRecoversOldRoomTagsAndBindingBeforeNextOpen",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "backupWithoutTagsCannotBypassMixedNativeBulkRecovery",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "busyCheckpointAbortsBeforeSwapAndDoesNotDiscardWal",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "completeValidatedBackupCanRecoverMixedNativeBulkState",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "cachedRoomStatementAndOldHandleCannotWriteAfterReplacement",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "tagV2MigrationPreservesAssignmentsAndAcceptsNewBatchTable",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "roundTripRestoresCategoryAssignmentsAndExactPlaylistOrder",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "exportedTagMetadataHasNoExecutableHistoryAndPreservesLiveHistory",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "restoreRollbackWaitsForLeasedRoomWriterAndPreservesItsCommittedRow",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "executableTriggerCannotHideBehindASqliteLikeNameInAnImport",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest",
+      "method": "upstreamV4MigrationImportsAndReexportsWithoutRejectingLegacyDefaults",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "tagDatabasePersistsAfterCloseAndReopen",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "globalRemovalDeletesAllMembershipsAndAssignmentsButNotDefinitions",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "renameAfterPendingRemovalDoesNotRestoreOldThumbnail",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "deletionConfirmationRejectsChangedMetadata",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "missingImportedStreamsDoNotPurgeAssociations",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "serviceIdentityIsNotUrlOnlyAndNamesAreCaseInsensitive",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "staleEditorCannotResurrectGloballyRemovedVideo",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "pendingCleanupAfterRoomCommitSurvivesReaddWithoutOldTags",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "applyingTagsPreservesExistingMetadataFromNewerLibraryRow",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "categoryDeletionCascadesOnlyMetadata",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "tagResultsCannotCreateAnotherProtectedUnavailableName",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "pendingDeleteIsRecoveredBeforeAnOrdinaryExplicitReadd",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "assigningFirstTagSavesOnlyOnceAndFinalTagRemovalKeepsLibrary",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "failedTagCommitLeavesSavedUntaggedItemAndAllowsRetry",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "changedLibraryIdentityNeverReplaysDestructiveIntent",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.tagging.TagRepositoryTest",
+      "method": "bookmarkReorderCannotOverwriteARepairedThumbnailOrNewerName",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "duplicateRowsInOrdinaryPlaylistStillYieldOneLibraryRow",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "boundLibraryMetadataCannotBeRenamedByBookmarkUpsert",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "coldStartStaleLibraryUpdateNeverRemovesSavedOnlyStream",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "cannotRenameOrDeleteCanonicalLibraryThroughPlaylistManager",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "existingPlaylistNamedLibraryWithoutBindingIsNotAdopted",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "addingToSeveralPlaylistsSavesOnlyOnceInLibrary",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "libraryRewriteCannotDeleteSavedOnlyOrRecentlyAddedItems",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "thumbnailFallbackKeepsUnaffectedPinnedImageAndResetsEmptyPlaylist",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "initializeCreatesAnEmptyProtectedLibrary",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "identicalUrlsFromDifferentServicesRemainDistinctStreams",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "backfillExistingPlaylistsIsDeterministicAndIdempotent",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "repairConfirmationRebindsOnlyWhileUnbound",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "explicitNewSaveAfterGlobalDeleteAddsItemBackAgain",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "pendingWatchedRemovalUsesDefaultForEmptyPlaylist",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "explicitlyRebindingUnboundLibraryPreservesItsOnlyEntries",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "thumbnailRefreshAndMembershipRollbackTogether",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "sameNamedOrdinaryPlaylistRetainsNormalActionsAndNoGlobalAuthority",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "bindingDoesNotSilentlyAdoptAnotherPlaylistAfterRestore",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "staleRepairConfirmationCannotAdoptDuplicateAfterStartupBinds",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "repeatedInitializationPreservesBoundProtection",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "queuedGlobalDeleteRechecksIdentityAfterAcquiringWriterLock",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "ordinaryRemovalsDoNotUnsavedFromLibrary",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "deletingLibraryOnlyEntryDoesNotDeleteAnyOtherStream",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "globalDeletionIsIdempotentAndRequiresCorrectLibraryIdentity",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "identityObserverRebindsArtworkAfterInitializationAndSessionReset",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "pendingWatchedRemovalUsesCurrentSurvivorForThumbnail",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "watchedRemovalRetainsASurvivingAutomaticThumbnail",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "unreadableBindingDoesNotOfferIdentityAdoption",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "deletingFromLibraryRemovesEveryOccurrenceFromAllPlaylists",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "watchedRemovalRefreshesEvenIfOriginalThumbnailWasNotWatched",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "pendingWatchedRemovalDoesNotOverwriteNewPinnedThumbnail",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "coldStartDirectSaveIsIdempotent",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "savingDirectlyToLibraryIsIdempotentAndDoesNotCreateOtherMemberships",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "mismatchedBindingWithNoNamedCandidateCreatesNewLibraryWithoutDeletingOld",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.LibraryRepositoryTest",
+      "method": "staleOrdinaryPlaylistEditorCannotResurrectGloballyDeletedEntry",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "nativePlaylistCreationReservesUnavailableName",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "markUnmarkIsIdempotentAndPreservesAllOtherMemberships",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "createsStableEmptyProtectedSubset",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "bookmarkGuardsSuppressDeadEndDeleteAndRedundantDesignation",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "recoverNativeBulkAfterRoomCommitFinishesOnlyTagCleanup",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "identityEventsTrackLateBindingAndReset",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "confirmationsUseCorrectSingularAndPlural",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "sameNameCollisionNeverBecomesProtectedByAccident",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "unavailableRepositoryErrorIsDeliveredToSubscriberNotThrownOnTap",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "rebindExistingVerifiedLibraryDoesNotOrphanUnavailable",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "bulkGlobalRemovalPreservesDefinitionsButRemovesAllMembershipsAndAssignments",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "directUnavailableAppendUpdatesThumbnailAndSkipsDuplicates",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "staleClearFailsWithoutDestroyingNewMarkings",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "libraryRebindInitializesUnavailableWithoutAnotherRestart",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "mixedNativeBulkStateFailsClosedWithoutFurtherDeletion",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "existingNamedPlaylistCanBeNormalizedAndDeduplicated",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "recoverNativeBulkBeforeRoomCommitDiscardsWithoutDeleting",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "requestedMarkCannotJumpToAReplacedRepository",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.library.UnavailableRepositoryTest",
+      "method": "rolledBackNativeBulkNeverReplaysDeletionOrDropsTags",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "receiptIdentityIsSharedAcrossRoomAndTagStores",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "committedDeleteFinishesCleanupAfterAnInterruptedSidecarWrite",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "tagCreationReceiptIsAtomicAndReplayDoesNotDuplicate",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "failedAiDeleteNeverReplaysItsUncommittedDestruction",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "categoryDeletionThroughAiNeverDeletesMediaAndRejectsStaleState",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "aiUnavailableCommandsRespectSpecialProtectionAndScopes",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "oldGrantsDoNotAcquireTagPermissions",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "tagReceiptCapacityIsNotExecutedRatherThanUnknown",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "predictableTagFailuresRejectWithSpecificCodesWithoutChangingData",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "bulkDeleteRequiresRevisionAndRejectsAChangedSelectionWithoutDeleting",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "retryOfOldDeletionDoesNotRemoveReaddedTags",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "aiRetriesUnavailableSetupAfterNameCollisionWithoutUiOrRestart",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "staleNativeDefinitionEditCannotUndoAiMoveOrRename",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "repairWaitsForTagBarrierWithoutHoldingLibraryMonitor",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "aiBulkDeletionThousandItemsReportsMeasuredLatencyAndPreservesReceipts",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "aiLibraryDeleteClearsAssignmentsAndAllMemberships",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "aiUnavailableCommandsShareNativeMembershipAndTagCleanup",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "paginationAllowsDifferentPageSizesAndEquivalentTagOrder",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "localPlaybackLookupRetainsNativeEligibilityWithoutWeakeningRemoteHostChecks",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "legacyInvisibleNamesDoNotPoisonUnrelatedAiCreationAndDuplicates",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "nativeAndAiQueriesShareOrderAndRejectStalePagination",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "playlistSnapshotKeepsExactOrderAndRefusesRemovedItems",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "committedNoopDeletionDoesNotErasePreservedOrphanTags",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "tagReceiptInsertionFailureRollsBackTagCreation",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiTagIntegrationTest",
+      "method": "assignmentsUseSavedExactIdentityAndRejectConcurrentUiChanges",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "staleBookmarkSaveCannotUndoRenameOrResurrectDeletedPlaylist",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "queuedSnapshotWriterReturnsTheActualCanonicalMembership",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "addToOrdinaryPlaylistAlsoSavesToLibrary",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "staleUiEditCannotEraseAiAddition",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "disconnectedSessionCannotReplayQueuedWork",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "invalidMoveTargetCannotRemoveSourceItems",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "pinnedSavedThumbnailSurvivesOrdinaryAiRemovalAndNoOpAppend",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "expiredAuthorizedCommandCannotCommit",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "requestIdCannotBeReusedForDifferentMutation",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "ordinaryUiAppendPreservesASavedPinnedThumbnail",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "aMixedPreviewDoesNotReturnPartialPrivateRowInformation",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "globalRemovalCascadesThroughAllPlaylistsAndDuplicates",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "expiredNeverCommittedCommandCannotStartANewMutation",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "duplicateOccurrencesCanBeReorderedByPosition",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "createEmptyPlaylistCommitsWithoutPlaceholderStream",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "readOnlyPermissionCannotDeleteOrReadAFormerWriteReceipt",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "retryOfOldDeleteCannotEraseALaterExplicitReadd",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "retryOfOldSaveCannotResurrectALaterExplicitDeletion",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "semanticArgumentRejectionPreservesValidCorrelationIds",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "deletionDoesNotRequirePreviewOrConfirmationToken",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "staleReorderFailsWithoutErasingConcurrentAddition",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "ordinaryUiAppendRefreshesAnEmptyThumbnailInItsOwnTransaction",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "expiredRetryStillCannotChangeTheOriginalMutationPayload",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "expiredCommittedCommandReturnsItsReceiptWithoutReexecution",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "moveIsAtomicAndPreservesLibraryMembership",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "ordinaryRemovalDeletesAllOccurrencesButKeepsSavedMedia",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "readOnlyToolsCannotDistinguishHiddenRowsFromMissingOrMismatchedReferences",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "delayedUiThumbnailCannotRestoreAnAlreadyGloballyRemovedStream",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "appendIntoADeletedPlaylistFailsBeforeWritingStreamMetadata",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "anExplicitlySavedItemBecomesAvailableToSavedOnlyReadTools",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "optionalPreviewDoesNotMutateTheCatalog",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "unchangedUiSnapshotCanSaveNormally",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "receiptLookupCorrelatesToLookupRequestRatherThanOriginalMutation",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "duplicateCreateRequestHasExactlyOneEffect",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "ordinaryPlaylistDeletionKeepsLibraryContents",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "untrustedTitleIsOnlyReturnedDataNotACommand",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "suspendedLibraryRejectsNewMutations",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "automaticThumbnailIsChosenFromSurvivorsInsideTheUnsetTransaction",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "ordinaryDuplicatesArePreservedAndExplicitlyControllable",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "unknownOrExpiredReceiptDoesNotClaimTheActionNeverHappened",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "paginationUsesBoundedStableIdsRatherThanOffsets",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "invalidStreamIdentityRejectsWholeBatchBeforeAnyEffect",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "anotherClientCannotReadCommandReceipts",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "oldExpiredRequestWithoutRetainedEvidenceDoesNotClaimItNeverCommitted",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "ordinarySameNamedLibraryDoesNotAcquireSpecialPowers",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "disconnectedAuthorizedCommandCannotCommit",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "receiptInsertFailureRollsBackTheBusinessMutation",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "wrongDeviceAndEpochHaveNoEffects",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "targetedUiMetadataWritesPreserveOtherColumns",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "librarySearchExcludesHistoryOnlyRowsAndEscapesLikeWildcards",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "concurrentDuplicateCreatesStillHaveOneDatabaseEffect",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "failureDuringSecondGlobalDeleteRollsBackFirstDeleteAndReceipt",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiCatalogExecutorTest",
+      "method": "canonicalLibraryCannotBeDeletedOrRenamedAsOrdinaryPlaylist",
+      "status": 0
+    },
+    {
+      "class": "org.schabi.newpipe.custom.aicontrol.AiDatabaseMigrationTest",
+      "method": "upgradeFromCompletedLibraryPreservesCatalogAndAddsReceiptTable",
+      "status": 0
+    }
+  ],
+  "raw_log_path": "/home/ritorhymes/.cache/newpipe-cloud-review-fixes-20261019/native-4k-full-final.log",
+  "raw_log_sha256": "18d714992391d784df6e5285a8daf47d93d7d50f3bb67ae5da88a37a06fd3f9f"
+}

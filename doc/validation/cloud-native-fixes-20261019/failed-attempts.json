@@ -1,0 +1,54 @@
+{
+  "status": "FAILED_ATTEMPTS_PRESERVED_NOT_ACCEPTANCE",
+  "attempts": [
+    {
+      "candidate": "01a5c022a3e30fbdb8541685d94ab6daebd8c978",
+      "serial": "emulator-5590",
+      "api": 35,
+      "page_bytes": 16384,
+      "log": "native-r1.log",
+      "completed_tests_before_abort": 3,
+      "abort_test": "CloudNativeCatalogTest.realDatabaseScaleCaptureDoesNotRewriteNativeCatalog",
+      "kind": "QA process native SIGSEGV",
+      "stack": "ART ArtMethod FindMethodToCall / test-only Kotlin roomContentDigest",
+      "exit_timestamp": "2026-10-19T10:04:38-04:00",
+      "accepted": false
+    },
+    {
+      "candidate": "5dba4d5cfae477d1fbe5fd7e33f2f95314f43564",
+      "serial": "emulator-5590",
+      "api": 35,
+      "page_bytes": 16384,
+      "log": "native-digest-focused.log",
+      "completed_tests_before_abort": 0,
+      "kind": "INSTRUMENTATION_ABORTED: System has crashed",
+      "stack": "system_server HeapTaskDaemon ART MarkCompact::ScanObject null dereference",
+      "exit_timestamp": "2026-10-19T10:20:00-04:00",
+      "accepted": false
+    },
+    {
+      "candidate": "5dba4d5cfae477d1fbe5fd7e33f2f95314f43564",
+      "serial": "emulator-5576",
+      "api": 35,
+      "page_bytes": 4096,
+      "log": "native-4k-digest.log",
+      "completed_tests_before_abort": 0,
+      "kind": "first-install background startup ANR before test execution",
+      "exit_timestamp": "2026-10-19T10:23:17-04:00",
+      "accepted": false
+    }
+  ],
+  "root_cause_not_established": true,
+  "no_app_data_clear_or_global_runtime_timeout_changes": true,
+  "no_emulator_started_stopped_or_android_user_switch_requested": true,
+  "16k_verification_not_passed": true,
+  "raw_log_sha256": {
+    "native-r1.log": "533e9e5560a8c98e70dba594cef119d059bef4ef65b881f148536dba2c5b836d",
+    "native-digest-focused.log": "637eea5dbe84bc2ea875cac39af3655ed846cdaab2823670af9bebc90c70cfab",
+    "native-4k-digest.log": "f3ca40e0a3bf20eaf9ab861db129a85ecafc52160588fc2089c7bb0239bc1d94",
+    "exit-info-r1.log": "9cbf403fb9db28014a67e17064202a65d73395042553e76262e619a6c1ec2857",
+    "exit-4k-first.log": "16d560e62a77fd970f1aa66e0dbe06efde7d0163afd8873938e3279f22078b29",
+    "crash-scoped-r1.log": "3cba3e24a167a9950d71c0e83d3bfe07413910c863ce337d69bb075663d407a8"
+  },
+  "system_server_log_sha256": "d92176fbb44bdc5f1897a0c3c18f70a3c668ff7143d2e9c0685d63f94d98ffae"
+}
