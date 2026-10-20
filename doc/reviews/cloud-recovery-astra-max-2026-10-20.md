@@ -1,0 +1,11 @@
+**REQUEST_CHANGES**
+
+1. **P2 — Abort can delete an already completed backup.**  
+   In [recovery.ts:409](C:/Users/Mattj/AppData/Local/Temp/newpipe-recovery-review-20261020/packet/cloud/src/recovery.ts:409), an abort that initially observes `ROTATING` advances and reloads the operation without repeating the terminal-state checks. If a concurrent resumer finishes verification before that reload, `op` becomes `DONE`. The subsequent guard accepts `DONE → ABORTING`, and [line 431](C:/Users/Mattj/AppData/Local/Temp/newpipe-recovery-review-20261020/packet/cloud/src/recovery.ts:431) deletes the verified archive. This violates preservation of completed history. **Minimum correction:** recheck terminal states after reloading and constrain the abort-claim transaction to explicitly abortable states.
+
+2. **P2 — Concurrent aborts can strand capacity behind a terminal receipt.**  
+   After one abort claims `ABORTING`, another can encounter an uncertain R2 abort and quarantine the operation. The first request can reload that `QUARANTINED` state at [recovery.ts:419](C:/Users/Mattj/AppData/Local/Temp/newpipe-recovery-review-20261020/packet/cloud/src/recovery.ts:419), then successfully clean up R2. Its final transaction accepts the reloaded operation state, but [line 438](C:/Users/Mattj/AppData/Local/Temp/newpipe-recovery-review-20261020/packet/cloud/src/recovery.ts:438) deletes only an `ABORTING` slot. The slot therefore remains `QUARANTINED` while the operation becomes `CANCELED`: status hides the operation, subsequent aborts return terminal success, and new backups remain blocked. **Minimum correction:** require both operation and exact slot to remain `ABORTING` during finalization, and make `CANCELED` conditional on removing that slot; otherwise re-enter state reconciliation.
+
+These are static code findings; no builds, tests, writes, deployments, outside-packet inspection, or other agents were used. No additional confirmed P1/P2 findings emerged from the other reviewed paths.
+
+Residual limits: the supplied test/live results were not independently rerun. Landscape verification, two physical devices, OS network outages, and larger live workloads remain unverified. Whole-cloud replacement and operator disaster tooling remain explicitly excluded from this checkpoint verdict.

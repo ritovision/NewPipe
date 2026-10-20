@@ -280,3 +280,21 @@ test('stale failed verifier cannot quarantine a successor that advanced to the n
 test('completion with sparse response metadata uses authoritative head before accepting bytes',async()=>{
  await control({options:{sparseComplete:true}});await backup();assert.equal((await state()).archives[0].usable,true);
 });
+
+
+test('abort paused after rotation preserves an archive completed by a concurrent resumer',async()=>{
+ await backup();await backup();await backup();const op=await reserve();assert.equal(op.state,'ROTATING');
+ await control({block:'removeSlot.after'});const aborting=recovery('abort',ref(op));await waitBlocked('removeSlot.after');
+ const saved=await finish(op);assert.equal(saved.state,'DONE');await control({release:true});
+ failure(await aborting,'RECOVERY_ALREADY_COMMITTED');const status=await state();
+ assert.equal(status.operation,null);assert.equal(status.occupiedSlots,3);assert.equal(status.archives.find(a=>a.archiveId===op.archiveId).usable,true);
+ assert.equal((await control({})).objects,3);
+});
+test('concurrent uncertain abort cannot hide a quarantined slot behind a canceled operation',async()=>{
+ const op=await reserve();ok(await recovery('advance',ref(op)));
+ await control({block:'claimAbort.after'});const first=recovery('abort',ref(op));await waitBlocked('claimAbort.after');
+ await control({fault:'abort.before'});failure(await recovery('abort',ref(op)),'RECOVERY_ABORT_OUTCOME_UNKNOWN');
+ assert.equal((await state()).operation.state,'QUARANTINED');await control({release:true});failure(await first,'RECOVERY_STATE_CHANGED');
+ const status=await state();assert.equal(status.occupiedSlots,1);assert.equal(status.operation.state,'QUARANTINED');assert.equal(status.archives[0].state,'QUARANTINED');
+ ok(await recovery('abort',ref(op)));assert.equal((await state()).occupiedSlots,0);assert.equal((await control({})).uploads,0);
+});

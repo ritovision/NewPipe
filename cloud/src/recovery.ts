@@ -406,7 +406,13 @@ export class RecoveryService {
     let op = await this.operation(ref);
     if (op.state === "CANCELED") return this.operationView(op);
     if (op.state === "DONE") fail("RECOVERY_ALREADY_COMMITTED");
-    if (op.state === "ROTATING") { await this.advance(ref); op = await this.operation(ref); }
+    if (op.state === "ROTATING") {
+      await this.advance(ref); op = await this.operation(ref);
+      // A concurrent resumer may have completed the new archive while rotation returned.
+      if (op.state === "CANCELED") return this.operationView(op);
+      if (op.state === "DONE") fail("RECOVERY_ALREADY_COMMITTED");
+    }
+    const abortable = "'RESERVED','CREATING','UPLOADING','COMPLETING','VERIFYING','ABORTING','QUARANTINED'";
     let s = await this.slot(op), original = op.state;
     if (original === "CREATING" && !s.upload_id) {
       await this.quarantine(op, s, "RECOVERY_CREATION_OUTCOME_UNKNOWN"); fail("RECOVERY_OPERATOR_CLEANUP_REQUIRED", 503);
@@ -414,10 +420,15 @@ export class RecoveryService {
     if (original === "QUARANTINED" && !s.upload_id) fail("RECOVERY_OPERATOR_CLEANUP_REQUIRED", 503);
     if (op.state !== "ABORTING") {
       const p = this.opCondition(op);
-      try { await this.batch(p.sql, p.values, [this.setOp(op, "ABORTING"), this.setSlot(s, "state='ABORTING',busy_token=NULL,busy_until=0,abort_fenced=?", [original === "RESERVED" ? 1 : s.abort_fenced])]); }
+      try { await this.batch(p.sql + " AND EXISTS(SELECT 1 FROM cloud_backup_slots s WHERE s.library_id=b.library_id AND s.archive_id=? AND s.state=? AND s.state IN(" + abortable + "))",
+        [...p.values, s.archive_id, original], [this.setOp(op, "ABORTING"), this.setSlot(s, "state='ABORTING',busy_token=NULL,busy_until=0,abort_fenced=?", [original === "RESERVED" ? 1 : s.abort_fenced])]); }
       catch (e) { asError(e); }
-      op = await this.operation(ref); s = await this.slot(op);
+      op = await this.operation(ref);
+      if (op.state === "CANCELED") return this.operationView(op);
+      if (op.state !== "ABORTING") fail("RECOVERY_STATE_CHANGED");
+      s = await this.slot(op);
     }
+    if (op.state !== "ABORTING" || s.state !== "ABORTING") fail("RECOVERY_STATE_CHANGED");
     // RESERVED has never admitted a create; all other known identities are fenced by abort.
     let fenced = s.abort_fenced === 1 || s.object_etag !== null;
     if (s.upload_id) {
@@ -434,7 +445,9 @@ export class RecoveryService {
       await this.quarantine(op, s, "RECOVERY_ABORT_OUTCOME_UNKNOWN"); fail("RECOVERY_ABORT_OUTCOME_UNKNOWN", 503);
     }
     const p = this.opCondition(op);
-    try { await this.batch(p.sql, p.values, [
+    // CANCELED and removal of this exact ABORTING slot must commit together. A competing
+    // quarantine invalidates both assertions; it cannot leave a hidden occupied slot.
+    try { await this.batch(p.sql + " AND EXISTS(SELECT 1 FROM cloud_backup_slots WHERE library_id=b.library_id AND archive_id=? AND state='ABORTING')", [...p.values, s.archive_id], [
       this.db.prepare("DELETE FROM cloud_backup_slots WHERE library_id=? AND archive_id=? AND state='ABORTING'").bind(this.context.library, s.archive_id),
       this.setOp(op, "CANCELED")]); }
     catch (e) { asError(e); }
