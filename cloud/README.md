@@ -2,7 +2,7 @@
 
 **Implemented:** typed Worker/D1 catalog publication, packed-page transfer, native Room/tag catalog capture, journaled native apply and recovery, stable identity mapping, exact diffs and sparse ordering. Android includes encrypted credentials, connection/settings controls, exact-candidate previews, verified local safety backups, durable upload recovery and foreground/WorkManager scheduling.
 
-**Not release-ready:** forced cloud replacement and operator disaster-recovery tooling remain unfinished. Explicit three-slot R2 backup, rotation and Android restore now exist; see [executed recovery evidence](../doc/validation/cloud-recovery-20261020/README.md). Integration, failure, UI and scale acceptance must be tied to the specific tested candidate. The checked-in Worker configuration is API-disabled and restricted to small synthetic deployment tests. Existing Music/AI infrastructure is not part of this service.
+**Not release-ready:** protected cloud replacement has passed a small synthetic live checkpoint; operator disaster recovery and broader release acceptance remain incomplete. The [operator inspector and recovery runbook](../doc/architecture/cloud-operator-recovery.md) verify existing archives and test an atomic D1 rebuild locally. Live apply refuses until an external stale-worker fence is established. Explicit three-slot R2 backup, rotation and Android restore now exist; see [executed recovery evidence](../doc/validation/cloud-recovery-20261020/README.md). Integration, failure, UI and scale acceptance must be tied to the specific tested candidate. The checked-in Worker configuration is API-disabled and restricted to small synthetic deployment tests. Existing Music/AI infrastructure is not part of this service.
 
 ## Backend
 

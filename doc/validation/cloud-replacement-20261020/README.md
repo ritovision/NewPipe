@@ -1,6 +1,6 @@
 # Protected replacement live acceptance — 2026-10-20
 
-Status: **in progress**, not release acceptance.
+Status: **small synthetic replacement checkpoint passed; not release acceptance**. The original attempt below failed as recorded. Subsequent success at `1de0f39a9` is in `live-success-1de0f39a9.json`; display-only follow-up at `fbf778c3f` is in [preview QA](preview-qa-20261020.md). On closeout all three API gates were disabled, external generation rotated and both exact QA device credentials revoked. The three verified archives were retained for recovery inspection. See [operator checkpoint](../cloud-operator-20261020/README.md).
 
 Source candidate: `e5a9affef48bd0e072541b15fd76b77ba9d2d126`, primary NotCodex, two isolated QA applications on one Pixel 7 / Android 17 / 4 KiB physical device. The owner package and app data were not cleared or overwritten. QA APK hashes are recorded in `initial-apks.json`.
 

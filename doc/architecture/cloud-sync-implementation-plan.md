@@ -1,6 +1,6 @@
 # Cloud & Sync v1 — Execution, review and acceptance
 
-**Status:** Implementation is in progress. Catalog engine, native apply, Android connection/settings, previews and scheduling are written; current synthetic integration evidence is recorded below. Three-slot R2 recovery has passed its bounded implementation/acceptance checkpoint. Protected whole-cloud replacement, operator disaster tooling and final release acceptance remain outstanding. Historical checkpoints retain their original scope. No production activation or live-data migration is implied.
+**Status:** Implementation is in progress. Catalog engine, native apply, Android connection/settings, previews and scheduling are written; current synthetic integration evidence is recorded below. Three-slot R2 recovery and protected whole-cloud replacement have passed small synthetic live checkpoints. Preview search/rotation fixes are verified on the isolated phone QA app. Operator archive inspection is implemented; its guarded rebuild passes local D1/R2 tests, while live apply remains blocked on a verified external stale-worker fence. Broader acceptance and final release approval remain outstanding. Historical checkpoints retain their original scope. No production activation or live-data migration is implied.
 **Date:** 2026-10-19
 **Canonical documents:** [Product contract](../specs/cloud-sync-v1.md) · [Architecture](cloud-sync-v1.md).
 **Baseline:** `custom/dev` at `f76d89a378e71625616bba160a42de24498ccfa1`; documentation branch `feature/cloud-sync-spec-20261019`.

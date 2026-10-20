@@ -1,0 +1,81 @@
+{
+  "testedWorktreeBase": "fbf778c3f",
+  "date": "2026-10-20",
+  "backendTests": {
+    "passed": 280,
+    "failed": 0,
+    "skipped": 0
+  },
+  "liveApplyPerformed": false,
+  "timeTravelPerformed": false,
+  "beforePlanDigest": "c86359aa6e116dac280e8d15d24b78fe659ed24c2337c372066ad7fe40b56bc7",
+  "closedPlanDigest": "ad1d052b7ced3f7f85589c846fffa294ad39144e0ed92bb3a3ddb35d5b1020b4",
+  "scope": {
+    "account": "b35814b119cba4448e3e0ac59442cc25",
+    "worker": "newpipe-cloud-sync-v1",
+    "database": "bde936ac-caa7-42bb-a931-208118a8cd6a",
+    "bucket": "newpipe-cloud-recovery-v1",
+    "library": "newpipe-replace-qa-0ff7b6b0-49f1-4303-b111-9eabe9f5e851",
+    "generation": "fff0b38c-458f-45bd-b114-b3eff86b116e"
+  },
+  "deployedAuthority": {
+    "deployment": "68b25c26-da31-4c4a-b0c0-cb711cf7717a",
+    "version": "9323897b-9f26-49ce-9ebe-fedc4021e7b7",
+    "database": "bde936ac-caa7-42bb-a931-208118a8cd6a",
+    "bucket": "newpipe-cloud-recovery-v1",
+    "vars": {
+      "ENABLE_CATALOG_API": "false",
+      "ENABLE_RECOVERY_API": "false",
+      "ENABLE_REPLACEMENT_API": "false",
+      "LIBRARY_ID": "newpipe-replace-qa-0ff7b6b0-49f1-4303-b111-9eabe9f5e851",
+      "SERVICE_GENERATION": "fff0b38c-458f-45bd-b114-b3eff86b116e"
+    }
+  },
+  "retainedArchives": [
+    {
+      "slot": 1,
+      "archive": "2dba60fb-ed03-4567-b8ae-93d708b3240c",
+      "key": "recovery/newpipe-replace-qa-0ff7b6b0-49f1-4303-b111-9eabe9f5e851/1/2dba60fb-ed03-4567-b8ae-93d708b3240c",
+      "size": 6897,
+      "etag": "1c436e1eb73218a51f97f85e4b86e50b-1",
+      "digest": "2c1c311ca9c6864722657476111c913d2856c1a3de3c9fa34a39dd6bc51297b6",
+      "service": "8c5ee780-166d-4497-8ad8-18e129dde998",
+      "created": "1792496298910"
+    },
+    {
+      "slot": 2,
+      "archive": "8d70eb09-8d85-4810-ab10-608d20a4de24",
+      "key": "recovery/newpipe-replace-qa-0ff7b6b0-49f1-4303-b111-9eabe9f5e851/2/8d70eb09-8d85-4810-ab10-608d20a4de24",
+      "size": 6897,
+      "etag": "9962999622b68d1e88c3ea5c175129f4-1",
+      "digest": "b259e1842f54cc4c85ee8be9ede441c4be48dbc034ce6552a6595c63ec53eaba",
+      "service": "8c5ee780-166d-4497-8ad8-18e129dde998",
+      "created": "1792496313541"
+    },
+    {
+      "slot": 0,
+      "archive": "930cf2e1-b2bc-4e79-bfee-44f13bb4d2bd",
+      "key": "recovery/newpipe-replace-qa-0ff7b6b0-49f1-4303-b111-9eabe9f5e851/0/930cf2e1-b2bc-4e79-bfee-44f13bb4d2bd",
+      "size": 2654,
+      "etag": "cfe1527fc70cf3125e29754d4e4c61db-1",
+      "digest": "b14f6597a463f606b34c39d0a26f4046eef8b70bae1637ba90a7bb96363e45d4",
+      "service": "8c5ee780-166d-4497-8ad8-18e129dde998",
+      "created": "1792498228430"
+    }
+  ],
+  "incompleteUploads": 0,
+  "archiveIdentityAndDigestUnchanged": true,
+  "changedScopedTables": [
+    "cloud_devices",
+    "cloud_replace_grants"
+  ],
+  "exactQaDevicesRevoked": 2,
+  "publicProbe": {
+    "status": 503,
+    "error": "CLOUD_API_DISABLED"
+  },
+  "blockers": [
+    "STALE_WORKER_FENCE_UNAVAILABLE"
+  ],
+  "readOnlyR2CredentialExpires": "2026-10-21"
+}
