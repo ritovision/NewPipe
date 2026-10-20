@@ -5,7 +5,7 @@ import { CatalogService } from "./service.ts";
 import { RECOVERY_LIMITS as L, RecoveryError, archiveId, bytesDigest, readRecoveryManifest,
   recoveryDigest, recoveryFail as fail, recoveryObject, verifyCloudArchivePart, verifyZipEnd, verifyZipStart } from "./recovery-format.ts";
 import type { RecoveryManifest, CloudArchiveVerification } from "./recovery-format.ts";
-import { REPLACE_GRANT, REPLACEMENT_COOLDOWN_MS } from "./replacement-state.ts";
+import { REPLACE_GRANT, REPLACEMENT_COOLDOWN_MS, REPLACEMENT_DB_NOW } from "./replacement-state.ts";
 import type { ReplacementApproval } from "./replacement-state.ts";
 
 type Control = { revision: string; next_ordinal: string; service_generation: string };
@@ -242,8 +242,8 @@ export class RecoveryService {
     const replacementValues = [...replacementFence.values];
     if (forReplacement) {
       const approved = ra!;
-      replacementCheck += " AND " + REPLACE_GRANT + " AND (b.last_replace_at=0 OR b.last_replace_at<=?) AND EXISTS(SELECT 1 FROM cloud_replace_approvals WHERE library_id=b.library_id AND device_id=d.device_id AND approval_id=? AND header=? AND next_epoch=? AND retry_archive_id IS ? AND retry_attempt_id IS ? AND expires_at>?)";
-      replacementValues.push(now - REPLACEMENT_COOLDOWN_MS, approvalId, approved.header, approved.next_epoch, approved.retry_archive_id, approved.retry_attempt_id, now);
+      replacementCheck += " AND " + REPLACE_GRANT + " AND (b.last_replace_at=0 OR b.last_replace_at<=" + REPLACEMENT_DB_NOW + "-" + REPLACEMENT_COOLDOWN_MS + ") AND EXISTS(SELECT 1 FROM cloud_replace_approvals WHERE library_id=b.library_id AND device_id=d.device_id AND approval_id=? AND header=? AND next_epoch=? AND retry_archive_id IS ? AND retry_attempt_id IS ? AND expires_at>" + REPLACEMENT_DB_NOW + ")";
+      replacementValues.push(approvalId, approved.header, approved.next_epoch, approved.retry_archive_id, approved.retry_attempt_id);
       replacementCheck += " AND d.resolved_sequence=CAST(json_extract(?,'$.sequence') AS INTEGER)-1 AND NOT EXISTS(SELECT 1 FROM cloud_uploads WHERE library_id=d.library_id AND device_id=d.device_id AND status IN('UPLOADING','SEALED'))";
       replacementValues.push(approved.header);
       if (approved.retry_attempt_id !== null) {
@@ -281,7 +281,7 @@ export class RecoveryService {
       .bind(this.context.library, this.context.device, approvalId).first<Approval>();
     if (!a) fail("RECOVERY_APPROVAL_UNAVAILABLE");
     // A terminal sequence fences a delayed reserve request, including one whose reply was lost.
-    try { await this.batch("COALESCE((SELECT sequence FROM cloud_backup_operations WHERE library_id=b.library_id AND device_id=d.device_id),0)=CAST(? AS INTEGER)-1 AND NOT EXISTS(SELECT 1 FROM cloud_backup_operations WHERE library_id=b.library_id AND device_id=d.device_id AND " + active + ") AND EXISTS(SELECT 1 FROM cloud_backup_approvals WHERE library_id=b.library_id AND device_id=d.device_id AND approval_id=?)",
+    try { await this.batch("NOT EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=b.library_id AND device_id=d.device_id AND state='ACTIVE') AND COALESCE((SELECT sequence FROM cloud_backup_operations WHERE library_id=b.library_id AND device_id=d.device_id),0)=CAST(? AS INTEGER)-1 AND NOT EXISTS(SELECT 1 FROM cloud_backup_operations WHERE library_id=b.library_id AND device_id=d.device_id AND " + active + ") AND EXISTS(SELECT 1 FROM cloud_backup_approvals WHERE library_id=b.library_id AND device_id=d.device_id AND approval_id=?)",
       [r.sequence, approvalId], [
         this.db.prepare("INSERT INTO cloud_backup_operations(library_id,device_id,sequence,approval_id,archive_id,slot,manifest,digest,state,created_at) VALUES(?,?,CAST(? AS INTEGER),?,?,0,?,?,'CANCELED',?) ON CONFLICT(library_id,device_id) DO UPDATE SET sequence=excluded.sequence,approval_id=excluded.approval_id,archive_id=excluded.archive_id,slot=0,manifest=excluded.manifest,digest=excluded.digest,state='CANCELED',evict_id=NULL,created_at=excluded.created_at,error=NULL")
           .bind(this.context.library, this.context.device, r.sequence, approvalId, crypto.randomUUID(), a.manifest, a.digest, Date.now()),

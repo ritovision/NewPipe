@@ -326,12 +326,13 @@ const settleReplacement=(p,keepForRetry)=>replace('settle',{attemptId:p.attempt.
 
 test('replacement: exact outgoing backup precedes atomic new epoch, receipt and cooldown',async()=>{
  await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ assert.deepEqual(ok(await call('/v1/head')).deviceState.replacement,{attemptId:p.attempt.attemptId,state:'ACTIVE'});assert.equal(ok(await call('/v1/head',{},tokens.b)).deviceState.replacement,null);
  await finish(p.operation);await sealReplacement(p);
  failure(await call('/v1/uploads/publish',{sequence:p.upload.header.sequence,digest:p.upload.header.digest}),'REPLACEMENT_PROOF_REQUIRED');
  const result=ok(await publishReplacement(p)),h=ok(await call('/v1/head'));
  assert.equal(result.receipt.head.epoch,p.preview.nextEpoch);assert.equal(h.head.epoch,p.preview.nextEpoch);assert.equal(h.head.revision,'1');
  assert.equal(h.head.headCounter,String(BigInt(source.source.head.headCounter)+1n));assert.equal(h.head.fingerprint,await fingerprint(catalog('rename')));
- assert.equal(result.attempt.state,'DONE');assert.deepEqual(ok(await publishReplacement(p)).receipt,result.receipt);
+ assert.equal(result.attempt.state,'DONE');assert.equal(h.deviceState.replacement,null);assert.deepEqual(ok(await publishReplacement(p)).receipt,result.receipt);
  const pin=ok(await recovery('pin',{archiveId:p.attempt.archiveId}));
  const download=await mf.dispatchFetch('https://recovery.test/v1/recovery/download',{method:'POST',headers:{Authorization:'Bearer '+tokens.a,'Content-Type':'application/json'},body:JSON.stringify({archiveId:p.attempt.archiveId,pinId:pin.pinId,part:1})});
  assert.deepEqual(Buffer.from(await download.arrayBuffer()),source.bytes);ok(await recovery('release',{archiveId:p.attempt.archiveId,pinId:pin.pinId}));
@@ -436,4 +437,27 @@ test('replacement: an unknown multipart creation keeps its attempt and occupied 
  failure(await settleReplacement(p,false),'RECOVERY_OPERATOR_CLEANUP_REQUIRED');
  assert.equal(ok(await replace('status')).attempt.state,'ACTIVE');assert.equal((await state()).occupiedSlots,1);
  failure(await recovery('preview',{manifest:await manifest(zip())}),'REPLACEMENT_PENDING_OR_NOT_AUTHORIZED');
+});
+
+test('replacement review: next-sequence ordinary abandonment cannot overwrite its required recovery receipt',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ await finish(p.operation);await sealReplacement(p);
+ failure(await recovery('abandon',{approvalId:p.preview.approvalId,sequence:String(BigInt(p.attempt.recoverySequence)+1n)}));
+ assert.equal((await rows('cloud_backup_operations'))[0].sequence,Number(p.attempt.recoverySequence));
+ ok(await publishReplacement(p));assert.equal(ok(await replace('status')).attempt.state,'DONE');
+});
+test('replacement review: publication uses database time after a delayed request entry',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ await finish(p.operation);await sealReplacement(p);const before=Date.now();
+ ok(await call('/__test/slow-replacement',{attemptId:p.attempt.attemptId}));
+ const control=(await rows('cloud_backup_control'))[0];assert.ok(control.last_replace_at>=before-2,JSON.stringify({before,recorded:control.last_replace_at}));
+ assert.equal(ok(await replace('status')).cooldownUntil,String(control.last_replace_at+60000));
+});
+
+test('replacement review: database clock rejects approval expiry despite an earlier request timestamp',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ await finish(p.operation);await sealReplacement(p);
+ await sql({sql:'UPDATE cloud_replace_attempts SET expires_at=?',args:[Date.now()-1000]});
+ failure(await call('/__test/slow-replacement',{attemptId:p.attempt.attemptId}));
+ assert.deepEqual(ok(await call('/v1/head')).head,source.source.head);assert.equal((await state()).archives[0].usable,true);
 });

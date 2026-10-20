@@ -321,11 +321,11 @@ test('repeated retirement of a committed upload preserves committed receipt and 
 
 
 test('connection reports exact own sequence and active upload without leaking other device state',async()=>{
- const before=await status();assert.deepEqual(before.deviceState,{resolvedSequence:'0',upload:null});
+ const before=await status();assert.deepEqual(before.deviceState,{resolvedSequence:'0',upload:null,replacement:null});
  const u=await stage(catalog('base'),{seal:false});
  const active=await status();assert.deepEqual(active.deviceState.upload,{sequence:'1',digest:u.ref.digest,status:'UPLOADING'});
  assert.equal((await status(tokens.b)).deviceState.upload,null);
- await call('/v1/uploads/retire',u.ref);assert.deepEqual((await status()).deviceState,{resolvedSequence:'1',upload:null});
+ await call('/v1/uploads/retire',u.ref);assert.deepEqual((await status()).deviceState,{resolvedSequence:'1',upload:null,replacement:null});
 });
 
 

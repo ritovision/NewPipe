@@ -6,7 +6,7 @@ import type { AdmissionContext, Receipt } from "./admission.ts";
 import { byteLength, PAGE_LIMITS, parsePage, validPageId, sha256, readPages, pageManifest } from "./pages.ts";
 import type { CatalogPage, PageChange } from "./pages.ts";
 import { fingerprint } from "./catalog.ts";
-import { REPLACE_GRANT, REPLACEMENT_COOLDOWN_MS } from "./replacement-state.ts";
+import { REPLACE_GRANT, REPLACEMENT_COOLDOWN_MS, REPLACEMENT_DB_NOW } from "./replacement-state.ts";
 import type { ReplacementProof } from "./replacement-state.ts";
 
 export class CatalogError extends Error {
@@ -150,13 +150,15 @@ export class CatalogService {
     return { sequence: u.sequence, digest: u.digest, status: u.status, nextChunk: u.received_chunks,
       expectedChunks: u.expected_chunks, expiresAt: String(u.expires_at), verifiedPages: u.verified_pages, verifiedBytes: u.verified_bytes };
   }
-  async deviceState(): Promise<{ resolvedSequence: string; upload: { sequence: string; digest: string; status: string } | null }> {
+  async deviceState(): Promise<{ resolvedSequence: string; upload: { sequence: string; digest: string; status: string } | null; replacement: { attemptId: string; state: string } | null }> {
     const row = await this.db.prepare(`SELECT CAST(d.resolved_sequence AS TEXT) AS sequence FROM cloud_devices d WHERE ${AUTH}`)
       .bind(...args(this.context)).first<{ sequence: string }>();
     if (!row) fail("AUTH_OR_LIBRARY_UNAVAILABLE", 401);
     const upload = await this.getUpload();
+    const replacement = await this.db.prepare("SELECT attempt_id AS attemptId,state FROM cloud_replace_attempts WHERE library_id=? AND device_id=? AND state IN('ACTIVE','STALE')")
+      .bind(this.context.library, this.context.device).first<{ attemptId: string; state: string }>();
     return { resolvedSequence: row.sequence, upload: upload && (upload.status === "UPLOADING" || upload.status === "SEALED")
-      ? { sequence: upload.sequence, digest: upload.digest, status: upload.status } : null };
+      ? { sequence: upload.sequence, digest: upload.digest, status: upload.status } : null, replacement };
   }
   async uploadStatus(sequence: string, digest: string) {
     const r = await this.resolve(sequence, digest); if (r) return { receipt: r };
@@ -330,8 +332,8 @@ export class CatalogService {
       JOIN cloud_backup_slots s ON s.library_id=r.library_id AND s.archive_id=r.archive_id AND s.slot=r.slot
       JOIN cloud_backup_operations o ON o.library_id=r.library_id AND o.device_id=r.device_id AND o.archive_id=r.archive_id AND o.sequence=r.recovery_sequence
       JOIN cloud_uploads u ON u.library_id=r.library_id AND u.device_id=r.device_id
-      WHERE ${AUTH} AND ${REPLACE_GRANT} AND b.service_generation=? AND b.revision<9223372036854775807 AND (b.last_replace_at=0 OR b.last_replace_at<=?)
-      AND r.attempt_id=? AND r.state='ACTIVE' AND r.header=? AND r.next_epoch=? AND r.expires_at>?
+      WHERE ${AUTH} AND ${REPLACE_GRANT} AND b.service_generation=? AND b.revision<9223372036854775807 AND (b.last_replace_at=0 OR b.last_replace_at<=${REPLACEMENT_DB_NOW}-${REPLACEMENT_COOLDOWN_MS})
+      AND r.attempt_id=? AND r.state='ACTIVE' AND r.header=? AND r.next_epoch=? AND r.expires_at>${REPLACEMENT_DB_NOW} AND u.expires_at>${REPLACEMENT_DB_NOW}
       AND u.sequence=CAST(? AS INTEGER) AND u.digest=? AND u.header=r.header
       AND s.archive_id=? AND s.state='READY' AND s.digest=? AND s.object_etag=? AND s.object_version=? AND o.state='DONE'
       AND json_extract(s.manifest,'$.kind')='cloud-catalog'
@@ -339,13 +341,13 @@ export class CatalogService {
       AND json_extract(s.manifest,'$.source.head.epoch')=? AND json_extract(s.manifest,'$.source.head.revision')=?
       AND json_extract(s.manifest,'$.source.head.headCounter')=? AND json_extract(s.manifest,'$.source.head.fingerprint')=?
       AND json_extract(s.manifest,'$.source.manifest')=(SELECT manifest FROM cloud_catalog_info WHERE library_id=r.library_id)) WHERE slot=1`)
-      .bind(...args(c), c.serviceGeneration, now - REPLACEMENT_COOLDOWN_MS, a.attempt_id, a.header, a.next_epoch, now,
+      .bind(...args(c), c.serviceGeneration, a.attempt_id, a.header, a.next_epoch,
         sequence, digest, a.archive_id, proof.digest, proof.objectEtag, proof.objectVersion,
         h.before.serviceGeneration, h.before.library, h.before.epoch, h.before.revision, h.before.headCounter, h.before.fingerprint);
     mutations.push(this.db.prepare("UPDATE cloud_replace_attempts SET state='DONE' WHERE library_id=? AND device_id=? AND attempt_id=?")
       .bind(c.library, c.device, a.attempt_id));
-    mutations.push(this.db.prepare("UPDATE cloud_backup_control SET last_replace_at=?,revision=revision+1 WHERE library_id=? AND revision<9223372036854775807")
-      .bind(now, c.library));
+    mutations.push(this.db.prepare(`UPDATE cloud_backup_control SET last_replace_at=${REPLACEMENT_DB_NOW},revision=revision+1 WHERE library_id=? AND revision<9223372036854775807`)
+      .bind(c.library));
     return { receipt: await guardedReplacement(this.db, c, operation, a.next_epoch, [replacementGuard], mutations) };
   }
   async retire(sequence: string, digest: string): Promise<{ receipt: Receipt }> {

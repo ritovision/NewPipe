@@ -6,7 +6,7 @@ import { CatalogService, readStageHeader } from "./service.ts";
 import type { ServiceLimits } from "./service.ts";
 import { RecoveryService } from "./recovery.ts";
 import { archiveId, readRecoveryManifest, recoveryObject, recoveryFail as fail } from "./recovery-format.ts";
-import { REPLACE_GRANT, REPLACEMENT_COOLDOWN_MS } from "./replacement-state.ts";
+import { REPLACE_GRANT, REPLACEMENT_COOLDOWN_MS, REPLACEMENT_DB_NOW } from "./replacement-state.ts";
 import type { ReplacementAttempt } from "./replacement-state.ts";
 
 const AUTH = "d.library_id=? AND d.device_id=? AND d.token_hash=? AND d.auth_generation=CAST(? AS INTEGER) AND d.service_generation=? AND d.revoked=0 AND d.can_write=1";
@@ -67,11 +67,11 @@ export class ReplacementService {
     const p = await this.recovery.preview({ manifest: m }, now, prior?.archive_id ?? null);
     const c = this.context, nextEpoch = crypto.randomUUID(), encoded = JSON.stringify(incoming);
     const guard = this.db.prepare("INSERT INTO cloud_commit_assertion(slot,ok) VALUES(1,(SELECT COUNT(*) FROM cloud_devices d JOIN cloud_backup_control b ON b.library_id=d.library_id JOIN cloud_head h ON h.library_id=d.library_id WHERE " +
-      AUTH + " AND " + REPLACE_GRANT + " AND b.service_generation=? AND (b.last_replace_at=0 OR b.last_replace_at<=?)" +
+      AUTH + " AND " + REPLACE_GRANT + " AND b.service_generation=? AND (b.last_replace_at=0 OR b.last_replace_at<=" + REPLACEMENT_DB_NOW + "-" + REPLACEMENT_COOLDOWN_MS + ")" +
       " AND h.epoch=? AND h.revision=CAST(? AS INTEGER) AND h.head_counter=CAST(? AS INTEGER) AND h.fingerprint=?" +
-      " AND EXISTS(SELECT 1 FROM cloud_backup_approvals a WHERE a.library_id=d.library_id AND a.device_id=d.device_id AND a.approval_id=? AND a.digest=? AND a.expires_at>?)))")
-      .bind(...args(c), c.serviceGeneration, now - REPLACEMENT_COOLDOWN_MS,
-        incoming.before.epoch, incoming.before.revision, incoming.before.headCounter, incoming.before.fingerprint, p.approvalId, p.digest, now);
+      " AND EXISTS(SELECT 1 FROM cloud_backup_approvals a WHERE a.library_id=d.library_id AND a.device_id=d.device_id AND a.approval_id=? AND a.digest=? AND a.expires_at>" + REPLACEMENT_DB_NOW + ")))")
+      .bind(...args(c), c.serviceGeneration,
+        incoming.before.epoch, incoming.before.revision, incoming.before.headCounter, incoming.before.fingerprint, p.approvalId, p.digest);
     await this.db.batch([guard,
       this.db.prepare("INSERT INTO cloud_replace_approvals VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(library_id,device_id) DO UPDATE SET approval_id=excluded.approval_id,header=excluded.header,next_epoch=excluded.next_epoch,retry_archive_id=excluded.retry_archive_id,retry_attempt_id=excluded.retry_attempt_id,expires_at=excluded.expires_at")
         .bind(c.library, c.device, p.approvalId, encoded, nextEpoch, prior?.archive_id ?? null, prior?.attempt_id ?? null, Number(p.expiresAt)),

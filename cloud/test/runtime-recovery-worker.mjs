@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // LOCAL TEST HARNESS ONLY. Never import this module from the deployment entry point.
 import {handleRequest} from '../src/index.ts';
+import {ReplacementService} from '../src/replacement.ts';
+import {authenticateToken,DEFAULT_SERVICE_LIMITS} from '../src/service.ts';
 let options={},fault=null,block=null,blockedRequest=false;
 let stats={calls:{},maxPayloads:0,blocked:null},uploads=new Map(),objects=new Set();
 const measured=new WeakMap();
@@ -43,6 +45,13 @@ function bucket(r2){
 }
 export default {async fetch(request,env){
  const path=new URL(request.url).pathname;
+ if(path==='/__test/slow-replacement'){
+  try{
+   const context=await authenticateToken(env.DB,request.headers.get('authorization').slice(7),'library-a','service-a');
+   const result=await new ReplacementService(database(env.DB),bucket(env.RECOVERY),context,DEFAULT_SERVICE_LIMITS,1024*1024).publish(await request.json(),Date.now()-120000);
+   return Response.json(result);
+  }catch(e){return Response.json({error:e.message},{status:409});}
+ }
  if(path==='/__test/sql'){try{return Response.json(await env.DB.batch((await request.json()).map(s=>env.DB.prepare(s.sql).bind(...(s.args??[])))));}catch(e){return Response.json({error:String(e)},{status:409});}}
  if(path==='/__test/control'){
   const input=await request.json();options=input.options??options;if(Object.hasOwn(input,'fault'))fault=input.fault;if(Object.hasOwn(input,'block'))block=input.block;
