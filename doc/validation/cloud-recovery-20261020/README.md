@@ -1,6 +1,6 @@
 # Three-slot R2 recovery — 2026-10-20
 
-Implementation follows the live-sync checkpoint `35afff7fd7b356b1288a11462ef89bde1c5325fc` on `feature/cloud-sync-v1-20261019`. This is an integration checkpoint, not release approval or completion of Cloud & Sync.
+Implementation source **`2cb2df30d7ffc3cbdf9c31b4388915a002a4701f`** follows the live-sync checkpoint `35afff7fd7b356b1288a11462ef89bde1c5325fc` on `feature/cloud-sync-v1-20261019`. This is an integration checkpoint, not release approval or completion of Cloud & Sync.
 
 ## Implemented behavior
 
@@ -58,7 +58,11 @@ Reproducible explicit host driver: [run-live-recovery.py](../../../cloud/test-su
 
 ## UI and closure
 
-Portrait dark-theme navigation, retained-copy list, named rotation warning, cancel, historical restore summary, and expandable exact tag detail were exercised on a separate scrcpy virtual display. Landscape exposed clipped detail rows in the fixed-header layout. Both cloud dialogs now use a scrolling header and virtualized detail list; final rebuilt layout verification and remote cleanup are still in progress at this draft checkpoint.
+Portrait dark-theme navigation, retained-copy list, named rotation warning, cancel, historical restore summary, and expandable exact tag detail were exercised on a separate scrcpy virtual display. Landscape exposed clipped detail rows in the fixed-header layout. Both cloud dialogs now use a scrolling header and virtualized detail list, sized to the visible window excluding system bars/taskbar. The rebuilt APK passed portrait and landscape checks: expanded exact tag detail, restore/cancel controls and Close remain reachable, and the same prepared preview survives rotation. Native ZIP confirmation shows restart, AI unpairing, sync-off behavior and an initially unchecked settings option. No additional restore/upload was submitted from these preview-only checks. Broader light-theme, large-font, keyboard and accessibility acceptance remains pending.
+
+Final visually checked A app SHA-256: `70d78d44eaa03763d6efb70d307b775dbf8b890dad5eb11e3fe536891be2821f`. The integration test APK is `13463fbd584bcfdddb05cf16520ab44a3d3e1fc8f304bf4220f7b711c7c2509e`; B live app/test hashes are `239d988673bf85dac4085b710f230c681f59df7bd592c9542cb087ff019b72fe` / `8dd34fbffe7c147a15194a0c362b82c81b0d69d6e7d9f348d50e8c2ce91f7997`. B's live build precedes the layout-only correction. Core live actions ran before those layout-only rebuilds.
+
+Both QA device credentials were revoked and independently returned HTTP401 on catalog and recovery endpoints. The Worker was redeployed with both checked-in API gates disabled as version `f5edffb3-979d-4a86-aa99-f37d87364584`; catalog/recovery requests return HTTP503 `CLOUD_API_DISABLED`. Only the three recorded synthetic R2 objects were deleted after terminal-operation, unpinned-slot and revoked-device checks. Exact-namespace inventory then returned zero completed objects; every multipart upload created in this fresh scope had already completed or been explicitly canceled. Guarded exact-scope D1 cleanup was followed by fresh reads proving zero rows across all 13 feature domain/control tables, retaining migrations/schema. Both isolated app connections stayed off, plaintext QA credential files were absent, and the dedicated scrcpy virtual display was stopped. No owner app data, unrelated emulator, gateway or production library was changed.
 
 ## Remaining acceptance
 
