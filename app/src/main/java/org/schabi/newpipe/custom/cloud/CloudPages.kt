@@ -232,7 +232,7 @@ internal object CloudPages {
     }
     fun manifest(pages: List<Page>): String = CloudWireJson.sha256("rv-cloud-pages/1\n" + pages.sortedBy { it.id }.joinToString("\n") { "${it.id}:${CloudWireJson.sha256(it.body)}" })
     fun upload(mode: String, sequence: String, before: CloudHead, target: String, changes: List<Change>): Upload {
-        require(mode in setOf("initialize", "sync") && CloudCounter.parse(sequence) > 0 && hash.matches(target)) { "INVALID_UPLOAD" }
+        require(mode in setOf("initialize", "sync", "replace") && CloudCounter.parse(sequence) > 0 && hash.matches(target)) { "INVALID_UPLOAD" }
         require(changes.isNotEmpty() && changes.size <= 4096 && changes.map { it.id }.sorted().distinct() == changes.map { it.id }) { "INVALID_CHANGES" }
         val chunks = ArrayList<List<Map<String, Any?>>>()
         var current = ArrayList<Map<String, Any?>>()

@@ -159,6 +159,7 @@ internal class CloudScreenModel(application: Application) : AndroidViewModel(app
         "Connection forgotten. Your local library is unchanged."
     }
     fun restoreLocalRecovery() = run("Validating and restoring the local safety backup…") {
+        check(!CloudReplacementController.hasPending(controller.connection.directory)) { "CLOUD_REPLACEMENT_PENDING" }
         val file = java.io.File(controller.connection.directory, "recovery/before-last-cloud-restore.zip")
         check(file.isFile) { "LOCAL_RECOVERY_NOT_AVAILABLE" }
         val helper = org.schabi.newpipe.streams.io.StoredFileHelper(app, null, android.net.Uri.fromFile(file), "cloud-local-recovery")

@@ -59,7 +59,7 @@ internal class CloudSyncController(
         val api = apiFactory(origin, token) { check(connection.read() == null) { "CLOUD_CONNECTION_CHANGED" } }
         val remote = CloudRemoteCatalog.status(api)
         check(remote.device == token.substringBefore('.')) { "CLOUD_DEVICE_MISMATCH" }
-        check(remote.upload == null) { "CLOUD_TOKEN_HAS_UNRESOLVED_UPLOAD" }
+        check(remote.upload == null && remote.replacement == null) { "CLOUD_TOKEN_HAS_UNRESOLVED_UPLOAD" }
         val r = repository()
         r.definitions()
         val snapshot = TagRuntime.lock.withLock {
@@ -77,7 +77,7 @@ internal class CloudSyncController(
     fun forget() = operation {
         val s = connection.read() ?: return@operation
         TagRuntime.lock.withLock {
-            check(!transfers.hasPending() && !CloudRecoveryController.hasPending(connection.directory)) { "RESOLVE_PENDING_UPLOAD_BEFORE_FORGET" }
+            check(!transfers.hasPending() && !CloudRecoveryController.hasPending(connection.directory) && !CloudReplacementController.hasPending(connection.directory)) { "RESOLVE_PENDING_UPLOAD_BEFORE_FORGET" }
             val r = repository()
             CloudNativeApply.recoverLocked(r)
             r.library.runInTransaction {
@@ -116,12 +116,14 @@ internal class CloudSyncController(
         val s = checkNotNull(connection.read()) { "CLOUD_NOT_CONNECTED" }
         verifiedStatus(s, api(s))
     }
-    fun prepare(enableAfter: Boolean): Preview = operation {
+    fun prepare(enableAfter: Boolean, forReplacement: Boolean = false): Preview = operation {
+        check(forReplacement || !CloudReplacementController.hasPending(connection.directory)) { "CLOUD_REPLACEMENT_PENDING" }
         var s = checkNotNull(connection.read()) { "CLOUD_NOT_CONNECTED" }
         val api = api(s)
         // Explicit reconciliation discards a not-yet-committed old request, never silently resumes a detached branch.
         settle(s, api, resume = false)
         val remote = verifiedStatus(s, api)
+        check(forReplacement || remote.replacement == null) { "CLOUD_REPLACEMENT_PENDING" }
         check(remote.upload == null) { "CLOUD_TOKEN_HAS_UNRESOLVED_UPLOAD" }
         val r = repository()
         r.definitions()
@@ -150,11 +152,13 @@ internal class CloudSyncController(
         )
     }
     fun confirm(preview: Preview): CloudConnectionStore.State = operation {
+        check(!CloudReplacementController.hasPending(connection.directory)) { "CLOUD_REPLACEMENT_PENDING" }
         check(SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
         val s = connection.requireCurrent(preview.generation)
         val api = api(s)
         check(!transfers.hasPending()) { "CLOUD_UPLOAD_ALREADY_PENDING" }
         val remote = verifiedStatus(s, api)
+        check(remote.replacement == null) { "CLOUD_REPLACEMENT_PENDING" }
         check(remote.head == preview.remote.head && remote.initialized == preview.remote.initialized && remote.manifest == preview.remote.manifest) { "CLOUD_PREVIEW_CHANGED" }
         val current = native(s)
         sameLocal(preview.before, current)
@@ -186,12 +190,14 @@ internal class CloudSyncController(
         }
     }
     fun syncNow(): String = operation {
+        check(!CloudReplacementController.hasPending(connection.directory)) { "CLOUD_REPLACEMENT_PENDING" }
         val s = checkNotNull(connection.read()) { "CLOUD_NOT_CONNECTED" }
         check(s.enabled) { "ENABLE_SYNC_OR_USE_ONE_TIME_RESTORE" }
         val api = api(s, automatic = true)
         settle(s, api, resume = true)
         val remote = verifiedStatus(s, api)
         val before = native(s)
+        check(remote.replacement == null) { "CLOUD_REPLACEMENT_PENDING" }
         check(remote.upload == null) { "CLOUD_TOKEN_HAS_UNRESOLVED_UPLOAD" }
         val baseline = TagRuntime.lock.withLock { CloudApplyStore.baseline(repository().store.readableDatabase) }
         check(baseline == null || baseline.incarnation == s.incarnation) { "CLOUD_BASELINE_IDENTITY_CHANGED" }
@@ -332,6 +338,43 @@ internal class CloudSyncController(
             }
         }
     }
+    fun requireReplacementSnapshot(expected: CloudNativeSnapshot) = operation {
+        val s = checkNotNull(connection.read()) { "CLOUD_NOT_CONNECTED" }
+        sameLocal(expected, native(s))
+    }
+    fun replacementIncarnation(): String? = operation {
+        TagRuntime.lock.withLock {
+            val r = repository()
+            CloudNativeApply.recoverLocked(r)
+            CloudIdentityStore.context(r.store.readableDatabase)?.incarnation
+        }
+    }
+    fun recordReplacementReceipt(header: Map<String, Any?>, receipt: JsonObject, incarnation: String?) = operation {
+        val s = checkNotNull(connection.read()) { "CLOUD_NOT_CONNECTED" }
+        check(receipt.getString("sequence") == header["sequence"] && receipt.getString("digest") == header["digest"]) { "CLOUD_RECEIPT_MISMATCH" }
+        val head = CloudWireJson.head(receipt["head"])
+        check(head.serviceGeneration == s.scope.service && head.library == s.scope.library) { "CLOUD_RECEIPT_SCOPE_MISMATCH" }
+        val outcome = receipt.getString("outcome")
+        check(outcome in setOf("COMMITTED", "RETIRED")) { "INVALID_RECEIPT_OUTCOME" }
+        if (outcome == "COMMITTED") {
+            val before = CloudWireJson.head(header["before"])
+            check(
+                head.fingerprint == header["targetFingerprint"] && head.epoch != before.epoch && head.revision == "1" &&
+                    CloudCounter.parse(head.headCounter) == Math.addExact(CloudCounter.parse(before.headCounter), 1)
+            ) { "CLOUD_RECEIPT_CONTENT_MISMATCH" }
+            if (incarnation != null) acknowledge(s, head, receipt.getString("digest"), incarnation)
+        }
+        connection.update(s.generation) {
+            val old = it.highest
+            if (old != null && old.headCounter == head.headCounter) check(old == head) { "CLOUD_REMOTE_ROLLBACK_SUSPECTED" }
+            it.copy(
+                enabled = false,
+                highest = if (old == null || CloudCounter.parse(old.headCounter) < CloudCounter.parse(head.headCounter)) head else old,
+                message = if (outcome == "COMMITTED") "Cloud replaced with the approved catalog. Automatic sync remains off." else "Replacement stopped. Local changes were kept."
+            )
+        }
+        transfers.discardCache()
+    }
     private fun sameLocal(expected: CloudNativeSnapshot, actual: CloudNativeSnapshot) {
         check(
             expected.runtimeGeneration == actual.runtimeGeneration && expected.identities == actual.identities &&
@@ -377,6 +420,15 @@ internal class CloudSyncController(
 
 internal object CloudUserMessages {
     fun error(error: Throwable): String = when (error.message) {
+        "CLOUD_REPLACEMENT_PENDING", "REPLACEMENT_PENDING_OR_NOT_AUTHORIZED" -> "Resolve the current cloud replacement before starting another catalog action."
+        "REPLACEMENT_NOT_AUTHORIZED", "REPLACEMENT_API_DISABLED" -> "Cloud replacement is not enabled for this connection."
+        "RESOLVE_PENDING_UPLOAD_BEFORE_REPLACEMENT" -> "Resolve the existing catalog or backup upload before replacing the cloud."
+        "REPLACEMENT_NO_CHANGES" -> "This device already has the same cloud catalog. No replacement is needed."
+        "REPLACEMENT_NOT_ADMITTED_REVIEW_AGAIN", "REPLACEMENT_LOCAL_IDENTITY_CHANGED" -> "Stop and resolve this attempt, then review a new replacement. The saved approval cannot be resumed against this local state."
+        "REPLACEMENT_FRESH_PREVIEW_REQUIRED", "REPLACEMENT_RETIRED_RESOLVE_ATTEMPT", "REPLACEMENT_APPROVAL_EXPIRED" -> "Resolve this attempt, then review the current cloud again. A changed or expired approval cannot publish."
+        "REPLACEMENT_RETRY_REQUIRES_SURVIVOR" -> "Keep the last verified recovery copy. Create a separate backup in a free slot before retrying this replacement."
+        "REPLACEMENT_SOURCE_FILE_UNAVAILABLE", "REPLACEMENT_LOCAL_RECORD_CORRUPT" -> "The saved replacement data is unavailable or damaged. Stop and resolve the attempt before starting again."
+        "REPLACEMENT_RECOVERY_NOT_READY" -> "The outgoing cloud backup is not verified yet. Resume that attempt or stop it before retrying."
         "CLOUD_CONFLICT_REVIEW_REQUIRED" -> "Both local and cloud libraries changed. Review the cloud copy before choosing which version to keep."
         "CLOUD_PREVIEW_REQUIRED", "ENABLE_SYNC_OR_USE_ONE_TIME_RESTORE" -> "Review a cloud restore or enable sync to choose the starting library."
         "CLOUD_NETWORK_UNAVAILABLE" -> "Cloud is unreachable. Local changes are safe; retry when connected."

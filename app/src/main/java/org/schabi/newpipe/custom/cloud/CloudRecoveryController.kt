@@ -240,6 +240,7 @@ internal class CloudRecoveryController(
         check(!payload.exists() || payload.delete()) { "RECOVERY_LOCAL_CLEANUP_FAILED" }
     }
     fun prepareRestore(archiveId: String): RestorePreview = operation {
+        check(!CloudReplacementController.hasPending(connection.directory)) { "CLOUD_REPLACEMENT_PENDING" }
         check(!hasPending() && !sync.hasPending()) { "RECOVERY_UPLOAD_PENDING" }
         // The change in generation immediately fences any already-admitted automatic request.
         val s = checkNotNull(sync.disable())
@@ -290,6 +291,7 @@ internal class CloudRecoveryController(
         }
     }
     fun confirmRestore(preview: RestorePreview, includeSettings: Boolean = false) = operation {
+        check(!CloudReplacementController.hasPending(connection.directory)) { "CLOUD_REPLACEMENT_PENDING" }
         val s = connection.requireCurrent(preview.generation)
         check(!s.enabled && SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
         check(!hasPending() && !sync.hasPending()) { "RECOVERY_UPLOAD_PENDING" }

@@ -71,7 +71,11 @@ internal class CloudFakePeer(val scope: CloudIdentityStore.Scope) {
         if (old != null && old["digest"] != digest) throw CloudRemoteException("REPLAY_MISMATCH", 409)
         return old
     }
-    private fun handle(id: String, d: Device, path: String, body: Map<String, Any?>): Map<String, Any?> {
+    fun replacement(token: String, body: Map<String, Any?>, epoch: String): JsonObject = synchronized(this) {
+        val id = token.substringBefore('.')
+        CloudWireJson.obj(CloudWireJson.encode(handle(id, devices.getValue(id), "/v1/uploads/publish", body, epoch)))
+    }
+    private fun handle(id: String, d: Device, path: String, body: Map<String, Any?>, replacementEpoch: String? = null): Map<String, Any?> {
         if (path in setOf("/v1/connect", "/v1/head")) {
             return linkedMapOf(
                 "protocol" to 1,
@@ -146,7 +150,8 @@ internal class CloudFakePeer(val scope: CloudIdentityStore.Scope) {
             check(CloudCatalogCodec.fingerprint(decoded.catalog) == stage.header["targetFingerprint"])
             pages = target
             initialized = true
-            head = head.copy(revision = (head.revision.toLong() + 1).toString(), headCounter = (head.headCounter.toLong() + 1).toString(), fingerprint = stage.header["targetFingerprint"] as String)
+            if (stage.header["mode"] == "replace") check(replacementEpoch != null)
+            head = head.copy(epoch = replacementEpoch ?: head.epoch, revision = if (replacementEpoch != null) "1" else (head.revision.toLong() + 1).toString(), headCounter = (head.headCounter.toLong() + 1).toString(), fingerprint = stage.header["targetFingerprint"] as String)
             val r = mapOf("sequence" to sequence, "digest" to digest, "outcome" to "COMMITTED", "head" to CloudApplyPlanJson.head(head))
             d.resolved++
             d.receipts[sequence] = r

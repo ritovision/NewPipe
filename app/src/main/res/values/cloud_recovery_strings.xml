@@ -2,4 +2,6 @@
 <resources>
     <string name="cloud_remote_recovery">Cloud recovery backups</string>
     <string name="cloud_remote_recovery_summary">Create and restore up to three private device or cloud catalog backups</string>
+    <string name="cloud_replace_title">Replace cloud catalog</string>
+    <string name="cloud_replace_summary">Review this device → cloud changes and the exact outgoing recovery copy before confirming.</string>
 </resources>

@@ -156,7 +156,8 @@ internal data class CloudRemoteStatus(
     val maxPages: Int,
     val sequence: String,
     val upload: JsonObject?,
-    val capabilities: Set<String>
+    val capabilities: Set<String>,
+    val replacement: JsonObject? = null
 )
 internal data class CloudDownload(val status: CloudRemoteStatus, val pages: List<CloudPages.Page>, val decoded: CloudPages.Decoded)
 internal object CloudRemoteCatalog {
@@ -177,7 +178,10 @@ internal object CloudRemoteCatalog {
             CloudWireJson.integer(o["pages"], 0, CloudPages.MAX_PAGES.toLong()).toInt(), CloudWireJson.integer(o["bytes"], 0, CloudPages.MAX_BYTES.toLong()).toInt(),
             o.getString("manifest"), CloudWireJson.integer(limits["maxCatalogBytes"], 32768, CloudPages.MAX_BYTES.toLong()).toInt(),
             CloudWireJson.integer(limits["maxPages"], 1, CloudPages.MAX_PAGES.toLong()).toInt(), sequence, deviceState["upload"] as? JsonObject,
-            o.getArray("capabilities").map { it as String }.toSet()
+            o.getArray("capabilities").map { it as String }.toSet(),
+            (deviceState["replacement"] as? JsonObject)?.also {
+                check(CloudRecoveryFormat.UUID.matches(it.getString("attemptId")) && it.getString("state") in setOf("ACTIVE", "STALE")) { "INVALID_REPLACEMENT_STATUS" }
+            }
         )
     }
     fun download(api: CloudApi, expected: CloudRemoteStatus): CloudDownload {
