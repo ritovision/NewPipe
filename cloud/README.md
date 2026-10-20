@@ -2,7 +2,7 @@
 
 **Implemented:** typed Worker/D1 catalog publication, packed-page transfer, native Room/tag catalog capture, journaled native apply and recovery, stable identity mapping, exact diffs and sparse ordering. Android includes encrypted credentials, connection/settings controls, exact-candidate previews, verified local safety backups, durable upload recovery and foreground/WorkManager scheduling.
 
-**Not release-ready:** forced cloud replacement and three-slot R2 backups remain unimplemented. Integration, failure, UI and scale acceptance must be tied to the specific tested candidate. The checked-in Worker configuration is API-disabled and restricted to small synthetic deployment tests. Existing Music/AI infrastructure is not part of this service.
+**Not release-ready:** forced cloud replacement and operator disaster-recovery tooling remain unfinished. Explicit three-slot R2 backup, rotation and Android restore now exist; see [executed recovery evidence](../doc/validation/cloud-recovery-20261020/README.md). Integration, failure, UI and scale acceptance must be tied to the specific tested candidate. The checked-in Worker configuration is API-disabled and restricted to small synthetic deployment tests. Existing Music/AI infrastructure is not part of this service.
 
 ## Backend
 
@@ -104,10 +104,18 @@ state and disable the Worker. The coordinator must do the same server cleanup
 after success. Never run the initial scenario against retained acceptance data
 by clearing it merely to make the test pass.
 
-No R2 binding is used for everyday synchronization. The previously provisioned
-private recovery bucket remains unused until backup implementation. Do not add
+Everyday synchronization performs no R2 operations. Explicit recovery uses the
+private `RECOVERY` binding with a separate default-off API gate. Do not add
 archive-per-sync behavior.
 
 ## Remaining release gates
 
-Production housekeeping for revoked/abandoned stages and receipt retention; durable daily-account resource budgets; actual deployed large-catalog CPU/latency admission; broader scheduling/offline/write-origin acceptance; UI/theme/rotation acceptance; approved forced-replace flow with verified three-slot R2 rotation; actual multi-device end-to-end acceptance; independent whole-feature review and release authorization. Historical validation checkpoints under `doc/validation/` apply only to their exact commits and stated device/page sizes.
+Production housekeeping for revoked/abandoned stages and receipt retention; durable daily-account resource budgets; actual deployed large-catalog CPU/latency admission; broader scheduling/offline/write-origin acceptance; broader UI/theme/rotation acceptance; approved forced-replace flow bound to a verified outgoing R2 archive; actual multi-device end-to-end acceptance; independent whole-feature review and release authorization. Historical validation checkpoints under `doc/validation/` apply only to their exact commits and stated device/page sizes.
+
+## Explicit recovery acceptance
+
+`ENABLE_RECOVERY_API` defaults false alongside `ENABLE_CATALOG_API`. Migration `0002_recovery.sql` supplies the three-slot index; provisioning/reconciliation of its control row is an operator action after physical object and multipart inventory. Never automatically rebuild that row from an ordinary HTTP request. `MAX_RECOVERY_BYTES` is deliberately only 1 MiB for the dedicated small live QA; the protocol hard limit does not admit larger production loads.
+
+The native controller exports/validates device ZIPs or the exact downloaded D1 catalog, records the approved payload before reservation, and resolves the same operation after interruption. Restores stay local and leave sync off. See [protocol](protocol/recovery-v1.md) for verification and cleanup rules.
+
+The explicit `test-support/run-live-recovery.py` driver uses two known isolated QA packages and a private synthetic credential file. It requires `--allow-phone` for a physical device. Provision/enable and subsequent revoke/disable/known-data cleanup remain explicit operator steps; the driver never clears app data or deploys by itself.

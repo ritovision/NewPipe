@@ -155,13 +155,19 @@ object TagBackupCoordinator {
     fun install(context: Context, prepared: Prepared) = installWithShutdown(context, prepared) { AiControlRuntime.get(context.applicationContext).beforeRestore() }
 
     /** The callback seam permits native tests to verify ordering without touching actual pairing. */
-    internal fun installWithShutdown(context: Context, prepared: Prepared, shutdown: () -> Unit) {
+    internal fun installWithShutdown(context: Context, prepared: Prepared, shutdown: () -> Unit) = installReviewedWithShutdown(context, prepared, {}, shutdown)
+
+    /** Cloud previews recheck exact local contents under the final native writer barrier. */
+    internal fun installReviewed(context: Context, prepared: Prepared, admit: () -> Unit) = installReviewedWithShutdown(context, prepared, admit) { AiControlRuntime.get(context.applicationContext).beforeRestore() }
+
+    internal fun installReviewedWithShutdown(context: Context, prepared: Prepared, admit: () -> Unit, shutdown: () -> Unit) {
         requireIo()
         check(inProgress.compareAndSet(false, true)) { "Another catalog import/export is running" }
         try {
             TagRuntime.assertAvailable()
             check(prepared.generation == TagRuntime.generation) { "The Library changed since import preparation" }
             preflightInstall(context, prepared)
+            TagRuntime.lock.withLock { admit() }
             prepared.consume()
             // No TagRuntime lock while waiting for the authorization writer/command drain.
             shutdown()
@@ -192,6 +198,7 @@ object TagBackupCoordinator {
                 }
                 val directory = context.getDatabasePath(DB).toPath().parent
                 Files.createDirectories(directory)
+                admit()
                 org.schabi.newpipe.custom.cloud.CloudScheduler.beforeImport(context)
                 TagRuntime.freezeForRestore()
                 CatalogOpenHelperFactory.drain(repository.library.openHelper)

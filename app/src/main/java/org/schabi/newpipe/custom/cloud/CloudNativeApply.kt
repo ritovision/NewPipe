@@ -28,6 +28,15 @@ internal class CloudNativeApply(
 ) {
     enum class Phase { JOURNAL_DURABLE, BEFORE_ROOM_COMMIT, ROOM_COMMITTED, BEFORE_TAG_COMMIT, TAG_COMMITTED }
 
+    /** Explicit local import of a verified archive. The coordinator must keep automatic sync off. */
+    fun restoreHistorical(
+        before: CloudNativeSnapshot,
+        head: CloudHead,
+        target: CloudCatalog,
+        hints: Collection<CloudMediaHint>,
+        admit: () -> Unit
+    ): CloudNativeSnapshot = applyExact(before, head, target, hints, reconcileOrphans = true, historicalRestore = true, admit = admit)
+
     fun apply(
         before: CloudNativeSnapshot,
         head: CloudHead,
@@ -35,6 +44,16 @@ internal class CloudNativeApply(
         hints: Collection<CloudMediaHint> = emptyList(),
         reconcileOrphans: Boolean = false,
         admit: () -> Unit = {}
+    ): CloudNativeSnapshot = applyExact(before, head, target, hints, reconcileOrphans, historicalRestore = false, admit = admit)
+
+    private fun applyExact(
+        before: CloudNativeSnapshot,
+        head: CloudHead,
+        target: CloudCatalog,
+        hints: Collection<CloudMediaHint> = emptyList(),
+        reconcileOrphans: Boolean,
+        historicalRestore: Boolean,
+        admit: () -> Unit
     ): CloudNativeSnapshot {
         check(Looper.myLooper() != Looper.getMainLooper()) { "CLOUD_IO_ON_MAIN_THREAD" }
         return TagRuntime.lock.withLock {
@@ -61,7 +80,8 @@ internal class CloudNativeApply(
                         val previous = baseline.head
                         check(previous.serviceGeneration == head.serviceGeneration && previous.library == head.library) { "CLOUD_BASELINE_SCOPE_CHANGED" }
                         check(
-                            CloudCounter.parse(head.headCounter) >= CloudCounter.parse(previous.headCounter) &&
+                            historicalRestore ||
+                                CloudCounter.parse(head.headCounter) >= CloudCounter.parse(previous.headCounter) &&
                                 (head.headCounter != previous.headCounter || head == previous) &&
                                 (head.epoch != previous.epoch || CloudCounter.parse(head.revision) >= CloudCounter.parse(previous.revision))
                         ) { "CLOUD_REMOTE_ROLLBACK_SUSPECTED" }

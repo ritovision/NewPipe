@@ -56,6 +56,12 @@ class CloudSyncSettingsFragment : BasePreferenceFragment() {
                 .setPositiveButton(R.string.cloud_forget) { _, _ -> model.forget() }.show()
             true
         }
+        preference<Preference>("cloud_remote_recovery").setOnPreferenceClickListener {
+            if (parentFragmentManager.findFragmentByTag(org.schabi.newpipe.custom.cloud.CloudRecoveryDialog.TAG) == null) {
+                org.schabi.newpipe.custom.cloud.CloudRecoveryDialog().show(parentFragmentManager, org.schabi.newpipe.custom.cloud.CloudRecoveryDialog.TAG)
+            }
+            true
+        }
         preference<Preference>("cloud_local_restore").setOnPreferenceClickListener {
             AlertDialog.Builder(requireContext()).setTitle(R.string.cloud_local_recovery)
                 .setMessage(R.string.cloud_local_recovery_warning).setNegativeButton(R.string.cancel, null)
@@ -83,7 +89,7 @@ class CloudSyncSettingsFragment : BasePreferenceFragment() {
             isChecked = state.enabled
             isEnabled = state.connected && (state.enabled || !state.busy)
         }
-        for (key in listOf("cloud_check", "cloud_restore", "cloud_forget")) preference<Preference>(key).isEnabled = state.connected && !state.busy
+        for (key in listOf("cloud_check", "cloud_restore", "cloud_forget", "cloud_remote_recovery")) preference<Preference>(key).isEnabled = state.connected && !state.busy
         preference<Preference>("cloud_now").isEnabled = state.connected && state.enabled && !state.busy
         preference<Preference>("cloud_last").summary = state.lastSync
         preference<Preference>("cloud_pending").apply {

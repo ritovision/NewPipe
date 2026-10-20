@@ -5,6 +5,7 @@ package org.schabi.newpipe.custom.cloud
 
 import android.app.Dialog
 import android.content.DialogInterface
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Editable
@@ -18,6 +19,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.schabi.newpipe.R
@@ -64,13 +66,8 @@ class CloudChangePreviewDialog : DialogFragment() {
                 "more" -> model.more(row.group)
             }
         }
-        val list = RecyclerView(context).apply {
-            layoutManager = LinearLayoutManager(context)
-            adapter = this@CloudChangePreviewDialog.adapter
-            contentDescription = "Exact cloud library changes"
-        }
-        content.addView(list, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        val dialog = AlertDialog.Builder(context).setTitle(R.string.cloud_preview_title).setView(content)
+        val list = scrollingContent(content, adapter, "Exact cloud library changes")
+        val dialog = AlertDialog.Builder(context).setTitle(R.string.cloud_preview_title).setView(list)
             .setNegativeButton(R.string.cancel) { _, _ -> model.cancelPreview() }
             .setPositiveButton(model.state.value?.confirmLabel ?: getString(R.string.ok), null).create()
         model.state.observe(this) { state ->
@@ -91,8 +88,8 @@ class CloudChangePreviewDialog : DialogFragment() {
     override fun onStart() {
         super.onStart()
         val dialog = dialog as? AlertDialog ?: return
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, (resources.displayMetrics.heightPixels * 0.94f).toInt())
-        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+        fitWindow(dialog, requireActivity().window.decorView)
+        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).apply {
             isEnabled = previewId != null && model.state.value?.busy != true
             setOnClickListener {
@@ -107,7 +104,7 @@ class CloudChangePreviewDialog : DialogFragment() {
         if (!submitted) model.cancelPreview()
         super.onCancel(dialog)
     }
-    private class Rows(private val clicked: (CloudScreenModel.Row) -> Unit) : RecyclerView.Adapter<Rows.Holder>() {
+    internal class Rows(private val clicked: (CloudScreenModel.Row) -> Unit) : RecyclerView.Adapter<Rows.Holder>() {
         private var rows: List<CloudScreenModel.Row> = emptyList()
         fun update(value: List<CloudScreenModel.Row>) {
             rows = value
@@ -134,7 +131,7 @@ class CloudChangePreviewDialog : DialogFragment() {
         }
         override fun onBindViewHolder(holder: Holder, position: Int) {
             val row = rows[position]
-            val heading = row.action in setOf("expand", "collapse", "more")
+            val heading = row.action in setOf("expand", "collapse", "more", "restore")
             val prefix = when (row.action) {
                 "expand" -> "▸ "
                 "collapse" -> "▾ "
@@ -154,5 +151,27 @@ class CloudChangePreviewDialog : DialogFragment() {
     }
     companion object {
         const val TAG = "cloud-change-preview"
+
+        internal fun fitWindow(dialog: Dialog, host: View) {
+            val visible = Rect()
+            host.getWindowVisibleDisplayFrame(visible)
+            val available = visible.height().takeIf { it > 0 } ?: host.resources.displayMetrics.heightPixels
+            dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, (available * 0.94f).toInt())
+        }
+
+        /** Keep the confirmation and exact changes reachable with large fonts, a keyboard or landscape. */
+        internal fun scrollingContent(header: View, rows: Rows, description: String): RecyclerView {
+            header.layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            val heading = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+                override fun getItemCount(): Int = 1
+                override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder = object : RecyclerView.ViewHolder(header) {}
+                override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) = Unit
+            }
+            return RecyclerView(header.context).apply {
+                layoutManager = LinearLayoutManager(context)
+                adapter = ConcatAdapter(heading, rows)
+                contentDescription = description
+            }
+        }
     }
 }

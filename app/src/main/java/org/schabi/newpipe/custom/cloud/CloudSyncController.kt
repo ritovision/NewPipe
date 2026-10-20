@@ -43,7 +43,7 @@ internal class CloudSyncController(
         val delta: CloudDelta get() = if (direction == Direction.TO_DEVICE) CloudCatalogCodec.diff(before.catalog, target) else CloudCatalogCodec.diff(CloudCatalog(), target)
     }
     private val transfers = CloudTransferStore(connection.directory)
-    private val lock = locks.getOrPut(connection.directory.canonicalPath) { ReentrantLock() }
+    private val lock = operationLock(connection.directory)
     private inline fun <T> operation(body: () -> T): T {
         check(lock.tryLock()) { "CLOUD_OPERATION_BUSY" }
         try {
@@ -77,7 +77,7 @@ internal class CloudSyncController(
     fun forget() = operation {
         val s = connection.read() ?: return@operation
         TagRuntime.lock.withLock {
-            check(!transfers.hasPending()) { "RESOLVE_PENDING_UPLOAD_BEFORE_FORGET" }
+            check(!transfers.hasPending() && !CloudRecoveryController.hasPending(connection.directory)) { "RESOLVE_PENDING_UPLOAD_BEFORE_FORGET" }
             val r = repository()
             CloudNativeApply.recoverLocked(r)
             r.library.runInTransaction {
@@ -359,6 +359,10 @@ internal class CloudSyncController(
             staging.delete()
         }
     }
+    fun saveLocalRecovery(before: CloudNativeSnapshot) = operation {
+        sameLocal(before, native(checkNotNull(connection.read())))
+        localRecovery(before)
+    }
     fun hasPending(): Boolean = transfers.hasPending()
     fun recordFailure(error: Throwable) {
         val state = connection.read() ?: return
@@ -367,6 +371,7 @@ internal class CloudSyncController(
     }
     companion object {
         private val locks = ConcurrentHashMap<String, ReentrantLock>()
+        fun operationLock(directory: File): ReentrantLock = locks.getOrPut(directory.canonicalPath) { ReentrantLock() }
     }
 }
 
@@ -386,6 +391,15 @@ internal object CloudUserMessages {
         "REQUEST_LIMIT" -> "Cloud request limit reached. Retry later; your local library is unchanged."
         "CLOUD_LIBRARY_EMPTY_NOT_INITIALIZED" -> "The cloud has no saved catalog. Enable sync to preview uploading this device's library first."
         "CLOUD_OPERATION_BUSY" -> "Another cloud operation is running."
+        "RECOVERY_API_DISABLED" -> "Cloud recovery is not enabled on this Worker."
+        "RECOVERY_UPLOAD_PENDING" -> "Resume or stop the unfinished recovery upload before starting another."
+        "RECOVERY_CREATION_OUTCOME_UNKNOWN", "RECOVERY_OPERATOR_CLEANUP_REQUIRED", "RECOVERY_INDEX_RECONCILIATION_REQUIRED" -> "The backup's storage state needs operator reconciliation. Its reserved space remains occupied."
+        "RECOVERY_RELEASE_UNCONFIRMED" -> "The restore download finished, but its temporary protection could not be released. Check the connection and retry; protection expires after ten minutes."
+        "RECOVERY_ARCHIVE_TOO_LARGE" -> "This backup exceeds the Worker's configured archive size limit. Nothing was uploaded."
+        "RECOVERY_SLOT_PROTECTED" -> "A backup is protected by an active restore or cleanup. Wait for it to finish."
+        "RECOVERY_SOURCE_FILE_UNAVAILABLE" -> "The original upload file is unavailable on this installation. Stop the unfinished upload to release its space safely."
+        "RECOVERY_LOCAL_FILE_CHANGED", "RECOVERY_DOWNLOAD_CHECKSUM_MISMATCH", "RECOVERY_NATIVE_METADATA_MISMATCH" -> "The backup did not match its integrity record. Restore was blocked."
+        "RECOVERY_APPROVAL_CHANGED", "CLOUD_ARCHIVE_SOURCE_CHANGED" -> "The cloud or retained backups changed. Cancel this attempt and review a fresh backup preview."
         "CLOUD_TOKEN_HAS_UNRESOLVED_UPLOAD" -> "This device token has an unfinished upload. Resolve it on the original installation or use a separate device token."
         "RESOLVE_PENDING_UPLOAD_BEFORE_FORGET" -> "Resolve the pending upload before forgetting this connection."
         "FORGET_EXISTING_CONNECTION_FIRST" -> "Forget the current connection before using different credentials."

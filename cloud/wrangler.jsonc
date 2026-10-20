@@ -1,4 +1,4 @@
-// Dedicated NewPipe catalog service. No Music/AI relay or R2 binding.
+// Dedicated NewPipe catalog and recovery service. No Music/AI relay bindings.
 // API stays disabled by default; explicit small QA activation is separate from release.
 {
   "name": "newpipe-cloud-sync-v1",
@@ -12,6 +12,8 @@
     "LIBRARY_ID": "newpipe-library-v1",
     "SERVICE_GENERATION": "d124175c-82e8-4fb7-9534-b62b6c9f0eba",
     "ENABLE_CATALOG_API": "false",
+    "ENABLE_RECOVERY_API": "false",
+    "MAX_RECOVERY_BYTES": "1048576",
     "MAX_CATALOG_BYTES": "65536",
     "MAX_CATALOG_PAGES": "8"
   },
@@ -21,6 +23,12 @@
       "database_name": "newpipe-cloud-sync-v1",
       "database_id": "bde936ac-caa7-42bb-a931-208118a8cd6a",
       "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RECOVERY",
+      "bucket_name": "newpipe-cloud-recovery-v1"
     }
   ],
   "ratelimits": [

@@ -3,6 +3,8 @@ import { AdmissionError } from "./admission.ts";
 import { counter } from "./protocol.ts";
 import { CatalogError, CatalogService, authenticateToken, DEFAULT_SERVICE_LIMITS, TRANSPORT_LIMITS, serviceLimits } from "./service.ts";
 import type { Head } from "./protocol.ts";
+import { RecoveryService, readRecoveryReference } from "./recovery.ts";
+import { RecoveryError, RECOVERY_LIMITS } from "./recovery-format.ts";
 
 export interface CloudEnvironment {
   DB: D1Database;
@@ -12,6 +14,9 @@ export interface CloudEnvironment {
   ENABLE_CATALOG_API?: string;
   MAX_CATALOG_BYTES?: string;
   MAX_CATALOG_PAGES?: string;
+  ENABLE_RECOVERY_API?: string;
+  MAX_RECOVERY_BYTES?: string;
+  RECOVERY?: R2Bucket;
   REQUEST_LIMITER: { limit(options: { key: string }): Promise<{ success: boolean }> };
 }
 const jsonHeaders = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store, private",
@@ -54,7 +59,10 @@ function environmentNumber(value: string | undefined, fallback: number): number 
   return Number(value);
 }
 const paths = new Set(["/v1/connect", "/v1/head", "/v1/pages", "/v1/uploads/start", "/v1/uploads/chunk",
-  "/v1/uploads/seal", "/v1/uploads/publish", "/v1/uploads/status", "/v1/uploads/retire"]);
+  "/v1/uploads/seal", "/v1/uploads/publish", "/v1/uploads/status", "/v1/uploads/retire",
+  "/v1/recovery/status", "/v1/recovery/preview", "/v1/recovery/reserve", "/v1/recovery/advance",
+  "/v1/recovery/part", "/v1/recovery/complete", "/v1/recovery/abort", "/v1/recovery/pin",
+  "/v1/recovery/release", "/v1/recovery/download", "/v1/recovery/abandon"]);
 
 /** This is the deployable typed entry point. Test SQL/fault injection exists only in test/ harnesses. */
 export async function handleRequest(request: Request, env: CloudEnvironment): Promise<Response> {
@@ -72,6 +80,34 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
     const context = await authenticateToken(env.DB, authorization.slice(7), env.LIBRARY_ID, env.SERVICE_GENERATION);
     const limits = serviceLimits(environmentNumber(env.MAX_CATALOG_BYTES, DEFAULT_SERVICE_LIMITS.maxCatalogBytes),
       environmentNumber(env.MAX_CATALOG_PAGES, DEFAULT_SERVICE_LIMITS.maxPages));
+    const recoveryEnabled = env.ENABLE_RECOVERY_API === "true" && env.RECOVERY !== undefined;
+    if (url.pathname.startsWith("/v1/recovery/")) {
+      if (!recoveryEnabled) fail("RECOVERY_API_DISABLED", 503);
+      if (!context.writable && !["status", "pin", "release", "download"].some(name => url.pathname === "/v1/recovery/" + name)) fail("AUTH_REJECTED", 403);
+      const maximum = environmentNumber(env.MAX_RECOVERY_BYTES, RECOVERY_LIMITS.bytes);
+      if (maximum < 22 || maximum > RECOVERY_LIMITS.bytes) fail("SERVICE_CONFIGURATION_INVALID", 503);
+      const recovery = new RecoveryService(env.DB, env.RECOVERY!, context, maximum);
+      if (url.pathname === "/v1/recovery/part") {
+        if (request.headers.get("content-type") !== "application/octet-stream") fail("BINARY_PART_REQUIRED", 415);
+        const ref = readRecoveryReference({ sequence: request.headers.get("x-recovery-sequence"), archiveId: request.headers.get("x-recovery-archive") });
+        const number = request.headers.get("x-recovery-part");
+        if (number === null || !/^[1-9][0-9]?$/.test(number)) fail("INVALID_RECOVERY_PART", 400);
+        return response(await recovery.uploadPart(ref, Number(number), request.body, request.headers.get("content-length")));
+      }
+      const data = await body(request);
+      switch (url.pathname) {
+        case "/v1/recovery/status": exact(data, []); return response(await recovery.status());
+        case "/v1/recovery/preview": return response(await recovery.preview(data));
+        case "/v1/recovery/reserve": return response(await recovery.reserve(data));
+        case "/v1/recovery/abandon": return response(await recovery.abandon(data));
+        case "/v1/recovery/advance": return response(await recovery.advance(readRecoveryReference(data)));
+        case "/v1/recovery/complete": return response(await recovery.complete(readRecoveryReference(data)));
+        case "/v1/recovery/abort": return response(await recovery.abort(readRecoveryReference(data)));
+        case "/v1/recovery/pin": return response(await recovery.pin(data));
+        case "/v1/recovery/release": return response(await recovery.release(data));
+        case "/v1/recovery/download": return recovery.download(data);
+      }
+    }
     const service = new CatalogService(env.DB, context, limits), data = await body(request);
     switch (url.pathname) {
       case "/v1/connect":
@@ -79,8 +115,9 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
         exact(data, []);
         return response({ protocol: 1, device: context.device, scope: { service: context.serviceGeneration, library: context.library },
           ...await service.status(), deviceState: await service.deviceState(), limits: { ...limits, requestBytes: TRANSPORT_LIMITS.requestBytes, uploadLifetimeMs: TRANSPORT_LIMITS.stageLifetimeMs },
-          capabilities: context.writable ? ["catalog.read", "catalog.initialize", "catalog.sync", "operation.retire"] : ["catalog.read"],
-          unavailableCapabilities: ["catalog.replace", "backup.r2"] });
+          capabilities: [...(context.writable ? ["catalog.read", "catalog.initialize", "catalog.sync", "operation.retire"] : ["catalog.read"]),
+            ...(recoveryEnabled ? (context.writable ? ["backup.r2", "backup.read"] : ["backup.read"]) : [])],
+          unavailableCapabilities: ["catalog.replace", ...(recoveryEnabled ? [] : ["backup.r2"])] });
       }
       case "/v1/pages": {
         const p = exact(data, ["head", "cursor"]);
@@ -103,6 +140,7 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
       }
     }
   } catch (error) {
+    if (error instanceof RecoveryError) return response({ error: error.code, ...(error.status >= 500 ? { outcome: "unknown" } : {}) }, error.status);
     if (error instanceof CatalogError) return response({ error: error.code }, error.status);
     if (error instanceof AdmissionError) {
       if (error.outcomeUnknown || error.message === "OUTCOME_UNKNOWN") return response({ error: error.message, outcome: "unknown" }, 503);

@@ -1,0 +1,126 @@
+{
+  "archive": "[\"rv-cloud-catalog/1\",[\"fixture-service\",\"fixture-library\",\"fixture-epoch\",\"7\",\"12\",\"079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337\"],1,1211,\"f9a108957a9fcc9214a37e7ae303bc204f1170f46be5beaa24a9632168a090c1\"]\n[\"6e8afeda02849f493186ee5f0ba545c574bb45393a33b0a8fdd52755744575ed\",\"[[\\\"a/[0,\\\\\\\"https://example.test/A\\\\\\\"]/20000000-0000-0000-0000-000000000001\\\",[0,\\\"https://example.test/A\\\",\\\"20000000-0000-0000-0000-000000000001\\\"]],[\\\"a/[0,\\\\\\\"https://example.test/A\\\\\\\"]/20000000-0000-0000-0000-000000000002\\\",[0,\\\"https://example.test/A\\\",\\\"20000000-0000-0000-0000-000000000002\\\"]],[\\\"c/10000000-0000-0000-0000-000000000001\\\",[\\\"Genre\\\",\\\"genre\\\"]],[\\\"p/30000000-0000-0000-0000-000000000001\\\",[\\\"Mix\\\",[0,\\\"https://example.test/A\\\"],\\\"80000000000000000000000000000000\\\"]],[\\\"s/30000000-0000-0000-0000-000000000001/7fffffffffffffff0000000000000000\\\",[1,\\\"https://example.test/β?x=1&x=2\\\"]],[\\\"s/30000000-0000-0000-0000-000000000001/80000000000000000000000000000000\\\",[0,\\\"https://example.test/A\\\"]],[\\\"s/30000000-0000-0000-0000-000000000001/80000000000000010000000000000000\\\",[0,\\\"https://example.test/A\\\"]],[\\\"s/library/7fffffffffffffff0000000000000000\\\",[0,\\\"https://example.test/A\\\"]],[\\\"s/library/80000000000000000000000000000000\\\",[1,\\\"https://example.test/β?x=1&x=2\\\"]],[\\\"s/unavailable/80000000000000000000000000000000\\\",[0,\\\"https://example.test/A\\\"]],[\\\"t/20000000-0000-0000-0000-000000000001\\\",[\\\"Jazz\\\",\\\"jazz\\\",\\\"10000000-0000-0000-0000-000000000001\\\"]],[\\\"t/20000000-0000-0000-0000-000000000002\\\",[\\\"İSTANBUL\\\",\\\"i̇stanbul\\\",null]],[\\\"v\\\",[1,1]]]\"]\n",
+  "catalog": {
+    "version": 1,
+    "serviceMap": 1,
+    "library": [
+      {
+        "service": 0,
+        "url": "https://example.test/A"
+      },
+      {
+        "service": 1,
+        "url": "https://example.test/β?x=1&x=2"
+      }
+    ],
+    "unavailable": [
+      {
+        "service": 0,
+        "url": "https://example.test/A"
+      }
+    ],
+    "playlists": [
+      {
+        "id": "30000000-0000-0000-0000-000000000001",
+        "name": "Mix",
+        "artwork": {
+          "service": 0,
+          "url": "https://example.test/A"
+        },
+        "items": [
+          {
+            "service": 1,
+            "url": "https://example.test/β?x=1&x=2"
+          },
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          },
+          {
+            "service": 0,
+            "url": "https://example.test/A"
+          }
+        ]
+      }
+    ],
+    "categories": [
+      {
+        "id": "10000000-0000-0000-0000-000000000001",
+        "name": "Genre",
+        "nameKey": "genre"
+      }
+    ],
+    "tags": [
+      {
+        "id": "20000000-0000-0000-0000-000000000001",
+        "name": "Jazz",
+        "nameKey": "jazz",
+        "category": "10000000-0000-0000-0000-000000000001"
+      },
+      {
+        "id": "20000000-0000-0000-0000-000000000002",
+        "name": "İSTANBUL",
+        "nameKey": "i̇stanbul",
+        "category": null
+      }
+    ],
+    "assignments": [
+      {
+        "key": {
+          "service": 0,
+          "url": "https://example.test/A"
+        },
+        "tags": [
+          "20000000-0000-0000-0000-000000000002",
+          "20000000-0000-0000-0000-000000000001"
+        ]
+      }
+    ]
+  },
+  "manifest": {
+    "version": 1,
+    "kind": "cloud-catalog",
+    "bytes": 1584,
+    "source": {
+      "head": {
+        "serviceGeneration": "fixture-service",
+        "library": "fixture-library",
+        "epoch": "fixture-epoch",
+        "revision": "7",
+        "headCounter": "12",
+        "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+      },
+      "pages": 1,
+      "bytes": 1211,
+      "manifest": "f9a108957a9fcc9214a37e7ae303bc204f1170f46be5beaa24a9632168a090c1"
+    },
+    "native": null,
+    "producerValidation": "catalog-pages-v1",
+    "parts": [
+      {
+        "bytes": 1584,
+        "sha256": "47bd18709b4ca07d9a6c10f52413eabd21b7fcc74fb7e641380146b1df08bbe0"
+      }
+    ]
+  },
+  "digest": "0df27574e9070285170ec8db42a10ed057e6c3d4de8f62f03aa01482b1d8c6ee",
+  "nativeManifest": {
+    "version": 1,
+    "kind": "device-zip",
+    "bytes": 140,
+    "source": null,
+    "native": {
+      "database": 25,
+      "tags": 7,
+      "uncompressedBytes": 98304
+    },
+    "producerValidation": "native-restore-v1",
+    "parts": [
+      {
+        "bytes": 140,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ]
+  },
+  "nativeDigest": "bcf92a9c7d0814d06c1c1ffd8657738c172bc6817283803e0bab438dff5d329b"
+}
