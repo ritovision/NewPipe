@@ -7,4 +7,5 @@ export WRANGLER_SEND_METRICS=false
 export BROWSER=/bin/false
 unset CLOUDFLARE_API_TOKEN CF_API_TOKEN CLOUDFLARE_API_KEY CLOUDFLARE_EMAIL
 cd "$(dirname "$0")/.."
-exec wrangler --config wrangler.jsonc "$@"
+# A named profile also isolates hosts where legacy ~/.wrangler takes precedence over XDG.
+exec wrangler --profile newpipe-cloud --config wrangler.jsonc "$@"

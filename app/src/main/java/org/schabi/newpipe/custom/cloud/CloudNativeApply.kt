@@ -194,8 +194,11 @@ internal class CloudNativeApply(
                     check(witness == null || baseline != null && witness.incarnation == baseline.incarnation && witness.operationId == baseline.operation) {
                         "CLOUD_RECOVERY_JOURNAL_LOST"
                     }
-                } catch (error: Exception) { throw CloudRecoveryBlockedException(error) }
-                catch (error: OutOfMemoryError) { throw CloudRecoveryBlockedException(error) }
+                } catch (error: Exception) {
+                    throw CloudRecoveryBlockedException(error)
+                } catch (error: OutOfMemoryError) {
+                    throw CloudRecoveryBlockedException(error)
+                }
                 return null
             }
             return try {

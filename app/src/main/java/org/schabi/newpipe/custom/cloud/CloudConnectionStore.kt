@@ -116,8 +116,7 @@ internal class CloudConnectionStore(context: Context, root: File = File(context.
         cipher.updateAAD(aad(origin, device, scope))
         return Base64.encodeToString(cipher.iv, Base64.NO_WRAP) + ":" + Base64.encodeToString(cipher.doFinal(value.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP)
     }
-    private fun aad(origin: String, device: String, scope: CloudIdentityStore.Scope): ByteArray =
-        CloudWireJson.encode(listOf(alias, origin, device, scope.service, scope.library)).toByteArray(Charsets.UTF_8)
+    private fun aad(origin: String, device: String, scope: CloudIdentityStore.Scope): ByteArray = CloudWireJson.encode(listOf(alias, origin, device, scope.service, scope.library)).toByteArray(Charsets.UTF_8)
 
     private fun save(s: State) {
         check(TagRuntime.lock.isHeldByCurrentThread) { "CONNECTION_WRITE_REQUIRES_BARRIER" }

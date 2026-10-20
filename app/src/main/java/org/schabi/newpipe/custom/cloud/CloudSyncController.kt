@@ -83,7 +83,8 @@ internal class CloudSyncController(
             r.library.runInTransaction {
                 r.store.transaction { side ->
                     check(CloudApplyStore.pending(side) == null) { "LOCAL_CLOUD_RECOVERY_REQUIRED" }
-                    CloudIdentityStore.discard(side); CloudApplyStore.discard(side)
+                    CloudIdentityStore.discard(side)
+                    CloudApplyStore.discard(side)
                 }
                 r.library.openHelper.writableDatabase.execSQL("DELETE FROM rv_cloud_apply_receipt")
             }

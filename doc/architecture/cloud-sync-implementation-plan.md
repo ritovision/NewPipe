@@ -1,6 +1,6 @@
 # Cloud & Sync v1 — Execution, review and acceptance
 
-**Status:** Design review complete and adjudicated; implementation authorized. Earliest local protocol/native safety proofs are next; later gates remain outstanding. No production activation, live-data migration or physical-device installation is implied.
+**Status:** Implementation is in progress. Catalog engine, native apply, Android connection/settings, previews and scheduling are written; current synthetic integration evidence is recorded below. Three-slot R2 recovery, forced replacement and final release acceptance remain outstanding. Historical checkpoints retain their original scope. No production activation or live-data migration is implied.
 **Date:** 2026-10-19
 **Canonical documents:** [Product contract](../specs/cloud-sync-v1.md) · [Architecture](cloud-sync-v1.md).
 **Baseline:** `custom/dev` at `f76d89a378e71625616bba160a42de24498ccfa1`; documentation branch `feature/cloud-sync-spec-20261019`.
@@ -13,7 +13,7 @@ The owner requested documentation first and then execution, with a heads-up befo
 
 The owner subsequently reset usage and requested **Opus, Extra High (`xhigh`)**, which completed this review. Use that effort for subsequent authorized Claude reviews, in a persistent interactive terminal, with only read-only tools. Disable edits, command execution, tests, subagents, browser/MCP operations and web/delegation. Record the exact candidate commit, session UUID, terminal name and resume command before sending the review. A terminal that remains alive does not prove Claude is still thinking; inspect actual review status/output when needed. No claimed approval without a completed report.
 
-**Machine roles:** NotCodex-2 owns source/documentation, headless builds and unit/backend tests. Primary NotCodex owns emulator/native UI work. Do not launch emulators/GUI on NotCodex-2. Do not disturb an emulator/session belonging to Sleep or Music. Use isolated synthetic data and a dedicated test package; never clear or overwrite the owner's library. No phone install, merge to `custom/dev`, production activation or destructive real-cloud action without a separate explicit release instruction.
+**Machine roles:** Originally NotCodex-2 owned source/documentation, headless builds and unit/backend tests, and primary NotCodex owned native UI work. **2026-10-20 owner override:** continue all work on primary NotCodex while NotCodex-2 is offline. The primary checkout is `/home/ritorhymes/techstuff/NewPipe`, on `feature/cloud-sync-v1-20261019`, restored from GitHub checkpoint `7640407ee`. Do not disturb an emulator/session belonging to Sleep or Music. Use isolated synthetic data and dedicated test packages; never clear or overwrite the owner's library. Previously authorized phone testing uses separate QA packages. Merge to `custom/dev`, production activation or destructive real-cloud action still requires a separate explicit release instruction.
 
 ## 2. Account and deployment preflight
 
@@ -146,7 +146,7 @@ Read-side barrier inspection confirmed ordinary LocalPlaylistManager writes, AiC
 Next M1 dependencies: adjudicate the bounded read-side review, then implement real catalog/staged delta publication and native write-side mapping/recovery. Network/settings/preview UI/R2 remain later gates. No cloud resources or production/physical-phone installation were created.
 
 
-### Native review-fix closure — 2026-10-19 (current)
+### Native review-fix closure — 2026-10-19 (historical)
 
 Final source **5dba4d5cfae477d1fbe5fd7e33f2f95314f43564** closes the native read-side review's three P2 findings and justified optional issues. Astra Extra High completed both the main fix review and a final delta review, with no confirmed substantive P1/P2 and **APPROVE_FINAL_FIX_CHECKPOINT** for the final candidate. No Claude inference was launched for this fix pass.
 
@@ -157,3 +157,13 @@ The special 16KiB emulator had a QA ART SIGSEGV on the earlier test helper and a
 Current identity behavior: explicit enroll versus required-incarnation capture; paired binding lifetime/playlist-sequence anchor checked against tag mapping context; recreated main database cannot trust matching native role IDs alone. Staged restore scrubs markers; legacy restore invalidates old binding before the main swap. Sparse head/tail growth is fixed-stride with bounded local interior redistribution and explicit cumulative row budgets. Room remains 9001 and tag schema4; native catalog contents are unchanged by capture.
 
 **This review-fix checkpoint is closed. M1 as a whole and Cloud & Sync remain unfinished.** Next dependencies are real catalog/staged D1 publication and native remote-apply/ID adoption/recovery, then complete writer capture, network credentials/settings, visual preview and three-slot R2 implementation. No full-cloud/16KiB compatibility release, custom/dev merge or live deployment is implied. Full-catalog capture still holds writers for seconds at the synthetic 20k/100k size and is not a per-edit latency guarantee.
+
+### Primary-host live Android checkpoint — 2026-10-20 (current)
+
+The owner authorized continuing on primary NotCodex while NotCodex-2 is unavailable. Starting from `7640407ee`, the current engine and Android integration built successfully. Executed 197 backend tests, 337 JVM tests, and 121 native cloud tests (plus 10 explicit opt-in skips). The dedicated Worker was deployed and temporarily enabled for a small synthetic live acceptance.
+
+Two independent Android packages on one Pixel 7 converged through real Cloudflare/D1. Initial publication, automatic push/pull, duplicate playlist fidelity, tags/Unavailable, disabled local divergence and one-time restore staying disabled passed. A second scenario killed B after a durable local edit, published a different edit from A, verified both branches survived the resulting conflict, then explicitly reconciled B from cloud. This is not two-physical-device, OS network-outage, full UI or release acceptance.
+
+Both QA tokens were then revoked and rejected live, both app connections were disabled, the Worker returned to its default disabled gate, and guarded removal of the known synthetic D1 rows was verified. No R2 binding or payload was used. The old Music/AI infrastructure and owner app data were not changed. [Detailed evidence, exact limits and reproducible driver](../validation/cloud-live-android-20261020/README.md).
+
+**Next implementation phase:** three-slot R2 recovery, including reservation/rotation safety, payload verification, Android backup/restore and exact outgoing-cloud recovery before forced replacement. Broader physical-device/UI/offline/scale acceptance and final independent whole-feature review remain required. Do not merge `custom/dev` or activate production from this checkpoint.

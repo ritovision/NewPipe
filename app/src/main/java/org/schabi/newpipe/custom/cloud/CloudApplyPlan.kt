@@ -77,10 +77,12 @@ internal object CloudApplyPlanJson {
         )
         val output = object : java.io.ByteArrayOutputStream() {
             override fun write(value: Int) {
-                require(count < CloudApplyStore.payloadLimit()) { "CLOUD_PLAN_MEMORY_BUDGET" }; super.write(value)
+                require(count < CloudApplyStore.payloadLimit()) { "CLOUD_PLAN_MEMORY_BUDGET" }
+                super.write(value)
             }
             override fun write(bytes: ByteArray, offset: Int, length: Int) {
-                require(count.toLong() + length <= CloudApplyStore.payloadLimit()) { "CLOUD_PLAN_MEMORY_BUDGET" }; super.write(bytes, offset, length)
+                require(count.toLong() + length <= CloudApplyStore.payloadLimit()) { "CLOUD_PLAN_MEMORY_BUDGET" }
+                super.write(bytes, offset, length)
             }
         }
         JsonWriter.on(output).`object`(root).done()

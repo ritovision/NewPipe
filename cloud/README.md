@@ -1,8 +1,8 @@
 # NewPipe Cloud — catalog service and native apply
 
-**Implemented:** typed Worker/D1 catalog publication, packed-page transfer, native Room/tag catalog capture, journaled native apply and recovery, stable identity mapping, exact diffs and sparse ordering.
+**Implemented:** typed Worker/D1 catalog publication, packed-page transfer, native Room/tag catalog capture, journaled native apply and recovery, stable identity mapping, exact diffs and sparse ordering. Android includes encrypted credentials, connection/settings controls, exact-candidate previews, verified local safety backups, durable upload recovery and foreground/WorkManager scheduling.
 
-**Not yet an operational end-user sync feature:** Android network/settings integration, automatic background scheduling, the visual preview/recovery controls, forced cloud replacement and three-slot R2 backups remain separate work. The checked-in Worker configuration is API-disabled and restricted to small synthetic deployment tests. Existing Music/AI infrastructure is not part of this service.
+**Not release-ready:** forced cloud replacement and three-slot R2 backups remain unimplemented. Integration, failure, UI and scale acceptance must be tied to the specific tested candidate. The checked-in Worker configuration is API-disabled and restricted to small synthetic deployment tests. Existing Music/AI infrastructure is not part of this service.
 
 ## Backend
 
@@ -29,7 +29,7 @@ The D1 tests execute real local workerd bindings via Miniflare, not a hand-writt
 
 `CloudNativeApply.apply(...)` is the internal exact-candidate write adapter. It revalidates the native snapshot and caller admission before modification, compiles portable IDs to preassigned native IDs, and persists the typed chunked plan before the Room transaction changes data. The same Room transaction commits a receipt proving those changes. On restart, the guarded Room helper resolves any native file-swap journal **before tags open**. A pending cloud operation without a matching commit witness is discarded only after proving the before-state; a matching witness permits idempotent tag/map/baseline completion, never replay of main deletions.
 
-The adapter does not grant cloud authentication or replace the future preview/connection-generation/local-safety-backup UI. Its internal caller must supply that admission. It preserves existing stream metadata, subscriptions, history, progress, protected role IDs and remote bookmarks. Only new stream rows use cloud hints. Permanent-artwork-only streams are protected from native orphan cleanup without silently saving them to Library.
+The adapter does not grant cloud authentication. `CloudSyncController` supplies connection-generation admission, exact preview validation and a verified local safety backup before an explicit pull replaces local catalog content. The adapter preserves existing stream metadata, subscriptions, history, progress, protected role IDs and remote bookmarks. Only new stream rows use cloud hints. Permanent-artwork-only streams are protected from native orphan cleanup without silently saving them to Library.
 
 The complete resulting native assignment count—retained orphans plus target active assignments—must fit the receiver limit before journaling. Conflicting orphan reactivation/deletion blocks for explicit metadata reconciliation. A damaged journal raises a distinct blocked-recovery error: a user-selected validated **complete** native backup may replace both stores; a stock backup retaining live tags may not bypass that failure.
 
@@ -61,12 +61,53 @@ Suites: `apply-before-room`, `apply-after-room`, `apply-before-tags`, plus prior
 
 ## Deployment and live synthetic test
 
-`cloud/scripts/wrangler.sh` selects the isolated Ritorhymes OAuth profile and pins the dedicated account, clearing conflicting credential environment overrides. It does not change the default Matthew login. `wrangler.jsonc` has no secrets and targets only `newpipe-cloud-sync-v1` / D1 `bde936ac-caa7-42bb-a931-208118a8cd6a`.
+`cloud/scripts/wrangler.sh` selects the named `newpipe-cloud` OAuth profile and pins the dedicated Ritorhymes account, clearing conflicting credential environment overrides. A named profile is necessary on hosts where legacy `~/.wrangler` takes precedence over `XDG_CONFIG_HOME`; the wrapper does not use or replace another project's default login. `wrangler.jsonc` has no secrets and targets only `newpipe-cloud-sync-v1` / D1 `bde936ac-caa7-42bb-a931-208118a8cd6a`. Set up that profile through Wrangler's supported authentication flow and verify the account before remote writes; do not copy credentials into this repository.
 
 The default API gate is off; bounds are64KiB/eight pages with a per-location120/minute limiter. After review, a small synthetic live activation can verify the actual Worker/D1 path. `scripts/live-smoke.mjs` requires a private600-mode QA credential file, refuses an already initialized catalog, and uses two separately authenticated HTTP clients. It does not represent two Android devices or a complete end-user sync test. The coordinator must subsequently revoke those credentials, remove verified test-only state, and leave the default API gate disabled unless a later release explicitly enables it.
 
-No R2 binding is used for everyday synchronization. The previously provisioned private recovery bucket remains empty until backup implementation. Do not add archive-per-sync behavior.
+### Two isolated Android installations
+
+On `feature/cloud-sync-v1-20261019`, the default debug package is
+`org.schabi.newpipe.debug.featurecloudsyncv120261019`. Building with
+`-PcloudQaPeer=b` produces a separate `.peerb` app and test package. Copy and
+verify each pair's `output-metadata.json` before building the other variant,
+because both use the debug output directory. This property is restricted to the
+feature branch and does not alter release identifiers.
+
+`test-support/run-live-android.py` drives the real controller, private Android
+stores, Keystore and HTTPS client. It accepts only the two named QA packages and
+the dedicated synthetic origin. Its credential JSON must be mode0600 and contain
+`syntheticOnly: true`, `origin`, and `tokens: {a, b}`; provision tokens outside
+Git. The driver does not provision, deploy, clear data or revoke credentials.
+
+```sh
+python3 cloud/test-support/run-live-android.py \
+  --adb /path/to/adb --serial <explicit-serial> \
+  --credentials /private/qa-credentials.json --output /new/evidence-directory
+```
+
+Physical-device use additionally requires `--allow-phone` and prior owner
+authorization. The initial scenario refuses previously connected/nonempty
+installations. It verifies initial publication, duplicate playlist entries,
+Unavailable and tags, automatic push/pull, disabled local divergence, and
+one-time restore remaining disabled. After that successful run, use
+`--scenario conflict` with a different output directory: it resumes both
+installations, commits a local edit behind the writer barrier, fsyncs a marker,
+actually stops that QA process, publishes the other installation's edit, and
+checks that conflict detection preserves both branches until explicit
+reconciliation. It does not claim an OS network-outage or two-physical-device test.
+
+Both scenarios end by disabling synchronization and removing the plaintext QA
+credential files on the devices. On any failure the driver force-stops only the
+named QA packages; the operator must still revoke credentials, inspect retained
+state and disable the Worker. The coordinator must do the same server cleanup
+after success. Never run the initial scenario against retained acceptance data
+by clearing it merely to make the test pass.
+
+No R2 binding is used for everyday synchronization. The previously provisioned
+private recovery bucket remains unused until backup implementation. Do not add
+archive-per-sync behavior.
 
 ## Remaining release gates
 
-Production housekeeping for revoked/abandoned stages and receipt retention; durable daily-account resource budgets; actual deployed large-catalog CPU/latency admission; Android transport and persistent credential/settings integration; automatic sync orchestration and comprehensive write-origin capture; exact visual preview and local safety backups; approved forced-replace flow with minimal R2 rotation; actual multi-device end-to-end acceptance; independent source review and release authorization. Historical validation checkpoints under `doc/validation/` apply only to their exact commits and stated emulator page sizes.
+Production housekeeping for revoked/abandoned stages and receipt retention; durable daily-account resource budgets; actual deployed large-catalog CPU/latency admission; broader scheduling/offline/write-origin acceptance; UI/theme/rotation acceptance; approved forced-replace flow with verified three-slot R2 rotation; actual multi-device end-to-end acceptance; independent whole-feature review and release authorization. Historical validation checkpoints under `doc/validation/` apply only to their exact commits and stated device/page sizes.

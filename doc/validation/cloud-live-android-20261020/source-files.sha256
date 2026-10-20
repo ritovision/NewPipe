@@ -1,0 +1,11 @@
+3cc73074dc481cf8d77ed3d36a9233c5647613292c064c389f0af9bee2f7be73  app/build.gradle.kts
+acb900edfa4e59e55a4e0c586002b647023d896e80c01f34976ce39c76019dc5  app/src/androidTest/java/org/schabi/newpipe/custom/cloud/CloudFakePeer.kt
+eee92645785014eae317de4647efeddc8b6c4fd021e4b3fe7eae973e9cafa9f6  app/src/androidTest/java/org/schabi/newpipe/custom/cloud/CloudLiveSyncTest.kt
+f776bb4ecb1c0dc582e59519efc4d1479bbfd1a5f9218e70a901318b0cc29b90  app/src/androidTest/java/org/schabi/newpipe/custom/cloud/CloudSyncControllerTest.kt
+e99a3ef490e5b2862263931332dae6bfaa86043ae92de593cbf3e87dc2204b7d  app/src/main/java/org/schabi/newpipe/custom/cloud/CloudApplyPlan.kt
+8fcaee641298b6dbd3e44b5b733de1c351922d6c1ba7dacdcc60d0156e614c91  app/src/main/java/org/schabi/newpipe/custom/cloud/CloudApplyStore.kt
+fe1e03d47f2765dd22da74507d809bd5f79603df0982889d8b2f3eb0d8317018  app/src/main/java/org/schabi/newpipe/custom/cloud/CloudConnectionStore.kt
+c6c735aab8d6350cbd1f80598759de2260c3af3777a8062f3a9908bb226ffcb0  app/src/main/java/org/schabi/newpipe/custom/cloud/CloudNativeApply.kt
+4a8099771b51a70f9e5b73993de7319ed8a1fc47567f8a31339a64f3bcc89050  app/src/main/java/org/schabi/newpipe/custom/cloud/CloudSyncController.kt
+328b284da64c39b89934165ee65e4d0bc5bc61f1bd248d99c63788c3a679d582  cloud/scripts/wrangler.sh
+d043588a73402128d026d192957b5e8a4502960f5d28e0925ea403ef931cf1ef  cloud/test-support/run-live-android.py

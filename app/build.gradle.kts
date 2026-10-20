@@ -70,6 +70,14 @@ configure<ApplicationExtension> {
                     else ".debug.$normalizedWorkingBranch"
                 resValue("string", "app_name", if (taggingQa) "newtest" else "NewPipe $workingBranch")
             }
+            // Two independent QA installations without replacing an owner's existing app.
+            providers.gradleProperty("cloudQaPeer").orNull?.let { peer ->
+                require(workingBranch == "feature/cloud-sync-v1-20261019" && peer == "b") {
+                    "cloudQaPeer=b is restricted to the Cloud & Sync QA branch"
+                }
+                applicationIdSuffix = ".debug.${normalizedWorkingBranch}.peerb"
+                resValue("string", "app_name", "NewPipe Cloud QA B")
+            }
         }
 
         release {

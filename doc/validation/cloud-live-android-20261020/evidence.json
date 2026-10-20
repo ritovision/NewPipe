@@ -1,0 +1,422 @@
+{
+  "baseCommit": "7640407ee8ae8ba9fc61b40f8089d49acee86510",
+  "device": {
+    "model": "Pixel 7",
+    "api": 37,
+    "pageBytes": 4096,
+    "twoIndependentPackages": true,
+    "twoPhysicalDevices": false
+  },
+  "backendTestsPassed": 197,
+  "jvmTestsPassed": 337,
+  "nativeCloud": {
+    "passed": 121,
+    "optInSkipped": 10,
+    "failed": 0
+  },
+  "initial": {
+    "status": "PASS",
+    "twoIndependentPackages": true,
+    "twoPhysicalDevices": false,
+    "syntheticOnly": true,
+    "steps": [
+      {
+        "step": "initialize",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+        "fingerprint": "3230bec4098720998fd8c772f8b97579cdbf5c17d1f4a2a08a91381faca70b09",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": true,
+        "syntheticOnly": true,
+        "seconds": 9.048,
+        "logSha256": "cc1cc0324cde6729079dc8895afe6a45139e415dc6dc00db4cbc5f9d20044cc4"
+      },
+      {
+        "step": "join",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+        "fingerprint": "3230bec4098720998fd8c772f8b97579cdbf5c17d1f4a2a08a91381faca70b09",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": true,
+        "syntheticOnly": true,
+        "seconds": 4.865,
+        "logSha256": "e035afcb590193f8fe466a18e2dd714b49a6e2d38a6367ed800c9748e22058b4"
+      },
+      {
+        "step": "automaticEdit",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+        "fingerprint": "39ad7cdad2de2c87494d25c402b5bd9de53aa36e9ea419151658bc58605a6f5f",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": true,
+        "syntheticOnly": true,
+        "seconds": 4.906,
+        "logSha256": "7896ef441557a841f3a5b4e7c253c145a7c400b6a072ea4890bf445ae663c522"
+      },
+      {
+        "step": "automaticPull",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+        "fingerprint": "39ad7cdad2de2c87494d25c402b5bd9de53aa36e9ea419151658bc58605a6f5f",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": true,
+        "syntheticOnly": true,
+        "seconds": 3.401,
+        "logSha256": "0b164b4eefdcccdf30b0a7fff25e022051af5b9ba273c032b0999415f0b54ceb"
+      },
+      {
+        "step": "disableAndEdit",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+        "fingerprint": "2b6d4434c78b133d3f95a0b56a635f3e9644f5a20327cc52ffe8ca79e159e730",
+        "videos": 4,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": false,
+        "syntheticOnly": true,
+        "seconds": 3.23,
+        "logSha256": "096eb493a86fad713383163a7732fdfa81e11c7404789d9043b6de4d6f1f9921"
+      },
+      {
+        "step": "oneTimeRestore",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+        "fingerprint": "39ad7cdad2de2c87494d25c402b5bd9de53aa36e9ea419151658bc58605a6f5f",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": false,
+        "syntheticOnly": true,
+        "seconds": 4.263,
+        "logSha256": "a03c0e9244e947f174fa5d35eb0b94f30520e75cce07391da3ef341f5254722d"
+      },
+      {
+        "step": "stop",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+        "fingerprint": "39ad7cdad2de2c87494d25c402b5bd9de53aa36e9ea419151658bc58605a6f5f",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": false,
+        "syntheticOnly": true,
+        "seconds": 2.381,
+        "logSha256": "35c7087f2b93e6fc1d717d3d078000c051859e3d1a69c74768c01db8fe01919d"
+      },
+      {
+        "step": "stop",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+        "fingerprint": "39ad7cdad2de2c87494d25c402b5bd9de53aa36e9ea419151658bc58605a6f5f",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": false,
+        "syntheticOnly": true,
+        "seconds": 2.352,
+        "logSha256": "db3775f0fbed29233656048ba3c417afb926834c9ddbc9fdc8abce779bcfccd0"
+      }
+    ],
+    "releaseAcceptance": false,
+    "r2RecoveryTested": false
+  },
+  "conflict": {
+    "status": "PASS",
+    "scenario": "conflict",
+    "twoIndependentPackages": true,
+    "twoPhysicalDevices": false,
+    "syntheticOnly": true,
+    "steps": [
+      {
+        "step": "resumeForConflict",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+        "fingerprint": "39ad7cdad2de2c87494d25c402b5bd9de53aa36e9ea419151658bc58605a6f5f",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": true,
+        "syntheticOnly": true,
+        "seconds": 5.738,
+        "logSha256": "caa7fb8266bc4b41aa879fcad1f28336ed88804c3b024d8704d73603d041a3d5"
+      },
+      {
+        "step": "resumeForConflict",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+        "fingerprint": "39ad7cdad2de2c87494d25c402b5bd9de53aa36e9ea419151658bc58605a6f5f",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": true,
+        "syntheticOnly": true,
+        "seconds": 5.036,
+        "logSha256": "9428893ee57e42aafb1a997467f538feb235d5c8fb52976df975851026158f0a"
+      },
+      {
+        "step": "holdOfflineEdit",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+        "syntheticOnly": true,
+        "fingerprint": "2addbcbee8a0092046aa8a39b4d2e7501bea34fc2085f91d76e8c5ff65b433d2",
+        "previousFingerprint": "39ad7cdad2de2c87494d25c402b5bd9de53aa36e9ea419151658bc58605a6f5f",
+        "actualProcessStop": true,
+        "networkDisabledGlobally": false,
+        "logSha256": "3decc7a185d0069e65d888dc7f5330599cbdc9bb2f7ab0d8835ed68819808f83"
+      },
+      {
+        "step": "automaticRemoteEdit",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+        "fingerprint": "16f3718108c15a2316239f03eb7c1c1141d93578bca21aada2709eb565ef0969",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": true,
+        "syntheticOnly": true,
+        "seconds": 36.024,
+        "logSha256": "f9bce9f66f62479bb5bcd40b7f9e65e20af625fd74ca12cec265e38a555bc154"
+      },
+      {
+        "step": "verifyConflict",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+        "fingerprint": "2addbcbee8a0092046aa8a39b4d2e7501bea34fc2085f91d76e8c5ff65b433d2",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": true,
+        "syntheticOnly": true,
+        "seconds": 7.085,
+        "logSha256": "1f77cbf94df46ece7af8fac9022a6d8a62c03154efa39d634aefaac4c338178c"
+      },
+      {
+        "step": "resolveConflictToDevice",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+        "fingerprint": "16f3718108c15a2316239f03eb7c1c1141d93578bca21aada2709eb565ef0969",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": true,
+        "syntheticOnly": true,
+        "seconds": 4.142,
+        "logSha256": "e98940ff30e4d4b85c9f8afb2fd1da791ac4bc1aa6aed7e0bb305fa0ceeaeba0"
+      },
+      {
+        "step": "stop",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+        "fingerprint": "16f3718108c15a2316239f03eb7c1c1141d93578bca21aada2709eb565ef0969",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": false,
+        "syntheticOnly": true,
+        "seconds": 2.566,
+        "logSha256": "a0a2fc5d3d1218705d64da93b48f56b1f0be311cfb8605ff553c6450dcc9626b"
+      },
+      {
+        "step": "stop",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+        "fingerprint": "16f3718108c15a2316239f03eb7c1c1141d93578bca21aada2709eb565ef0969",
+        "videos": 3,
+        "playlists": 1,
+        "tags": 1,
+        "enabled": false,
+        "syntheticOnly": true,
+        "seconds": 2.973,
+        "logSha256": "9557c79757fdd4f85f7f349adf68449786f0bef59dd1cc8b05e508b8e0cc4382"
+      }
+    ],
+    "releaseAcceptance": false,
+    "r2RecoveryTested": false
+  },
+  "afterInitial": {
+    "protocol": 1,
+    "head": {
+      "serviceGeneration": "d124175c-82e8-4fb7-9534-b62b6c9f0eba",
+      "library": "newpipe-library-v1",
+      "epoch": "qa-ae4a1e73-d7fe-4ac3-a71e-f0a616e224a2",
+      "revision": "2",
+      "headCounter": "2",
+      "fingerprint": "39ad7cdad2de2c87494d25c402b5bd9de53aa36e9ea419151658bc58605a6f5f"
+    },
+    "initialized": true,
+    "pages": 1,
+    "bytes": 2086,
+    "manifest": "7bea0ce2599b63c595311ecf2b6d0b7417f3ed91ea0ef2f2dcd560f472e98c94",
+    "capabilities": [
+      "catalog.read",
+      "catalog.initialize",
+      "catalog.sync",
+      "operation.retire"
+    ],
+    "unavailableCapabilities": [
+      "catalog.replace",
+      "backup.r2"
+    ]
+  },
+  "afterConflict": {
+    "protocol": 1,
+    "head": {
+      "serviceGeneration": "d124175c-82e8-4fb7-9534-b62b6c9f0eba",
+      "library": "newpipe-library-v1",
+      "epoch": "qa-ae4a1e73-d7fe-4ac3-a71e-f0a616e224a2",
+      "revision": "3",
+      "headCounter": "3",
+      "fingerprint": "16f3718108c15a2316239f03eb7c1c1141d93578bca21aada2709eb565ef0969"
+    },
+    "initialized": true,
+    "pages": 1,
+    "bytes": 2104,
+    "manifest": "323780b60ec537277ecd3a0950b53e51f5cff048a62b9759691a6592c8d97b9e",
+    "capabilities": [
+      "catalog.read",
+      "catalog.initialize",
+      "catalog.sync",
+      "operation.retire"
+    ],
+    "unavailableCapabilities": [
+      "catalog.replace",
+      "backup.r2"
+    ]
+  },
+  "revocation": [
+    {
+      "credential": "missing",
+      "status": 401,
+      "error": "INVALID_CREDENTIAL"
+    },
+    {
+      "credential": "a",
+      "status": 401,
+      "error": "INVALID_CREDENTIAL"
+    },
+    {
+      "credential": "b",
+      "status": 401,
+      "error": "INVALID_CREDENTIAL"
+    }
+  ],
+  "finalApi": {
+    "status": 503,
+    "error": "CLOUD_API_DISABLED"
+  },
+  "finalD1": {
+    "heads": 0,
+    "devices": 0,
+    "pages": 0,
+    "info": 0,
+    "receipts": 0,
+    "uploads": 0,
+    "chunks": 0,
+    "changes": 0,
+    "assertions": 0
+  },
+  "finalApps": [
+    {
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syncEnabled": false,
+      "plaintextCredentialRemoved": true
+    },
+    {
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "syncEnabled": false,
+      "plaintextCredentialRemoved": true
+    }
+  ],
+  "apks": {
+    "a": [
+      {
+        "file": "a-app.apk",
+        "bytes": 34847565,
+        "sha256": "87a518917e8a672dec3320e186a25d8dae70fa6b2cfe487469cfaa652181c0ca",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019"
+      },
+      {
+        "file": "a-tests.apk",
+        "bytes": 2614508,
+        "sha256": "9f085319b5e6d733a935256e6ddebbbd60f172d07df612b06c7ef0cd068d38be",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.test"
+      }
+    ],
+    "b": [
+      {
+        "file": "b-app.apk",
+        "bytes": 34847549,
+        "sha256": "f0ec11789a07aaeebe8abea0631e3c7950194a004730f83d47bb84e6103e2fce",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb"
+      },
+      {
+        "file": "b-tests.apk",
+        "bytes": 2737907,
+        "sha256": "b658e596fccb8db3ba58b7c2e4c0ca63da78ee7db10f2f8b697add23215e6575",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb.test"
+      }
+    ]
+  },
+  "initialApkManifests": {
+    "a": [
+      {
+        "file": "a-app.apk",
+        "bytes": 34847565,
+        "sha256": "87a518917e8a672dec3320e186a25d8dae70fa6b2cfe487469cfaa652181c0ca",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019"
+      },
+      {
+        "file": "a-tests.apk",
+        "bytes": 2612288,
+        "sha256": "aa421409819966546781ee2ba6a4ce173b7cc9ef1d9129ea33912af40a2507c1",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.test"
+      }
+    ],
+    "b": [
+      {
+        "file": "b-app.apk",
+        "bytes": 34847549,
+        "sha256": "f0ec11789a07aaeebe8abea0631e3c7950194a004730f83d47bb84e6103e2fce",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb"
+      },
+      {
+        "file": "b-tests.apk",
+        "bytes": 2612274,
+        "sha256": "192fd2e3d0627fb0402f58993e7b80ace3c6b80735f4f68a214eca62bbde3dda",
+        "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb.test"
+      }
+    ]
+  },
+  "logHashes": {
+    "native-integration-r1.log": {
+      "bytes": 22132,
+      "sha256": "7679047cfa33f28083c979c21f894740f6c52088367658809d64f7f1c7c9a6eb"
+    },
+    "native-cloud-full-r1.log": {
+      "bytes": 94936,
+      "sha256": "0127472cf547e998614e3e7d9d9b8244edcbcc472106d053b1ab68dadced897b"
+    },
+    "newpipe-cloud-tests-20261020.log": {
+      "bytes": 15454,
+      "sha256": "aa429d8fddb1512db715a034284b01661b8be194efb1cdb8c04ab5a2f33e9874"
+    },
+    "newpipe-cloud-check-20261020.log": {
+      "bytes": 56,
+      "sha256": "06beff7e0ca05d69657556d4ee4a83f61171ce17ffae33974b801ca84a8ff11e"
+    },
+    "newpipe-android-build-20261020.log": {
+      "bytes": 27520,
+      "sha256": "fafd472652a1c9ec309c80770fcbd5dc6abef553c95f75f4d8972b121134630f"
+    },
+    "newpipe-android-peer-b-20261020.log": {
+      "bytes": 11302,
+      "sha256": "ed1a673e819a6ea2c4d9c46b67b83fcb0a5123fd2da61c54cdb5ec491532b48b"
+    },
+    "newpipe-android-conflict-a-20261020.log": {
+      "bytes": 9391,
+      "sha256": "8bb349b3d79277523f1c95e0e9e282f5171d64f476d84e43cd15a1a31235332a"
+    },
+    "newpipe-android-conflict-b-20261020.log": {
+      "bytes": 8124,
+      "sha256": "ea9be83a2fb5fe0efd0af5590968027ea84af99f55acb6738b4fce268e45fdae"
+    },
+    "newpipe-cloud-deploy-final-disabled-20261020.log": {
+      "bytes": 1449,
+      "sha256": "a304a140feef0656268887a04e074ab5b4356baf1ca337200bd47c916ce12c7f"
+    }
+  },
+  "releaseAcceptance": false,
+  "r2RecoveryImplemented": false
+}

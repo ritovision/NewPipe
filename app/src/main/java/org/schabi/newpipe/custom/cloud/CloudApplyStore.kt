@@ -11,8 +11,7 @@ import org.schabi.newpipe.custom.tagging.TagRuntime
 internal object CloudApplyStore {
     const val MAX_PAYLOAD_BYTES = 64 * 1024 * 1024
     private const val CHUNK_BYTES = 32 * 1024
-    fun payloadLimit(maxHeap: Long = Runtime.getRuntime().maxMemory()): Int =
-        minOf(MAX_PAYLOAD_BYTES.toLong(), maxOf(1024L * 1024, maxHeap / 12)).toInt()
+    fun payloadLimit(maxHeap: Long = Runtime.getRuntime().maxMemory()): Int = minOf(MAX_PAYLOAD_BYTES.toLong(), maxOf(1024L * 1024, maxHeap / 12)).toInt()
     data class Pending(
         val operation: String,
         val incarnation: String,
