@@ -10,13 +10,15 @@ import {s3Store,cloudflareClient} from '../operator/adapters.mjs';
 import {bytesDigest,recoveryDigest,cloudArchiveHeader,cloudArchivePage} from '../src/recovery-format.ts';
 import {encodePages,pageManifest,byteLength,sha256} from '../src/pages.ts';
 import {fingerprint} from '../src/catalog.ts';
+import operatorWorker,{applyPlan} from '../operator/worker.mjs';
+import {fenceState,claimAction,finishAction} from '../src/maintenance.ts';
 import {authenticateToken} from '../src/service.ts';
 
 const scope={account:'a'.repeat(32),worker:'newpipe-test',database:'11111111-1111-4111-8111-111111111111',
   bucket:'newpipe-test',library:'library-a',generation:'22222222-2222-4222-8222-222222222222'};
 const authority=()=>({deployment:'deployment-new',version:'version-new',database:scope.database,bucket:scope.bucket,
   vars:{ENABLE_CATALOG_API:'false',ENABLE_RECOVERY_API:'false',ENABLE_REPLACEMENT_API:'false',LIBRARY_ID:scope.library,SERVICE_GENERATION:scope.generation}});
-let mf,persistence,db,r2,store,objects,uploads;
+let mf,persistence,db,control,r2,store,objects,uploads;
 const fixture=JSON.parse(await readFile(new URL('../../app/src/test/resources/cloud/golden-v1.json',import.meta.url),'utf8'));
 const catalog=structuredClone(fixture.catalogs.find(c=>c.name==='empty').catalog);
 function zip(){
@@ -51,15 +53,20 @@ const runBatch=plan=>db.batch(rebuildBatch(plan).map(s=>db.prepare(s.sql).bind(.
 before(async()=>{
   persistence=await mkdtemp(join(tmpdir(),'newpipe-operator-'));
   mf=new Miniflare(convertV4MiniflareOptions({cf:false,modules:true,script:'export default {fetch(){return new Response("operator local tests")}}',
-    compatibilityDate:'2026-08-25',d1Databases:{DB:'operator-local'},r2Buckets:{RECOVERY:'operator-local'},resourcePersistencePath:persistence}));
-  await mf.ready;db=await mf.getD1Database('DB');r2=await mf.getR2Bucket('RECOVERY');
-  for(const file of ['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql']){
+    compatibilityDate:'2026-08-25',d1Databases:{DB:'operator-local',CONTROL:'operator-control'},r2Buckets:{RECOVERY:'operator-local'},resourcePersistencePath:persistence}));
+  await mf.ready;control=await mf.getD1Database('CONTROL');db=await mf.getD1Database('DB');r2=await mf.getR2Bucket('RECOVERY');
+  for(const file of ['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql','0004_operator_receipts.sql']){
     const parts=(await readFile(new URL('../migrations/'+file,import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(x=>x.trim()).filter(Boolean);
     await db.batch(parts.map(s=>db.prepare(s)));
   }
+ const schema=(await readFile(new URL('../control-migrations/0001_fence.sql',import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ await control.batch(schema.map(s=>control.prepare(s)));
+
 });
 after(async()=>{await mf?.dispose();if(persistence)await rm(persistence,{recursive:true,force:true});});
 beforeEach(async()=>{
+ for(const t of ['cloud_fence_actions','cloud_fence_tickets','cloud_fence','cloud_fence_assertion'])await control.prepare('DELETE FROM '+t).run();
+ await db.prepare('DELETE FROM cloud_operator_receipts').run();
   for(const o of (await r2.list()).objects)await r2.delete(o.key);
   for(const t of ['cloud_replace_attempts','cloud_replace_approvals','cloud_replace_grants','cloud_backup_slots','cloud_backup_operations','cloud_backup_approvals','cloud_backup_control','cloud_upload_changes','cloud_upload_chunks','cloud_uploads','cloud_catalog_pages','cloud_receipts','cloud_catalog_info','cloud_devices','cloud_head','cloud_commit_assertion'])await db.prepare('DELETE FROM '+t).run();
   await db.batch([
@@ -202,7 +209,7 @@ test('Cloudflare adapter verifies deployed version, current settings and refuses
     ...Object.entries(authority().vars).map(([name,text])=>({name,type:'plain_text',text}))];
   let split=false,changed=false;
   const fetcher=async(url,opts)=>{
-    assert.equal(opts.redirect,'error');
+    assert.equal(opts.redirect,'manual');
     let result=url.endsWith('/deployments')?{deployments:[{id:'d',versions:split?[]:[{version_id:'v',percentage:100}]}]}:
       url.endsWith('/versions/v')?{id:'v',resources:{bindings}}:{bindings:changed?bindings.filter(b=>b.name!=='DB'):bindings};
     return new Response(JSON.stringify({success:true,result}));
@@ -212,4 +219,128 @@ test('Cloudflare adapter verifies deployed version, current settings and refuses
   split=true;await assert.rejects(a.authority(),/SPLIT_OR_MISSING_DEPLOYMENT/);
   split=false;changed=true;await assert.rejects(a.authority(),/WORKER_BINDING_MISSING_OR_DUPLICATE/);
   await assert.rejects(a.db.query('DELETE FROM cloud_head',[]),/READ_ONLY_ADAPTER/);
+});
+const fencedScope={...scope,fence:{control:'33333333-3333-4333-8333-333333333333',
+ resource:'44444444-4444-4444-8444-444444444444',operator:'newpipe-test-operator'}};
+const maintenance='55555555-5555-4555-8555-555555555555';
+const fencedAuthority=()=>({...authority(),control:fencedScope.fence.control,
+ vars:{...authority().vars,FENCE_RESOURCE:fencedScope.fence.resource},
+ operator:{database:scope.database,bucket:scope.bucket,control:fencedScope.fence.control,resource:fencedScope.fence.resource}});
+async function fencedPlan(){
+ await control.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,maintenance_id,next_generation,created_at,revision) VALUES(?,?,?,?,?,'fresh-resources-v1','HELD',?,?,0,2)")
+  .bind(fencedScope.fence.resource,scope.database,scope.bucket,scope.library,'old-service',maintenance,scope.generation).run();
+ return makePlan({...adapters(),authority:async()=>fencedAuthority(),fence:()=>fenceState(control,fencedScope.fence.resource)},fencedScope);
+}
+const apply=(p,database=db)=>applyPlan({DB:database,CONTROL:control,RECOVERY:r2},p,fencedAuthority(),store);
+test('fenced apply independently verifies archives and records a transactional durable receipt',async()=>{
+ const p=await fencedPlan();assert.deepEqual(p.body.blockers,[]);
+ const original=await Promise.all(objects.map(o=>r2.get(o.key).then(r=>r.arrayBuffer())));
+ const result=await apply(p);assert.equal(result.state,'DONE');assert.equal(result.result.digest,p.digest);
+ assert.deepEqual(await apply(p),result);
+ assert.equal((await db.prepare('SELECT COUNT(*) n FROM cloud_operator_receipts').first()).n,1);
+ assert.equal((await db.prepare('SELECT COUNT(*) n FROM cloud_backup_slots').first()).n,3);
+ assert.equal((await fenceState(control,fencedScope.fence.resource)).running,0);
+ assert.deepEqual(await Promise.all(objects.map(o=>r2.get(o.key).then(r=>r.arrayBuffer()))),original);
+});
+test('lost rebuild reply resolves from its receipt without submitting another batch',async()=>{
+ const p=await fencedPlan();let batches=0;
+ const ambiguous={prepare:db.prepare.bind(db),batch:async statements=>{batches++;await db.batch(statements);throw new Error('lost reply');}};
+ await assert.rejects(apply(p,ambiguous));
+ assert.equal((await fenceState(control,fencedScope.fence.resource)).running,1);
+ const resolved=await apply(p,ambiguous);assert.equal(resolved.state,'DONE');assert.equal(batches,1);
+ assert.equal((await fenceState(control,fencedScope.fence.resource)).running,0);
+});
+test('unknown rebuild before response retains exclusivity and cannot be resubmitted or rewound',async()=>{
+ const p=await fencedPlan();let batches=0;
+ const ambiguous={prepare:db.prepare.bind(db),batch:async()=>{batches++;throw new Error('request outcome unknown');}};
+ await assert.rejects(apply(p,ambiguous));
+ assert.equal((await apply(p,ambiguous)).state,'RUNNING');assert.equal(batches,1);
+ const f=await fenceState(control,fencedScope.fence.resource);
+ await assert.rejects(claimAction(control,f,'c'.repeat(64),'restore'));
+ assert.equal((await db.prepare('SELECT COUNT(*) n FROM cloud_operator_receipts').first()).n,0);
+});
+test('resealed injected SQL, missing multipart blockers, and changed bytes fail before a live claim',async()=>{
+ const p=await fencedPlan(),forged=structuredClone(p);
+ forged.body.snapshot[0].sql="SELECT 'malicious' AS state";forged.digest=seal(forged.body);
+ await assert.rejects(apply(forged),/PLAN_STALE/);
+ const upload=await r2.createMultipartUpload('recovery/library-a/0/00000000-0000-4000-8000-000000000099');
+ uploads.push({key:upload.key,uploadId:upload.uploadId,initiated:new Date(0).toISOString()});
+ await assert.rejects(apply(p),/PLAN_STALE/);await upload.abort();uploads=[];
+ await r2.put(objects[0].key,new Uint8Array([0,1,2]),{customMetadata:{recovery:objects[0].metadata}});
+ await assert.rejects(apply(p));
+ assert.equal((await control.prepare('SELECT COUNT(*) n FROM cloud_fence_actions').first()).n,0);
+});
+test('two simultaneous apply calls have one batch winner',async()=>{
+ const p=await fencedPlan();
+ const attempts=await Promise.allSettled([apply(p),apply(p)]);
+ assert.ok(attempts.some(r=>r.status==='fulfilled'&&r.value.state==='DONE'));
+ assert.equal((await db.prepare('SELECT COUNT(*) n FROM cloud_operator_receipts').first()).n,1);
+ assert.equal((await db.prepare('SELECT COUNT(*) n FROM cloud_backup_slots').first()).n,3);
+});
+
+test('a completed rebuild receipt becomes superseded after a later restore action',async()=>{
+ const p=await fencedPlan();await apply(p);
+ const f=await fenceState(control,fencedScope.fence.resource),id='d'.repeat(64);
+ await claimAction(control,f,id,'restore');
+ await db.prepare('DELETE FROM cloud_operator_receipts').run();
+ await finishAction(control,maintenance,id,{restored:true});
+ assert.equal((await apply(p)).state,'SUPERSEDED');
+ assert.equal((await db.prepare('SELECT COUNT(*) n FROM cloud_operator_receipts').first()).n,0);
+});
+async function operatorHttp(path,input,envOverrides={},providerRestore){
+ const secret='a'.repeat(64),origin='https://newpipe-test-operator.qa.workers.dev';
+ const publicBindings=[{name:'DB',type:'d1',id:scope.database},{name:'CONTROL',type:'d1',id:fencedScope.fence.control},
+  {name:'RECOVERY',type:'r2_bucket',bucket_name:scope.bucket},
+  ...Object.entries(fencedAuthority().vars).map(([name,text])=>({name,type:'plain_text',text}))];
+ const operatorBindings=[...publicBindings.filter(b=>['DB','CONTROL','RECOVERY','FENCE_RESOURCE'].includes(b.name)),
+  {name:'SCOPE',type:'plain_text',text:JSON.stringify(fencedScope)},{name:'PUBLIC_ORIGIN',type:'plain_text',text:origin}];
+ const original=globalThis.fetch;
+ globalThis.fetch=async url=>{
+  const p=new URL(url).pathname,isOperator=p.includes('/'+fencedScope.fence.operator+'/'),bindings=isOperator?operatorBindings:publicBindings;
+  let result;
+  if(p.endsWith('/deployments'))result={deployments:[{id:'deployment',versions:[{version_id:'version',percentage:100}]}]};
+  else if(p.includes('/versions/'))result={id:'version',resources:{bindings}};
+  else if(p.endsWith('/settings'))result={bindings};
+  else if(p.endsWith('/workers/subdomain'))result={subdomain:'qa'};
+  else if(p.endsWith('/time_travel/restore'))return providerRestore();
+  else throw new Error('unexpected provider path');
+  return Response.json({success:true,result});
+ };
+ try{
+  return await operatorWorker.fetch(new Request(origin+path,{method:'POST',headers:{Authorization:'Bearer '+secret,'Content-Type':'application/json'},
+   body:JSON.stringify({scope:fencedScope,cloudflareToken:'synthetic-token',maintenance,revision:'2',...input})}),
+   {DB:db,CONTROL:control,RECOVERY:r2,OPERATOR_TOKEN:secret,PUBLIC_ORIGIN:origin,SCOPE:JSON.stringify(fencedScope),FENCE_RESOURCE:fencedScope.fence.resource,...envOverrides});
+ }finally{globalThis.fetch=original;}
+}
+test('operator HTTP abort fences an exact multipart upload, preserves completed bytes and is idempotent',async()=>{
+ await fencedPlan();const key='recovery/library-a/0/00000000-0000-4000-8000-000000000088',upload=await r2.createMultipartUpload(key);
+ const before=(await r2.list()).objects.map(o=>[o.key,o.etag]);
+ const first=await operatorHttp('/recovery/abort',{key,uploadId:upload.uploadId});assert.equal(first.status,200);
+ const done=await first.json();assert.equal(done.state,'DONE');
+ const again=await operatorHttp('/recovery/abort',{key,uploadId:upload.uploadId});assert.deepEqual(await again.json(),done);
+ assert.deepEqual((await r2.list()).objects.map(o=>[o.key,o.etag]),before);
+});
+test('operator HTTP rejects unauthenticated maintenance without touching control state',async()=>{
+ await fencedPlan();
+ const before=await fenceState(control,fencedScope.fence.resource);
+ const r=await operatorHttp('/maintenance/close',{maintenance:'99999999-9999-4999-8999-999999999999'},{OPERATOR_TOKEN:'different-secret'});
+ assert.equal(r.status,403);assert.deepEqual(await fenceState(control,fencedScope.fence.resource),before);
+});
+test('unknown provider restore keeps RUNNING and a repeated request never calls the provider twice',async()=>{
+ await fencedPlan();let calls=0;
+ const bookmark='00000001-00000002-00000003-'+'1'.repeat(32);
+ const provider=()=>{calls++;throw new Error('lost provider response');};
+ const first=await operatorHttp('/recovery/restore',{bookmark},{},provider);assert.equal(first.status,503);
+ assert.equal((await fenceState(control,fencedScope.fence.resource)).running,1);
+ const again=await operatorHttp('/recovery/restore',{bookmark},{},provider);
+ assert.equal((await again.json()).state,'RUNNING');assert.equal(calls,1);
+});
+
+test('delayed unclaimed restore intent cannot overtake a later completed action',async()=>{
+ await fencedPlan();let calls=0;
+ const initial=await fenceState(control,fencedScope.fence.resource),id='e'.repeat(64);
+ await claimAction(control,initial,id,'abort');await finishAction(control,maintenance,id,{aborted:true});
+ const r=await operatorHttp('/recovery/restore',{bookmark:'00000001-00000002-00000003-'+'2'.repeat(32)},{},()=>{calls++;return Response.json({success:true,result:{}});});
+ assert.equal(r.status,503);assert.equal((await r.json()).error,'STALE_MAINTENANCE_INTENT');assert.equal(calls,0);
+ assert.equal((await fenceState(control,fencedScope.fence.resource)).running,0);
 });

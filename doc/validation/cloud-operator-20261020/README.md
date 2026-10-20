@@ -1,5 +1,7 @@
 # Operator inspection checkpoint — 2026-10-20
 
+Historical checkpoint for the original, unfenced QA resource pair. Those resources remain inspection-only. The later external barrier and isolated live recovery work is recorded in [fenced recovery evidence](../cloud-fence-20261020/README.md).
+
 Status: **inspection and local rebuild tests passed; live disaster recovery remains blocked**.
 
 Preview follow-up was committed and pushed as `fbf778c3f`. This checkpoint covers the operator files and documentation in its own commit. The operator implementation was completed directly in this session; the stopped implementation job left no operator source changes.

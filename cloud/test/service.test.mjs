@@ -14,7 +14,7 @@ const catalog=name=>structuredClone(fixture.catalogs.find(c=>c.name===name).cata
 const tokens={a:'device-a.'+'1'.repeat(64),b:'device-b.'+'2'.repeat(64),r:'device-r.'+'3'.repeat(64)};
 const EMPTY_FP=await fingerprint(catalog('empty')),EMPTY_MANIFEST=await pageManifest([]);
 let mf,modules,persistence;
-async function runtime(){return new Miniflare(convertV4MiniflareOptions({cf:false,modules,compatibilityDate:'2026-08-25',d1Databases:{DB:'newpipe-catalog-service-local'},resourcePersistencePath:persistence}));}
+async function runtime(){return new Miniflare(convertV4MiniflareOptions({cf:false,modules,compatibilityDate:'2026-08-25',d1Databases:{DB:'newpipe-catalog-service-local',CONTROL:'service-control'},resourcePersistencePath:persistence}));}
 async function call(path,data={},token=tokens.a,extra={}){
  const r=await mf.dispatchFetch('https://catalog.test'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,...extra.headers},body:JSON.stringify(data),...extra});
  return {status:r.status,data:await r.json(),headers:r.headers};
@@ -57,6 +57,11 @@ before(async()=>{
   modules.push({type:'ESModule',path:resolve(f),contents:f.endsWith('.ts')?stripTypeScriptTypes(source,{mode:'strip'}):source});
  }
  mf=await runtime();await mf.ready;
+ const controlDb=await mf.getD1Database('CONTROL');
+ const fenceSchema=(await readFile(new URL('../control-migrations/0001_fence.sql',import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ await controlDb.batch(fenceSchema.map(s=>controlDb.prepare(s)));
+ await controlDb.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,created_at) VALUES('test-resource','test-db','test-bucket','library-a','service-a','fresh-resources-v1','OPEN',0)").run();
+
  const migration=(await Promise.all(['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql'].map(f=>readFile(new URL('../migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
  await sql(...migration);
 });

@@ -14,12 +14,15 @@ export const canonical = value => JSON.stringify(value, (_, v) =>
 export const seal = value => createHash('sha256').update(canonical(value)).digest('hex');
 const identifier = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 export function validateScope(s) {
-  if (!s || Object.keys(s).sort().join(',') !== 'account,bucket,database,generation,library,worker' ||
-    Object.values(s).some(v => typeof v !== 'string') ||
+  if (!s || !['account,bucket,database,generation,library,worker','account,bucket,database,fence,generation,library,worker'].includes(Object.keys(s).sort().join(',')) ||
+    Object.entries(s).some(([k,v]) => k!=='fence' && typeof v !== 'string') ||
     !/^[0-9a-f]{32}$/.test(s.account) || !archiveId.test(s.database) ||
     !archiveId.test(s.generation) || !identifier.test(s.library) ||
     !/^[a-z0-9][a-z0-9-]{0,62}$/.test(s.worker) ||
     !/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(s.bucket)) fail('INVALID_EXACT_SCOPE');
+  if (s.fence && (Object.keys(s.fence).sort().join(',')!=='control,operator,resource' ||
+    !archiveId.test(s.fence.control) || s.fence.control===s.database || !archiveId.test(s.fence.resource) ||
+    !/^[a-z0-9][a-z0-9-]{0,62}$/.test(s.fence.operator) || s.fence.operator===s.worker)) fail('INVALID_FENCE_SCOPE');
   return s;
 }
 const keyInfo = (scope, key) => {
@@ -130,8 +133,10 @@ export const TABLES = [
 const quote = s => '"' + s.replaceAll('"','""') + '"';
 export async function snapshot(db, library) {
   const result = [];
+  // One schema query keeps the operator invocation within the Free D1 query cap.
+  const schemas = await db.query('SELECT j.value AS table_name,p.* FROM json_each(?) j,pragma_table_info(j.value) p ORDER BY j.key,p.cid',[JSON.stringify(TABLES)]);
   for (const table of TABLES) {
-    const schema = await db.query('PRAGMA table_info(' + quote(table) + ')',[]);
+    const schema = schemas.filter(x=>x.table_name===table);
     if (!schema.length || !schema.some(x=>x.name==='library_id')) fail('RECOVERY_SCHEMA_MISSING');
     const columns = schema.map(x=>x.name);
     if (columns.some(c=>!/^[a-z_]+$/.test(c))) fail('RECOVERY_SCHEMA_CHANGED');
@@ -155,11 +160,21 @@ export function authorityBlockers(authority, scope) {
   if (!authority || typeof authority.deployment !== 'string' || typeof authority.version !== 'string') return ['ACTIVE_DEPLOYMENT_UNVERIFIED'];
   for (const [k,v] of Object.entries(expected)) if (authority.vars?.[k] !== v) b.push('WORKER_SETTING_'+k);
   if (authority.database !== scope.database || authority.bucket !== scope.bucket) b.push('WORKER_BINDING_MISMATCH');
+  if (scope.fence && (authority.control!==scope.fence.control || authority.vars?.FENCE_RESOURCE!==scope.fence.resource ||
+    authority.operator?.database!==scope.database || authority.operator?.bucket!==scope.bucket ||
+    authority.operator?.control!==scope.fence.control || authority.operator?.resource!==scope.fence.resource)) b.push('FENCE_BINDING_MISMATCH');
   return b;
 }
-export async function inspect({store,db,authority}, scope) {
+export function fenceBlockers(f,scope) {
+  if (!scope.fence || !f || f.state!=='HELD' || f.pending!==0 || f.running!==0 ||
+    f.provenance!=='fresh-resources-v1' || f.resource_id!==scope.fence.resource ||
+    f.database_id!==scope.database || f.bucket_name!==scope.bucket || f.library_id!==scope.library ||
+    f.next_generation!==scope.generation || !archiveId.test(f.maintenance_id) || typeof f.revision!=='string') return ['STALE_WORKER_FENCE_UNAVAILABLE'];
+  return [];
+}
+export async function inspect({store,db,authority,fence}, scope) {
   validateScope(scope);
-  const before = await authority();
+  const before = await authority(), fenceBefore=scope.fence&&fence?await fence():null;
   const physical = await inventory(store,scope), archives=[];
   for (const o of physical.objects) archives.push(await verifyArchive(store,scope,o));
   const state = await snapshot(db,scope.library);
@@ -176,10 +191,10 @@ export async function inspect({store,db,authority}, scope) {
   if (indexed('cloud_devices').some(d=>d.service_generation===scope.generation) ||
     indexed('cloud_backup_control').some(c=>c.service_generation===scope.generation) ||
     archives.some(a=>a.service===scope.generation)) blockers.push('FRESH_EXTERNAL_GENERATION_REQUIRED');
-  // Neither a deployment nor a quiet inventory proves old HTTP requests are gone.
-  // This release has no provider-verifiable drain/cancel API. Do not offer a --force.
-  blockers.push('STALE_WORKER_FENCE_UNAVAILABLE');
-  return {format:1,scope,authority:after,archives:archives.sort((a,b)=>Number(a.created)-Number(b.created)||a.archive.localeCompare(b.archive)),
+  const fenceAfter=scope.fence&&fence?await fence():null;
+  if (canonical(fenceBefore)!==canonical(fenceAfter)) fail('MAINTENANCE_CHANGED');
+  blockers.push(...fenceBlockers(fenceAfter,scope));
+  return {format:1,scope,authority:after,...(scope.fence?{fence:fenceAfter}:{}),archives:archives.sort((a,b)=>Number(a.created)-Number(b.created)||a.archive.localeCompare(b.archive)),
     uploads:physical.uploads,snapshot:state,blockers:[...new Set(blockers)]};
 }
 export async function makePlan(adapters,scope) {
@@ -192,18 +207,19 @@ export async function verifyPlan(adapters,plan) {
   if (current.digest!==plan.digest) fail('PLAN_STALE');
   return current;
 }
-/** Batch compiler for an independently fenced executor, not a live execution bypass.
- * Tested against real local D1; the CLI refuses apply until a genuine external fence exists. */
+/** Batch compiler, never an execution bypass. The authenticated executor regenerates
+ * the full plan and claims the external fence before submitting this transaction.
+ * Legacy blocked plans are compiled only by the exclusively owned local tests. */
 export function rebuildBatch(plan) {
   if (!plan?.body || plan.digest!==seal(plan.body)) fail('PLAN_SEAL_MISMATCH');
   const p=plan.body, library=p.scope.library;
   if (p.blockers.some(x=>x!=='STALE_WORKER_FENCE_UNAVAILABLE')) fail('PLAN_BLOCKED');
   const statement = (sql,...params)=>({sql,params}), batch=[];
   // The assertion table is intentionally empty after each guarded batch.
-  for (const s of p.snapshot) {
-    batch.push(statement('INSERT INTO cloud_commit_assertion(slot,ok) VALUES(1,(('+s.sql+')=?))',library,s.state));
-    batch.push(statement('DELETE FROM cloud_commit_assertion WHERE slot=1'));
-  }
+  batch.push(statement('INSERT INTO cloud_commit_assertion(slot,ok) VALUES(1,CASE WHEN '+
+    p.snapshot.map(s=>'(('+s.sql+')=?)').join(' AND ')+' THEN 1 ELSE 0 END)',
+    ...p.snapshot.flatMap(s=>[library,s.state])));
+  batch.push(statement('DELETE FROM cloud_commit_assertion WHERE slot=1'));
   batch.push(statement('UPDATE cloud_devices SET revoked=1,can_write=0 WHERE library_id=?',library));
   batch.push(statement('UPDATE cloud_replace_grants SET can_replace=0 WHERE library_id=?',library));
   for (const table of ['cloud_backup_approvals','cloud_replace_approvals','cloud_uploads']) batch.push(statement('DELETE FROM '+table+' WHERE library_id=?',library));

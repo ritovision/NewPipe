@@ -38,7 +38,7 @@ export default {async fetch(request,env){
   if(input.resetStats)stats={statements:0,batches:0,maxBatch:0,rowsRead:0,rowsWritten:0};return Response.json(stats);
  }
  if(path==='/__test/stats')return Response.json(stats);
- return handleRequest(request,{...env,DB:measured(env.DB),PUBLIC_ORIGIN:'https://catalog.test',LIBRARY_ID:'library-a',
+ return handleRequest(request,{...env,FENCE_RESOURCE:'test-resource',DB:measured(env.DB),PUBLIC_ORIGIN:'https://catalog.test',LIBRARY_ID:'library-a',
   SERVICE_GENERATION:'service-a',ENABLE_CATALOG_API:'true',MAX_CATALOG_BYTES:String(32*1024*1024),MAX_CATALOG_PAGES:'2048',
   REQUEST_LIMITER:{limit:async()=>({success:options.rateAllowed!==false})},...options});
 }};

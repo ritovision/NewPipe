@@ -68,7 +68,7 @@ export default {async fetch(request,env){
   else{await env.RECOVERY.put(p.key,Uint8Array.from(atob(p.data),x=>x.charCodeAt(0)),{customMetadata:p.metadata});objects.add(p.key);count();}
   return Response.json({ok:true});
  }
- return handleRequest(request,{...env,DB:database(env.DB),RECOVERY:bucket(env.RECOVERY),
+ return handleRequest(request,{...env,FENCE_RESOURCE:'test-resource',DB:database(env.DB),RECOVERY:bucket(env.RECOVERY),
   PUBLIC_ORIGIN:'https://recovery.test',LIBRARY_ID:'library-a',SERVICE_GENERATION:'service-a',
   ENABLE_CATALOG_API:'true',ENABLE_RECOVERY_API:'true',MAX_CATALOG_BYTES:String(32*1024*1024),MAX_CATALOG_PAGES:'2048',
   REQUEST_LIMITER:{limit:async()=>({success:true})},...options});

@@ -81,7 +81,12 @@ before(async()=>{
  for(const f of ['test/runtime-recovery-worker.mjs',...(await readdir(new URL('../src/',import.meta.url))).filter(f=>f.endsWith('.ts')).map(f=>'src/'+f)]){
   const source=await readFile(new URL('../'+f,import.meta.url),'utf8');modules.push({type:'ESModule',path:resolve(f),contents:f.endsWith('.ts')?stripTypeScriptTypes(source,{mode:'strip'}):source});
  }
- mf=new Miniflare(convertV4MiniflareOptions({cf:false,modules,compatibilityDate:'2026-08-25',d1Databases:{DB:'recovery-local'},r2Buckets:{RECOVERY:'recovery-local'},resourcePersistencePath:persistence}));await mf.ready;
+ mf=new Miniflare(convertV4MiniflareOptions({cf:false,modules,compatibilityDate:'2026-08-25',d1Databases:{DB:'recovery-local',CONTROL:'recovery-control'},r2Buckets:{RECOVERY:'recovery-local'},resourcePersistencePath:persistence}));await mf.ready;
+ const controlDb=await mf.getD1Database('CONTROL');
+ const fenceSchema=(await readFile(new URL('../control-migrations/0001_fence.sql',import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ await controlDb.batch(fenceSchema.map(s=>controlDb.prepare(s)));
+ await controlDb.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,created_at) VALUES('test-resource','test-db','test-bucket','library-a','service-a','fresh-resources-v1','OPEN',0)").run();
+
  for(const file of ['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql']){
   const statements=(await readFile(new URL('../migrations/'+file,import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);await sql(...statements);
  }

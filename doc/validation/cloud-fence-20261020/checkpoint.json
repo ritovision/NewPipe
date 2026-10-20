@@ -1,0 +1,425 @@
+{
+  "format": 1,
+  "date": "2026-10-20",
+  "sourceParent": "9466f96705edbf443923183f4646e2ae8b2161b6",
+  "scope": {
+    "account": "b35814b119cba4448e3e0ac59442cc25",
+    "worker": "newpipe-fence-qa-20261020",
+    "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+    "bucket": "newpipe-fence-qa-20261020",
+    "library": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+    "generation": "161790ee-29a5-4113-ac49-a54f12073a29",
+    "fence": {
+      "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+      "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "operator": "newpipe-fence-qa-20261020-op"
+    }
+  },
+  "finalAuthority": {
+    "deployment": "9ff8fbe8-733c-4ef9-b3d7-184c0b9b7726",
+    "version": "632bd01a-c5b4-457e-9324-76547cf0e668",
+    "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+    "bucket": "newpipe-fence-qa-20261020",
+    "vars": {
+      "ENABLE_CATALOG_API": "false",
+      "ENABLE_RECOVERY_API": "false",
+      "ENABLE_REPLACEMENT_API": "false",
+      "LIBRARY_ID": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+      "SERVICE_GENERATION": "161790ee-29a5-4113-ac49-a54f12073a29",
+      "FENCE_RESOURCE": "5886b5e0-750c-4cff-a93a-f8117a25e6ff"
+    },
+    "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+    "operator": {
+      "deployment": "9bdcb1f7-f346-4b93-89d7-3d3c04dc8abe",
+      "version": "e8791a40-1153-4090-9a29-8a053950b7b9",
+      "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+      "bucket": "newpipe-fence-qa-20261020",
+      "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+      "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "origin": "https://newpipe-fence-qa-20261020-op.ritorhymes.workers.dev"
+    }
+  },
+  "tests": {
+    "backend": {
+      "passed": 304,
+      "failed": 0,
+      "skipped": 0
+    },
+    "typecheck": "passed",
+    "androidRerun": false
+  },
+  "initialMaintenance": {
+    "held": {
+      "resource_id": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "database_id": "7fdf0708-4d39-4efb-946c-567109a6422b",
+      "bucket_name": "newpipe-fence-qa-20261020",
+      "library_id": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+      "service_generation": "7473ea70-8787-4e78-911d-70fb4c090fd3",
+      "provenance": "fresh-resources-v1",
+      "state": "HELD",
+      "maintenance_id": "7070b91d-e4c2-4d47-a60c-fc8c7ecc8353",
+      "next_generation": "161790ee-29a5-4113-ac49-a54f12073a29",
+      "revision": "2",
+      "pending": 0,
+      "running": 0
+    },
+    "newRequestStatus": 503,
+    "newRequest": {
+      "error": "MAINTENANCE_REQUIRED"
+    },
+    "pausedLiveProbe": "transport did not admit before complete body; no live paused-request evidence"
+  },
+  "indexLoss": {
+    "fence": {
+      "state": "HELD",
+      "pending": 0,
+      "running": 0
+    },
+    "removed": [
+      {
+        "archive_id": "f8152b60-e835-4705-9fbd-99d7b0e2de4a"
+      },
+      {
+        "archive_id": "cd4e128c-e214-4ad9-9651-646eb987406c"
+      },
+      {
+        "archive_id": "dbe24a93-1d3a-4874-8d89-250bbbca3a3a"
+      }
+    ]
+  },
+  "firstApply": {
+    "state": "DONE",
+    "result": {
+      "digest": "0e8c701b7433e4003d571ba5377391f378cc3291f1545a7357ccd2beca1d4b2c",
+      "committed": true
+    }
+  },
+  "timeTravel": {
+    "state": "DONE",
+    "action": "630a9356dd738438f973ececb8cc19745b53647bd59ee3ba1f6c84718f0834c2",
+    "result": {
+      "bookmark": "00000001-0000004e-0000510a-ef204d6f9bd79c37f39576ac71c28920",
+      "previous_bookmark": "00000008-ffffffff-0000510a-3644f09b80db08d9d180befc49786979",
+      "message": "Resetting Durable Object to restore database to bookmark: 00000001-0000004e-0000510a-ef204d6f9bd79c37f39576ac71c28920"
+    }
+  },
+  "secondApply": {
+    "state": "DONE",
+    "result": {
+      "digest": "ffd0940b662e302cbddeb402a19ff5f784d9df90398c0d2d6a4018e9063ff822",
+      "committed": true
+    }
+  },
+  "phases": [
+    {
+      "stage": "index-rebuilt",
+      "at": "2026-10-20T20:46:12.780Z",
+      "planDigest": "15dce0548d58cec21b82918f279420514ec35bf11ffebfcd8764979137eff865",
+      "authority": {
+        "deployment": "9ff8fbe8-733c-4ef9-b3d7-184c0b9b7726",
+        "version": "632bd01a-c5b4-457e-9324-76547cf0e668",
+        "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+        "bucket": "newpipe-fence-qa-20261020",
+        "vars": {
+          "ENABLE_CATALOG_API": "false",
+          "ENABLE_RECOVERY_API": "false",
+          "ENABLE_REPLACEMENT_API": "false",
+          "LIBRARY_ID": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+          "SERVICE_GENERATION": "161790ee-29a5-4113-ac49-a54f12073a29",
+          "FENCE_RESOURCE": "5886b5e0-750c-4cff-a93a-f8117a25e6ff"
+        },
+        "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+        "operator": {
+          "deployment": "9bdcb1f7-f346-4b93-89d7-3d3c04dc8abe",
+          "version": "e8791a40-1153-4090-9a29-8a053950b7b9",
+          "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+          "bucket": "newpipe-fence-qa-20261020",
+          "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+          "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+          "origin": "https://newpipe-fence-qa-20261020-op.ritorhymes.workers.dev"
+        }
+      },
+      "fence": {
+        "resource_id": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+        "database_id": "7fdf0708-4d39-4efb-946c-567109a6422b",
+        "bucket_name": "newpipe-fence-qa-20261020",
+        "library_id": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+        "service_generation": "7473ea70-8787-4e78-911d-70fb4c090fd3",
+        "provenance": "fresh-resources-v1",
+        "state": "HELD",
+        "maintenance_id": "7070b91d-e4c2-4d47-a60c-fc8c7ecc8353",
+        "next_generation": "161790ee-29a5-4113-ac49-a54f12073a29",
+        "revision": "3",
+        "pending": 0,
+        "running": 0
+      },
+      "catalogUnchanged": true,
+      "archivesUnchanged": true,
+      "archives": [
+        {
+          "archive": "f8152b60-e835-4705-9fbd-99d7b0e2de4a",
+          "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/0/f8152b60-e835-4705-9fbd-99d7b0e2de4a",
+          "bytes": 1665,
+          "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+          "manifestDigest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+        },
+        {
+          "archive": "cd4e128c-e214-4ad9-9651-646eb987406c",
+          "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/1/cd4e128c-e214-4ad9-9651-646eb987406c",
+          "bytes": 1665,
+          "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+          "manifestDigest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+        },
+        {
+          "archive": "dbe24a93-1d3a-4874-8d89-250bbbca3a3a",
+          "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/2/dbe24a93-1d3a-4874-8d89-250bbbca3a3a",
+          "bytes": 1665,
+          "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+          "manifestDigest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+        }
+      ],
+      "slots": [
+        {
+          "slot": "0",
+          "state": "READY",
+          "archive": "f8152b60-e835-4705-9fbd-99d7b0e2de4a"
+        },
+        {
+          "slot": "1",
+          "state": "READY",
+          "archive": "cd4e128c-e214-4ad9-9651-646eb987406c"
+        },
+        {
+          "slot": "2",
+          "state": "READY",
+          "archive": "dbe24a93-1d3a-4874-8d89-250bbbca3a3a"
+        }
+      ],
+      "devices": 1,
+      "deviceRevoked": true,
+      "restoredOldGenerationWouldAuthenticate": false,
+      "currentGenerationRejectsOldToken": true,
+      "operatorReceipts": [
+        "0e8c701b7433e4003d571ba5377391f378cc3291f1545a7357ccd2beca1d4b2c"
+      ]
+    },
+    {
+      "stage": "restored",
+      "at": "2026-10-20T20:47:16.632Z",
+      "planDigest": "ffd0940b662e302cbddeb402a19ff5f784d9df90398c0d2d6a4018e9063ff822",
+      "authority": {
+        "deployment": "9ff8fbe8-733c-4ef9-b3d7-184c0b9b7726",
+        "version": "632bd01a-c5b4-457e-9324-76547cf0e668",
+        "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+        "bucket": "newpipe-fence-qa-20261020",
+        "vars": {
+          "ENABLE_CATALOG_API": "false",
+          "ENABLE_RECOVERY_API": "false",
+          "ENABLE_REPLACEMENT_API": "false",
+          "LIBRARY_ID": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+          "SERVICE_GENERATION": "161790ee-29a5-4113-ac49-a54f12073a29",
+          "FENCE_RESOURCE": "5886b5e0-750c-4cff-a93a-f8117a25e6ff"
+        },
+        "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+        "operator": {
+          "deployment": "9bdcb1f7-f346-4b93-89d7-3d3c04dc8abe",
+          "version": "e8791a40-1153-4090-9a29-8a053950b7b9",
+          "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+          "bucket": "newpipe-fence-qa-20261020",
+          "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+          "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+          "origin": "https://newpipe-fence-qa-20261020-op.ritorhymes.workers.dev"
+        }
+      },
+      "fence": {
+        "resource_id": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+        "database_id": "7fdf0708-4d39-4efb-946c-567109a6422b",
+        "bucket_name": "newpipe-fence-qa-20261020",
+        "library_id": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+        "service_generation": "7473ea70-8787-4e78-911d-70fb4c090fd3",
+        "provenance": "fresh-resources-v1",
+        "state": "HELD",
+        "maintenance_id": "7070b91d-e4c2-4d47-a60c-fc8c7ecc8353",
+        "next_generation": "161790ee-29a5-4113-ac49-a54f12073a29",
+        "revision": "4",
+        "pending": 0,
+        "running": 0
+      },
+      "catalogUnchanged": true,
+      "archivesUnchanged": true,
+      "archives": [
+        {
+          "archive": "f8152b60-e835-4705-9fbd-99d7b0e2de4a",
+          "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/0/f8152b60-e835-4705-9fbd-99d7b0e2de4a",
+          "bytes": 1665,
+          "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+          "manifestDigest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+        },
+        {
+          "archive": "cd4e128c-e214-4ad9-9651-646eb987406c",
+          "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/1/cd4e128c-e214-4ad9-9651-646eb987406c",
+          "bytes": 1665,
+          "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+          "manifestDigest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+        },
+        {
+          "archive": "dbe24a93-1d3a-4874-8d89-250bbbca3a3a",
+          "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/2/dbe24a93-1d3a-4874-8d89-250bbbca3a3a",
+          "bytes": 1665,
+          "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+          "manifestDigest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+        }
+      ],
+      "slots": [
+        {
+          "slot": "0",
+          "state": "READY",
+          "archive": "f8152b60-e835-4705-9fbd-99d7b0e2de4a"
+        },
+        {
+          "slot": "1",
+          "state": "READY",
+          "archive": "cd4e128c-e214-4ad9-9651-646eb987406c"
+        },
+        {
+          "slot": "2",
+          "state": "READY",
+          "archive": "dbe24a93-1d3a-4874-8d89-250bbbca3a3a"
+        }
+      ],
+      "devices": 1,
+      "deviceRevoked": false,
+      "restoredOldGenerationWouldAuthenticate": true,
+      "currentGenerationRejectsOldToken": true,
+      "operatorReceipts": []
+    },
+    {
+      "stage": "recovered",
+      "at": "2026-10-20T20:48:52.746Z",
+      "planDigest": "744c73ecbaf811025b41d2f9df3899919d06f7caa5814ff0febd2854dcb1311d",
+      "authority": {
+        "deployment": "9ff8fbe8-733c-4ef9-b3d7-184c0b9b7726",
+        "version": "632bd01a-c5b4-457e-9324-76547cf0e668",
+        "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+        "bucket": "newpipe-fence-qa-20261020",
+        "vars": {
+          "ENABLE_CATALOG_API": "false",
+          "ENABLE_RECOVERY_API": "false",
+          "ENABLE_REPLACEMENT_API": "false",
+          "LIBRARY_ID": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+          "SERVICE_GENERATION": "161790ee-29a5-4113-ac49-a54f12073a29",
+          "FENCE_RESOURCE": "5886b5e0-750c-4cff-a93a-f8117a25e6ff"
+        },
+        "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+        "operator": {
+          "deployment": "9bdcb1f7-f346-4b93-89d7-3d3c04dc8abe",
+          "version": "e8791a40-1153-4090-9a29-8a053950b7b9",
+          "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+          "bucket": "newpipe-fence-qa-20261020",
+          "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+          "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+          "origin": "https://newpipe-fence-qa-20261020-op.ritorhymes.workers.dev"
+        }
+      },
+      "fence": {
+        "resource_id": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+        "database_id": "7fdf0708-4d39-4efb-946c-567109a6422b",
+        "bucket_name": "newpipe-fence-qa-20261020",
+        "library_id": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+        "service_generation": "7473ea70-8787-4e78-911d-70fb4c090fd3",
+        "provenance": "fresh-resources-v1",
+        "state": "HELD",
+        "maintenance_id": "7070b91d-e4c2-4d47-a60c-fc8c7ecc8353",
+        "next_generation": "161790ee-29a5-4113-ac49-a54f12073a29",
+        "revision": "5",
+        "pending": 0,
+        "running": 0
+      },
+      "catalogUnchanged": true,
+      "archivesUnchanged": true,
+      "archives": [
+        {
+          "archive": "f8152b60-e835-4705-9fbd-99d7b0e2de4a",
+          "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/0/f8152b60-e835-4705-9fbd-99d7b0e2de4a",
+          "bytes": 1665,
+          "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+          "manifestDigest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+        },
+        {
+          "archive": "cd4e128c-e214-4ad9-9651-646eb987406c",
+          "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/1/cd4e128c-e214-4ad9-9651-646eb987406c",
+          "bytes": 1665,
+          "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+          "manifestDigest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+        },
+        {
+          "archive": "dbe24a93-1d3a-4874-8d89-250bbbca3a3a",
+          "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/2/dbe24a93-1d3a-4874-8d89-250bbbca3a3a",
+          "bytes": 1665,
+          "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+          "manifestDigest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+        }
+      ],
+      "slots": [
+        {
+          "slot": "0",
+          "state": "READY",
+          "archive": "f8152b60-e835-4705-9fbd-99d7b0e2de4a"
+        },
+        {
+          "slot": "1",
+          "state": "READY",
+          "archive": "cd4e128c-e214-4ad9-9651-646eb987406c"
+        },
+        {
+          "slot": "2",
+          "state": "READY",
+          "archive": "dbe24a93-1d3a-4874-8d89-250bbbca3a3a"
+        }
+      ],
+      "devices": 1,
+      "deviceRevoked": true,
+      "restoredOldGenerationWouldAuthenticate": false,
+      "currentGenerationRejectsOldToken": true,
+      "operatorReceipts": [
+        "ffd0940b662e302cbddeb402a19ff5f784d9df90398c0d2d6a4018e9063ff822"
+      ]
+    }
+  ],
+  "historicalApplyStatus": {
+    "state": "SUPERSEDED",
+    "action": "0e8c701b7433e4003d571ba5377391f378cc3291f1545a7357ccd2beca1d4b2c"
+  },
+  "finalHttp": {
+    "at": "2026-10-20T20:49:55.884Z",
+    "status": 503,
+    "body": {
+      "error": "CLOUD_API_DISABLED"
+    },
+    "allPublicApisDisabled": true
+  },
+  "finalPlan": {
+    "digest": "744c73ecbaf811025b41d2f9df3899919d06f7caa5814ff0febd2854dcb1311d",
+    "blockers": [
+      "FRESH_EXTERNAL_GENERATION_REQUIRED"
+    ],
+    "incompleteMultipartUploads": 0
+  },
+  "preservedSnapshotSha256": {
+    "cloud_head": "285610d6dfc2016acd1c2cc2d527317dd5428ba1aedc8ab0d56fb66a55c79d20",
+    "cloud_receipts": "33287a36f2039e7d4b8098fa6a070b31a54d12cf1d83a9a544b63a1f60b01c15",
+    "cloud_catalog_info": "eace5916c924d600cdf046ea6670ee9eec5c420fb6e4c2d43e668675e0370c23",
+    "cloud_catalog_pages": "b4bc00017ca3b136a6a58d165fc31fad7c2bd24ff3ba739836b951457e3195d2"
+  },
+  "operatorBundleSha256": "74ef368619cca9904a919aeaad94d00fe5bb12cb990e7e8a0004f05ccd3967b3",
+  "limits": {
+    "syntheticOnly": true,
+    "livePausedWriteProven": false,
+    "localPausedEffectsProven": true,
+    "productionEnabled": false,
+    "reopened": false,
+    "legacyAdoptionSupported": false,
+    "cpuScaleAccepted": false,
+    "planUpgrade": false
+  }
+}

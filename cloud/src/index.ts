@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 import { AdmissionError } from "./admission.ts";
+import { admit, FenceError, type RequestFence } from "./fence.ts";
 import { counter } from "./protocol.ts";
 import { CatalogError, CatalogService, authenticateToken, DEFAULT_SERVICE_LIMITS, TRANSPORT_LIMITS, serviceLimits } from "./service.ts";
 import type { Head } from "./protocol.ts";
@@ -9,6 +10,8 @@ import { ReplacementService, canReplace } from "./replacement.ts";
 
 export interface CloudEnvironment {
   DB: D1Database;
+  CONTROL?: D1Database;
+  FENCE_RESOURCE?: string;
   PUBLIC_ORIGIN: string;
   LIBRARY_ID: string;
   SERVICE_GENERATION: string;
@@ -70,6 +73,7 @@ const paths = new Set(["/v1/connect", "/v1/head", "/v1/pages", "/v1/uploads/star
 
 /** This is the deployable typed entry point. Test SQL/fault injection exists only in test/ harnesses. */
 export async function handleRequest(request: Request, env: CloudEnvironment): Promise<Response> {
+  let fence: RequestFence | undefined;
   try {
     if (env.ENABLE_CATALOG_API !== "true") fail("CLOUD_API_DISABLED", 503);
     let origin: URL; try { origin = new URL(env.PUBLIC_ORIGIN); } catch { return fail("SERVICE_CONFIGURATION_INVALID", 503); }
@@ -82,6 +86,8 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
     const authorization = request.headers.get("authorization") ?? "";
     if (!authorization.startsWith("Bearer ") || authorization.length > 204) fail("INVALID_CREDENTIAL", 401);
     const context = await authenticateToken(env.DB, authorization.slice(7), env.LIBRARY_ID, env.SERVICE_GENERATION);
+    fence = await admit(env.CONTROL, { resource: env.FENCE_RESOURCE ?? "", library: env.LIBRARY_ID, generation: env.SERVICE_GENERATION });
+    env = { ...env, DB: fence.database(env.DB), RECOVERY: env.RECOVERY ? fence.bucket(env.RECOVERY) : undefined };
     const limits = serviceLimits(environmentNumber(env.MAX_CATALOG_BYTES, DEFAULT_SERVICE_LIMITS.maxCatalogBytes),
       environmentNumber(env.MAX_CATALOG_PAGES, DEFAULT_SERVICE_LIMITS.maxPages));
     const recoveryEnabled = env.ENABLE_RECOVERY_API === "true" && env.RECOVERY !== undefined;
@@ -125,7 +131,7 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
         case "/v1/recovery/abort": return response(await recovery.abort(readRecoveryReference(data)));
         case "/v1/recovery/pin": return response(await recovery.pin(data));
         case "/v1/recovery/release": return response(await recovery.release(data));
-        case "/v1/recovery/download": return recovery.download(data);
+        case "/v1/recovery/download": return await recovery.download(data);
       }
     }
     const service = new CatalogService(env.DB, context, limits), data = await body(request);
@@ -164,6 +170,7 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
       }
     }
   } catch (error) {
+    if (error instanceof FenceError) return response({ error: error.code }, 503);
     if (error instanceof RecoveryError) return response({ error: error.code, ...(error.status >= 500 ? { outcome: "unknown" } : {}) }, error.status);
     if (error instanceof CatalogError) return response({ error: error.code }, error.status);
     if (error instanceof AdmissionError) {
@@ -173,6 +180,6 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
     // Never return SQL, credential fragments, uploaded titles/URLs or internal exception stacks.
     if (String(error).toLowerCase().includes("constraint failed")) return response({ error: "PRECONDITION_FAILED" }, 409);
     return response({ error: "STORAGE_OR_SERVICE_UNAVAILABLE", outcome: "unknown" }, 503);
-  }
+  } finally { await fence?.finish(); }
 }
 export default { fetch: handleRequest } satisfies ExportedHandler<CloudEnvironment>;

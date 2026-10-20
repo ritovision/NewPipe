@@ -1,88 +1,144 @@
-# Operator recovery: inspection, guarded rebuild, and current live blocker
+# Operator recovery: external maintenance and guarded apply
 
-Status: the read-only inspector is usable and has been exercised against the dedicated live NewPipe bucket. The rebuild transaction is tested against real local D1. **Live apply and multipart abort are deliberately unavailable until an external stale-worker fence is implemented and verified. This is not completed disaster-recovery or release acceptance.**
+Status: an external request barrier and an authenticated operator executor are implemented. Local tests cover paused writes and uncertain outcomes. Live validation and its exact scope are recorded in [fenced recovery evidence](../validation/cloud-fence-20261020/README.md). This is not whole-feature release approval. Production remains disabled.
 
-## Why apply is blocked
+## Authority that survives a data restore
 
-A disabled API gate and a new external service generation stop newly admitted clients. They do not prove that an older invocation has stopped. An old request may already have passed authentication or claimed an R2 operation. Restoring D1 can resurrect its old device authority or operation state. A later R2 completion/deletion cannot be rolled back by a D1 transaction.
+The public Worker requires a **separate CONTROL D1 database** and an exact `FENCE_RESOURCE`. Before handing storage capabilities to an authenticated request, it atomically creates a durable ticket only if that resource is OPEN and its library/service generation matches. All D1 execution and R2 mutation methods are wrapped. Finishing the request closes its captured capabilities before removing the ticket.
 
-The Workers documentation gives HTTP invocations no fixed duration while a client remains connected. The separate runtime-update drain period is not a promise that deploying an application version drains every older invocation. Waiting an arbitrary interval, observing no multipart uploads, or supplying `--workers-fenced=true` is not proof. The CLI exposes no override.
+A ticket is removed only when no storage calls remain pending and every mutation has a definite result. The exact D1 assertion-rollback error is a definite failed transaction; arbitrary errors and ambiguous R2 results are not. If a Worker dies, a storage call loses its response, or detached work is still pending, the ticket remains. There is no expiry, lease reclamation, force-clear, or claim that elapsed time proves completion.
 
-The smallest prerequisite for live apply is an independently verifiable exclusive maintenance barrier covering all old and new D1/R2 mutations and surviving D1 rollback, or a provider-supported, verified termination/drain operation for every relevant invocation. The chosen mechanism needs race tests with a paused pre-maintenance request, including a late create, completion, deletion and previously admitted D1 write. Do not use D1 itself as the only authority if that D1 database will be rewound. This checkpoint adds no new infrastructure or paid service to pretend that barrier exists.
+Maintenance atomically changes OPEN to DRAINING, preventing further admission. It can change DRAINING to HELD only in an external control transaction that finds zero tickets. A paused pre-maintenance request can finish under its existing ticket, but the data database cannot be restored or rebuilt until it has finished. A request that wakes after its capabilities have closed cannot start another storage call. Read-only response streaming does not retain write authority.
 
-## Inspect existing archives
+CONTROL is an independent failure domain for this procedure: **never restore, replace, delete, or edit its tickets alongside the data database**. Restoring CONTROL would destroy the proof. A damaged/unavailable control database or an unresolved ticket means stop in-place recovery. Waiting longer does not authorize bypassing it. Recovering availability from that state needs a separately designed resource migration or a provider-proven resolution; this tool does not manufacture one.
 
-Run from `cloud/` with Node 24 and `npm ci`. Supply an exact scope JSON, outside Git:
+This trades availability for safety on ambiguous failures. It is not a general guarantee that every crashed invocation can eventually be drained.
+
+## Legacy deployment boundary
+
+Earlier Workers never acquired these tickets. Their existing database and bucket therefore remain **inspection-only**, even after upgrading code or disabling the API. A new control row cannot retroactively fence them.
+
+`operator/provision.mjs` provisions fresh data and control databases, a fresh bucket, and new Worker names. It rejects existing names and writes creation responses to a private checkpoint before registering the resource. It has no adopt-existing-resource option. The data pair must be used only by fenced public code and the authenticated operator; administrative writes outside this protocol invalidate its exclusivity assumptions.
+
+The original `newpipe-cloud-sync-v1` / `newpipe-cloud-recovery-v1` QA resources and their three original archives were not migrated by this work. The checked-in legacy Wrangler config remains disabled. Merely setting its API flags true will not make the new entry point usable without valid external authority.
+
+## Provision an isolated candidate
+
+Use Node 24, `npm ci`, and an account-scoped Cloudflare token with the necessary resource-creation permissions:
+
+```sh
+node operator/provision.mjs --account ACCOUNT_ID \
+  --prefix newpipe-UNIQUE_NAME --out /private/new-candidate/provision.json
+```
+
+The script checks database headroom against the Free account database limit. It never changes a plan or billing settings, and does not deploy or enable APIs. A failed or uncertain create is retained in the checkpoint; inspect those exact resource names before retrying. Do not adopt them by editing provenance fields.
+
+The generated `application.jsonc` and `operator.jsonc` are explicit configurations for separate Workers. Review their bindings. Deploy only the intended candidate, and set a random `OPERATOR_TOKEN` secret on the operator Worker. Without that secret, all operator requests fail closed. Both Workers need the same exact DB, CONTROL, RECOVERY, and FENCE_RESOURCE bindings. CONTROL must differ from DB. The operator uses `nodejs_compat`. Keep the generated XML-parser alias: Workers has no browser `DOMParser`, so the bundle uses the SDK's own pure-JavaScript parser. The API and S3 adapters use manual redirect handling and reject redirect responses; neither forwards credentials to a redirected host. Both adapters have real workerd regression tests.
+
+No production activation, device enrollment, credential migration, or API enablement is performed by the recovery CLI.
+
+## Exact scope and credentials
+
+Legacy scope JSON has exactly `account,worker,database,bucket,library,generation`. For a fenced resource it also contains:
 
 ```json
 {
-  "account": "ACCOUNT_ID",
-  "worker": "newpipe-cloud-sync-v1",
-  "database": "D1_DATABASE_UUID",
-  "bucket": "newpipe-cloud-recovery-v1",
-  "library": "EXACT_LIBRARY_ID",
-  "generation": "NEW_EXTERNAL_SERVICE_GENERATION_UUID"
+  "fence": {
+    "control": "SEPARATE_CONTROL_DATABASE_UUID",
+    "resource": "FRESH_RESOURCE_UUID",
+    "operator": "newpipe-EXACT_OPERATOR_WORKER"
+  }
 }
 ```
 
-Credentials come only from environment variables:
+The top-level generation is the **new** external generation for recovery, different from the existing device/index/archive authority. The operator deployment's SCOPE must match exactly.
 
-- `NEWPIPE_CLOUDFLARE_API_TOKEN`: account-scoped Worker read and D1 read access.
-- `NEWPIPE_R2_ACCESS_KEY_ID` and `NEWPIPE_R2_SECRET_ACCESS_KEY`: object-read S3 credentials restricted to the one recovery bucket. A short expiry is sufficient. No object-write permission is needed.
+Credentials are supplied only through environment variables:
 
-```sh
-node operator/cli.mjs inspect --scope /private/scope.json --out /private/recovery-plan.json
-node operator/cli.mjs verify --plan /private/recovery-plan.json
-```
+- `NEWPIPE_CLOUDFLARE_API_TOKEN`: Worker/D1 read for inspection; D1 write for Time Travel.
+- `NEWPIPE_R2_ACCESS_KEY_ID` and `NEWPIPE_R2_SECRET_ACCESS_KEY`: object-read S3 credentials restricted to the exact recovery bucket.
+- `NEWPIPE_OPERATOR_TOKEN`: the separate operator Worker secret, required for maintenance and execution.
 
-The output file is created exclusively with mode 0600 and includes catalog data and credential hashes; keep it private. Standard output contains only counts, a plan digest, and blocker codes. Existing output files are never overwritten. The digest detects changes; it is not an authentication signature or proof of a maintenance barrier.
+The operator's address is derived from the authenticated Cloudflare account subdomain and verified deployment. Apply sends the read-only S3 credentials and Cloudflare token transiently to that authenticated operator so it can independently reinspect the exact resource. Restore sends the Cloudflare token transiently for the exact data-DB restore call. These credentials are never written into plans, action records or receipts and must not be logged. Observability remains disabled in the generated configurations.
 
-The inspector reads the actual 100% deployed Worker version, its bindings and current settings, and checks that the deployment remains the same. It separately paginates completed objects and incomplete multipart uploads under exactly `recovery/<library>/`. A repeated/missing continuation, duplicate slot, malformed identity or fourth completed object fails inspection. An incomplete upload is named by exact key and upload ID in the private plan and blocks rebuilding. No upload or completed object is deleted.
+## Maintenance and recovery sequence
 
-Each completed object is read at the original 8 MiB part boundaries with an ETag condition. The inspector reconstructs the manifest and verifies its SHA-256 manifest digest, cloud-page container/root or ZIP boundaries, original scope, and metadata. ZIP checks do not validate SQLite or prove a usable native restore. Android must still prepare the archive before restoring it. S3 listing timestamps retain milliseconds; HTTP HeadObject timestamps have seconds, so those are compared at their shared precision while the exact listing timestamp remains in the plan and complete inventories are compared before and after verification.
-
-The S3 interface does not expose the internal Workers R2 object-version value. Reconstructed rows retain an exact ETag, immutable key, metadata and verified manifest; the internal object-version field is null. This is explicitly different from claiming that an internal R2 version was recovered.
-
-The plan includes exact, ordered, text-encoded D1 snapshots, preserving 64-bit counters. A table snapshot larger than 512 KiB blocks this bounded tool; it never silently truncates a catalog. All current library tables are checked, including accepted pages, staged operations, devices, grants and receipts.
-
-## Rebuild transaction and current limitation
-
-`operator/recovery.mjs:rebuildBatch` compiles a parameterized batch for an independently fenced executor. It compares every scoped snapshot inside the same D1 batch as the mutations. It revokes existing device/grant authority, invalidates staged work, preserves accepted catalog contents, completed receipts and unrelated libraries, reconstructs READY slots from verified physical bytes, and binds the recovery control row to the new generation. Archive ordering is original creation time followed by archive ID for ties. It never writes R2 or manufactures another copy.
-
-Local tests execute this batch using D1's transactional `batch` API. Concurrent plans have one winner; an unchanged replay is refused by its pre-state guard, including after an unknown response, so it cannot apply twice. Do not infer a committed outcome from a timeout: compare the intended after-state under the eventual exclusive fence. There is currently no live executor and no durable operator receipt, so this is not a claim of completed live unknown-outcome recovery.
+1. Verify exact account, fresh-resource provenance, both deployed Workers, binding IDs, library, and that no independent administrative writer uses this pair. Keep native exports.
+2. Save a current database export and Time Travel bookmark privately. Time Travel restores the **whole data database**, not just one library.
+3. Close maintenance using an explicit persistent maintenance UUID:
 
 ```sh
-node operator/cli.mjs apply --plan /private/recovery-plan.json
+node operator/cli.mjs close --scope /private/scope.json --maintenance UUID
+node operator/cli.mjs state --scope /private/scope.json
 ```
 
-always exits with `STALE_WORKER_FENCE_UNAVAILABLE` before contacting a service. It cannot be overridden by modifying a plan. Do not copy the compiled SQL into Wrangler as a workaround. Multipart abort likewise remains an explicit future fenced operation; inspect preserves the exact upload identity for that work.
+Repeat close with the **same** UUID to promote DRAINING after tickets finish. HELD requires zero tickets. A competing UUID is rejected. Unknown tickets do not expire.
 
-## Time Travel procedure
+4. Disable all three public API gates and deploy the fresh service generation, keeping the same bindings. Verify actual deployed versions/settings. The gate change is additional admission protection; it is not the exclusive barrier.
+5. For an intended rollback, use an exact saved bookmark:
 
-1. Verify the exact Cloudflare account, database, Worker, bucket and library. Confirm that D1 may contain other libraries: Time Travel restores the whole database, not just this library.
-2. Disable all three API gates outside D1 and choose a fresh external service generation. Do not reuse a generation from a previous index, device, archive or rollback. Verify the deployed version, not merely the checked-in configuration.
-3. Export the current database and save its Time Travel bookmark outside that database. Keep local native exports too. Run and retain the private archive inspection.
-4. **Stop here until the external maintenance barrier described above is proven.** A disable/redeploy alone does not authorize a live rollback or rebuild.
-5. Under that barrier, obtain the exact target bookmark and execute the intended whole-database restore. Record the provider's undo bookmark and restore result outside D1. If restoration has an uncertain outcome, inspect the actual database before taking another action.
-6. Reinspect all completed objects, all multipart uploads and the restored database. Resolve unknown multipart identities explicitly under the same barrier; never clear a slot because its lease expired. Recompute a fresh plan. Do not recreate, overwrite or delete a verified archive merely to repair its index.
-7. Apply the guarded batch through the future fenced executor. Verify catalog contents, three-slot bounds, archive digests, device/grant revocation and unrelated libraries. Check that old device tokens, including revoked tokens resurrected by the rollback, are rejected.
-8. Reenroll devices explicitly with new identities and authority. Reconciliation previews remain required. Reenable only the approved APIs after verification. No command in this tool reenrolls devices or reenables gates.
+```sh
+node operator/cli.mjs bookmark --scope /private/scope.json
+node operator/cli.mjs restore --scope /private/scope.json \
+  --bookmark EXACT_BOOKMARK --out /private/new-restore-action.json
+```
 
-An undo bookmark restores D1 only. It does not undo R2 writes, restore deleted archives, restore the external generation, or make old device tokens safe. Keep the same external maintenance barrier and rerun physical reconciliation for an undo operation.
+An exclusive external action is claimed before the provider call. The saved intent binds the maintenance UUID and revision, so a delayed request that has not yet claimed its action cannot overtake a later operation. The provider's returned bookmark and undo bookmark are retained outside the restored database. A lost/invalid restore response leaves RUNNING and blocks further restore/apply. Do not infer completion merely because visible data resembles the target. Undo is another restore under the same barrier and has the same uncertain-outcome rule.
 
-## Verification
+6. Reinspect physical objects, multipart uploads, and the resulting database:
+
+```sh
+node operator/cli.mjs inspect --scope /private/scope.json --out /private/new-plan.json
+node operator/cli.mjs verify --plan /private/new-plan.json
+```
+
+Plans are new, exclusive mode-0600 files containing catalog data and credential hashes; keep them private. The digest detects changes, not malicious operator access. Standard inspect output contains only counts, digest and blocker codes.
+
+Inspection verifies the actual 100% active deployments and current settings, then rechecks deployment identity. It separately paginates ListObjectsV2 and ListMultipartUploads under exactly `recovery/<library>/`. Duplicate slots, a fourth completed object, malformed identities, or missing/repeated cursors fail closed.
+
+Every completed object is read with an ETag precondition at its original 8 MiB part boundaries. Inspection verifies metadata scope, chunk SHA-256 digests, manifest digest, and cloud-page container/root or ZIP boundaries. ZIP boundaries do not validate SQLite; Android still must prepare a native archive before restoration. S3 listing milliseconds and HTTP HeadObject seconds are compared at their shared precision, while the precise listing timestamp is preserved.
+
+The S3 API does not expose the internal Workers R2 version. Rebuilt rows retain the exact ETag, key, metadata and verified manifest; `object_version` is null.
+
+7. If incomplete multipart uploads are present, inspect their exact key/upload ID and abort them individually under the same external barrier:
+
+```sh
+node operator/cli.mjs abort --plan /private/new-plan.json \
+  --key EXACT_KEY --upload EXACT_UPLOAD_ID --out /private/new-abort-action.json
+```
+
+Only an upload named in the current verified plan is accepted by the CLI. The server aborts that exact key/ID; it does not delete a completed archive. An uncertain abort retains the exclusive action. Reinspect afterward; an old plan is stale after every claimed operator action.
+
+8. Apply a fresh plan with zero blockers:
+
+```sh
+node operator/cli.mjs apply --plan /private/new-plan.json
+```
+
+The server independently regenerates the plan from actual storage, including both S3 inventories. It never trusts SQL copied into a resealed file. It compares the external fence revision, then exclusively claims this plan's action. D1 receives one transactional batch containing exact pre-state guards, the rebuild, and a durable receipt.
+
+The batch preserves accepted catalog contents, terminal history/receipts and unrelated libraries; revokes old device/grant authority; invalidates staged work; and reconstructs READY slots from verified physical bytes. It does not modify R2. Archive ordering is original creation time, then archive ID. Table snapshots preserve 64-bit counters as text; each table is bounded to 512 KiB. The HTTP plan is additionally bounded to 2 MiB. Larger recovery plans fail closed.
+
+9. If a reply is lost, query the recorded action:
+
+```sh
+node operator/cli.mjs status --scope /private/scope.json --action DIGEST --kind apply
+```
+
+A matching transactional receipt proves a completed rebuild and resolves its external RUNNING action. No receipt means unknown, not failed: the batch is never automatically resubmitted, and Time Travel is blocked. A completed action followed by a later operator action is reported SUPERSEDED; its historical result is not evidence of the current database state.
+
+10. Verify archive digests, catalog contents, slot bounds, all old credentials and any unrelated library. This checkpoint intentionally offers **no reopen command** and does not reenroll devices. A separately reviewed reopening/enrollment flow is required before serving the recovered generation.
+
+## Verification and operational limits
 
 ```sh
 npm run check
-node --test test/operator-recovery.test.mjs
+node --test test/fence.test.mjs test/operator-recovery.test.mjs
 npm test
 ```
 
-Tests cover real local D1/R2 reconstruction, preserved physical bytes and unrelated state, lost/rewound index, exact optimistic concurrency, revoked credentials, unknown multipart blocking, payload corruption, timestamp precision, stale plans, actual-version binding checks and independent S3 pagination boundaries. The local harness owns its runtime exclusively; it does not simulate that ownership as evidence for a Cloudflare production fence.
+Local tests use actual D1/R2 bindings and pause create, part upload, complete, abort, delete and catalog execution. They also cover detached work, ambiguous effects, data-only rewind, admission/close races, competing operator claims, corrupt/resealed plans, lost rebuild replies and superseded receipts. These are local boundary tests; live evidence identifies separately what was exercised at Cloudflare.
 
-Official references:
+Request tickets add control-database work to every authenticated request. Durable daily budgets, housekeeping, deployed CPU/scale acceptance and broader multi-device/offline acceptance remain release gates. The operator's bounds are intentionally small and do not establish production-scale recovery.
 
-- [D1 Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/)
-- [Workers limits and invocation duration](https://developers.cloudflare.com/workers/platform/limits/)
-- [R2 S3 API compatibility](https://developers.cloudflare.com/r2/api/s3/api/)
-- [R2 scoped API tokens](https://developers.cloudflare.com/r2/api/tokens/)
+References: [D1 transactional batch](https://developers.cloudflare.com/d1/worker-api/d1-database/), [primary-read behavior](https://developers.cloudflare.com/d1/best-practices/read-replication/), [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/), [R2 S3 compatibility](https://developers.cloudflare.com/r2/api/s3/api/), [R2 tokens](https://developers.cloudflare.com/r2/api/tokens/).
