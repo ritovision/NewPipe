@@ -55,11 +55,15 @@ class CloudReplacementDialog : DialogFragment() {
             contentDescription = hint
             setSingleLine()
             isSaveEnabled = false
+            // The activity model retains the filter when this editor is recreated.
+            setText(model.query)
+            setSelection(text.length)
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
                 override fun afterTextChanged(s: Editable?) = Unit
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                    model.search(s?.toString().orEmpty())
+                    val query = s?.toString().orEmpty()
+                    if (query != model.query) model.search(query)
                 }
             })
         }
@@ -71,7 +75,14 @@ class CloudReplacementDialog : DialogFragment() {
             }
         }
         val list = CloudChangePreviewDialog.scrollingContent(content, adapter, "Exact replacement changes and retained recovery copies")
-        model.details.observe(this) { adapter.update(it) }
+        model.details.observe(this) {
+            // A fresh preview can reset the filter while this dialog stays open.
+            if (search.text.toString() != model.query) {
+                search.setText(model.query)
+                search.setSelection(search.length())
+            }
+            adapter.update(it)
+        }
         model.state.observe(this) { s ->
             summary.text = s.message
             val reviewing = s.preview != null

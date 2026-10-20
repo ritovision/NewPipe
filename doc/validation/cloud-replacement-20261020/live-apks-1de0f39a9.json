@@ -1,0 +1,27 @@
+{
+  "artifacts": {
+    "a-app.apk": {
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "sha256": "e884bf9f1ff7f5531af405cc32e12be500dd8f36604b937f4f704fdb2801c004",
+      "bytes": 34915641
+    },
+    "a-tests.apk": {
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.test",
+      "sha256": "3437f9ea75e6e761c43a3c15fb5f362c0906e8cba809d2167de8b9128aea73fa",
+      "bytes": 2653978
+    },
+    "b-app.apk": {
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "sha256": "658d2148f5ce1ed1584205a491d98def549c4472a5c926005b19240046158258",
+      "bytes": 34915619
+    },
+    "b-tests.apk": {
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb.test",
+      "sha256": "2f48484344f0dd9ef8f707dc6de48dc7fb6e9f5adc4a9be9ec620ce8771ea52b",
+      "bytes": 2653955
+    }
+  },
+  "baseCommit": "8f30d82c1d8d07dbcaed5d0e6e22871203f8f772",
+  "appSourceDeltaSha256": "32b729fa859553514ffa0aec1c92d141e1f63b2be800dc010f5e3daf9fdb554d",
+  "sourceCommit": "1de0f39a90acf2f32f5892babeac2787bd9fb6d3"
+}

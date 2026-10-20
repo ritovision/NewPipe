@@ -51,10 +51,14 @@ class CloudChangePreviewDialog : DialogFragment() {
             textSize = 15f
             isSaveEnabled = false
             contentDescription = getString(R.string.cloud_preview_search)
+            // The activity model retains the filter when this editor is recreated.
+            setText(model.query)
+            setSelection(text.length)
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                    model.search(s?.toString().orEmpty())
+                    val query = s?.toString().orEmpty()
+                    if (query != model.query) model.search(query)
                 }
                 override fun afterTextChanged(s: Editable?) = Unit
             })
@@ -82,7 +86,14 @@ class CloudChangePreviewDialog : DialogFragment() {
                 dismissAllowingStateLoss()
             }
         }
-        model.details.observe(this) { adapter.update(it) }
+        model.details.observe(this) {
+            // A fresh preview can reset the filter while this dialog stays open.
+            if (search.text.toString() != model.query) {
+                search.setText(model.query)
+                search.setSelection(search.length())
+            }
+            adapter.update(it)
+        }
         return dialog
     }
     override fun onStart() {
@@ -107,8 +118,15 @@ class CloudChangePreviewDialog : DialogFragment() {
     internal class Rows(private val clicked: (CloudScreenModel.Row) -> Unit) : RecyclerView.Adapter<Rows.Holder>() {
         private var rows: List<CloudScreenModel.Row> = emptyList()
         fun update(value: List<CloudScreenModel.Row>) {
+            if (rows == value) return
+            val previous = rows.size
             rows = value
-            notifyDataSetChanged()
+            // ConcatAdapter propagates a full invalidation to the search header as well,
+            // detaching its focused editor mid-query. Notify only this adapter's rows.
+            val shared = minOf(previous, value.size)
+            if (shared > 0) notifyItemRangeChanged(0, shared)
+            if (value.size > previous) notifyItemRangeInserted(previous, value.size - previous)
+            if (value.size < previous) notifyItemRangeRemoved(value.size, previous - value.size)
         }
         override fun getItemCount(): Int = rows.size
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {

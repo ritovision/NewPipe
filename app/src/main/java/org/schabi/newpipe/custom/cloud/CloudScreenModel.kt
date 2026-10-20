@@ -44,7 +44,8 @@ internal class CloudScreenModel(application: Application) : AndroidViewModel(app
     private val querySequence = AtomicLong()
     private val expanded = HashSet<String>()
     private val counts = HashMap<String, Int>()
-    private var query = ""
+    var query = ""
+        private set
 
     @Volatile private var cleared = false
     init {

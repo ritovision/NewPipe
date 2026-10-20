@@ -12,6 +12,7 @@ internal object CloudChangeExplorer {
         val groups = ArrayList<Group>()
         fun title(key: CloudKey): String = hints[key]?.title?.takeIf { it.isNotBlank() } ?: key.url
         fun video(kind: String, key: CloudKey) = Item(kind, title(key), "Service ${key.service} · ${key.url}")
+        fun artwork(key: CloudKey?): String = key?.let { "${title(it)} · Service ${it.service} · ${it.url}" } ?: "Automatic"
         if (d.added.isNotEmpty()) groups.add(Group("added", "Added to Library", d.added.map { video("Added", it) }))
         if (d.removed.isNotEmpty()) groups.add(Group("removed", "Removed from Library and all local playlists", d.removed.map { video("Removed", it) }))
         if (d.unavailableAdded.isNotEmpty() || d.unavailableRemoved.isNotEmpty()) {
@@ -41,10 +42,16 @@ internal object CloudChangeExplorer {
             if (was != null && now != null && was.name != now.name) items.add(Item("Renamed", now.name ?: "Untitled playlist", "Previously: ${was.name ?: "Untitled playlist"}"))
             items.addAll(p.added.map { video("Added", it) })
             items.addAll(p.removed.map { video("Removed", it) })
-            if (was != null && now != null) {
-                if (was.artwork != now.artwork) items.add(Item("Artwork", "Permanent thumbnail changed", "${was.artwork?.let(::title) ?: "Automatic"} → ${now.artwork?.let(::title) ?: "Automatic"}"))
-                if (p.sequenceChanged) items.addAll(order(was.items, now.items))
+            if (now != null && (was == null || was.artwork != now.artwork)) {
+                items.add(
+                    Item(
+                        "Artwork",
+                        if (was == null) "Permanent thumbnail" else "Permanent thumbnail changed",
+                        if (was == null) artwork(now.artwork) else "${artwork(was.artwork)} → ${artwork(now.artwork)}"
+                    )
+                )
             }
+            if (was != null && now != null && p.sequenceChanged) items.addAll(order(was.items, now.items))
             groups.add(Group("playlist-${p.id}", "Playlist: ${now?.name ?: was?.name ?: "Untitled"}", items))
         }
         if (d.playlistOrderChanged) {
@@ -57,7 +64,10 @@ internal object CloudChangeExplorer {
         val oldCategories = before.categories.associateBy { it.id }
         val newCategories = after.categories.associateBy { it.id }
         val definitions = ArrayList<Item>()
-        d.tags.added.forEach { definitions.add(Item("Added", newTags.getValue(it).name, "Tag")) }
+        d.tags.added.forEach {
+            val tag = newTags.getValue(it)
+            definitions.add(Item("Added", tag.name, "Tag; category: ${tag.category?.let { id -> newCategories.getValue(id).name } ?: "None"}"))
+        }
         d.tags.removed.forEach { definitions.add(Item("Removed", oldTags.getValue(it).name, "Tag")) }
         d.tags.changed.forEach {
             val a = oldTags.getValue(it)

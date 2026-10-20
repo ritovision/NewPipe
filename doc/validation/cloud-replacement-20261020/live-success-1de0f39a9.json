@@ -1,0 +1,163 @@
+{
+  "status": "PASS",
+  "serial": "100.68.130.31:5555",
+  "scope": "Two isolated packages on one physical device; dirty branch held behind native writer barrier and process-stopped, not an OS network outage",
+  "steps": [
+    {
+      "step": "connect",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": false,
+      "seconds": 5.475,
+      "logSha256": "1e94cdadd492b7b7c2e0b3ff6b5e09343a8a8054e6a1ccfcd8ccf757023bea88"
+    },
+    {
+      "step": "initialize",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": true,
+      "seconds": 5.502,
+      "logSha256": "181bfa5ffe5a8f3e134e30476db328beaefafa7df1034d38d0aca2e015e675ec"
+    },
+    {
+      "step": "deviceBackup",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "archiveId": "09de4b17-e454-44f8-98f1-c2f98a79c0d2",
+      "evicted": null,
+      "bytes": 6897,
+      "kind": "device-zip",
+      "retained": [
+        "09de4b17-e454-44f8-98f1-c2f98a79c0d2"
+      ],
+      "content": "5824fa132b6b69572f1ac6d2521198a61631594a048b7cd717ed802e148aedb7",
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": true,
+      "seconds": 8.185,
+      "logSha256": "bc20e1478039f64673c0e92c7fe5ba7f926b165fc6d3d2482e106836e44d5da4"
+    },
+    {
+      "step": "deviceBackup",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "archiveId": "2dba60fb-ed03-4567-b8ae-93d708b3240c",
+      "evicted": null,
+      "bytes": 6897,
+      "kind": "device-zip",
+      "retained": [
+        "09de4b17-e454-44f8-98f1-c2f98a79c0d2",
+        "2dba60fb-ed03-4567-b8ae-93d708b3240c"
+      ],
+      "content": "5824fa132b6b69572f1ac6d2521198a61631594a048b7cd717ed802e148aedb7",
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": true,
+      "seconds": 8.1,
+      "logSha256": "82a160fe9753fd3ecb9a32421729f1ece2547c442c709597b88abd9f01d449db"
+    },
+    {
+      "step": "deviceBackup",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "archiveId": "8d70eb09-8d85-4810-ab10-608d20a4de24",
+      "evicted": null,
+      "bytes": 6897,
+      "kind": "device-zip",
+      "retained": [
+        "09de4b17-e454-44f8-98f1-c2f98a79c0d2",
+        "2dba60fb-ed03-4567-b8ae-93d708b3240c",
+        "8d70eb09-8d85-4810-ab10-608d20a4de24"
+      ],
+      "content": "5824fa132b6b69572f1ac6d2521198a61631594a048b7cd717ed802e148aedb7",
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": true,
+      "seconds": 7.992,
+      "logSha256": "555359f649b9cc75ae10c1ba05673561693b297e7e015345c4232eb04100949d"
+    },
+    {
+      "step": "connect",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "syntheticOnly": true,
+      "fingerprint": "0c813521adde8f623925785af5227cead8352495b09888a784d4a7fd5d62c03c",
+      "enabled": false,
+      "seconds": 3.708,
+      "logSha256": "da34a7ffef05340b1c5e7611fa5f7832dce5d8e9e4b437b2aa0adeca0d8b2d5b"
+    },
+    {
+      "step": "enable",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "syntheticOnly": true,
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": true,
+      "seconds": 7.002,
+      "logSha256": "78b9fc3267bd31567997d79c98f136ffa0ff485a54e89b49518d08cc35f96e1f"
+    },
+    {
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "syntheticOnly": true,
+      "before": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "after": "76e0a7bbd521ba0d5b3cc52268e51e000f5e7bc29cbd17cbcd44d463789e47c5",
+      "enabled": true,
+      "step": "holdDirtyReplacement"
+    },
+    {
+      "step": "replaceCloud",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "archiveId": "930cf2e1-b2bc-4e79-bfee-44f13bb4d2bd",
+      "evicted": "09de4b17-e454-44f8-98f1-c2f98a79c0d2",
+      "retained": [
+        "2dba60fb-ed03-4567-b8ae-93d708b3240c",
+        "8d70eb09-8d85-4810-ab10-608d20a4de24",
+        "930cf2e1-b2bc-4e79-bfee-44f13bb4d2bd"
+      ],
+      "outgoingFingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "oldEpoch": "8b7350c8-f32e-4be9-a062-bdb61dcb46a9",
+      "epoch": "07dd7dc7-eccf-4717-8904-52db039cfd63",
+      "headCounter": "2",
+      "fingerprint": "cd4477a65cb24059aede9830d323d0a0ec6590e1e8655f272ee658f86d0cda48",
+      "enabled": false,
+      "seconds": 15.28,
+      "logSha256": "7e83d83d95914d80d61d4a821eb4f066ef6fa96adb1250585f29577b2ee8d19c"
+    },
+    {
+      "step": "verifyDirtyEpoch",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "syntheticOnly": true,
+      "pauseReason": "CLOUD_CONFLICT_REVIEW_REQUIRED",
+      "localFingerprint": "76e0a7bbd521ba0d5b3cc52268e51e000f5e7bc29cbd17cbcd44d463789e47c5",
+      "cloudFingerprint": "cd4477a65cb24059aede9830d323d0a0ec6590e1e8655f272ee658f86d0cda48",
+      "epoch": "07dd7dc7-eccf-4717-8904-52db039cfd63",
+      "enabled": false,
+      "seconds": 4.67,
+      "logSha256": "a2624a9fe6d40be549155c0aa7cc486433e76470651c697892ea8e5051914fd8"
+    },
+    {
+      "step": "restoreCatalog",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "syntheticOnly": true,
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "cloudFingerprint": "cd4477a65cb24059aede9830d323d0a0ec6590e1e8655f272ee658f86d0cda48",
+      "enabled": false,
+      "seconds": 5.711,
+      "logSha256": "a7f331d2fecee843452a54a4f77acceb242170190adbd3ad2244f3d9f423db05"
+    },
+    {
+      "step": "stop",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "enabled": false,
+      "seconds": 2.429,
+      "logSha256": "7ce25fbf0a676c20fad5c0e6786dd27a10b87fb0730b38447051b1c951f02912"
+    },
+    {
+      "step": "stop",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "syntheticOnly": true,
+      "enabled": false,
+      "seconds": 2.525,
+      "logSha256": "c7af95358a1b093958fbcac0bb5eb87828e3ad219456483912dc89d1a0acd097"
+    }
+  ]
+}

@@ -40,11 +40,12 @@ internal class CloudReplacementScreenModel(application: Application) : AndroidVi
     @Volatile private var current: CloudReplacementController.Status? = null
 
     @Volatile private var groups: List<CloudChangeExplorer.Group> = emptyList()
-    private var query = ""
+    var query = ""
+        private set
     private val expanded = HashSet<String>()
     private val counts = HashMap<String, Int>()
     private fun date(time: Long) = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(time))
-    private fun label(a: CloudRecoveryController.Archive) = "${if (a.kind == "device-zip") "Device ZIP" else "Cloud catalog"} · ${date(a.created)} · ${android.text.format.Formatter.formatShortFileSize(app, a.bytes.toLong())} · ${a.sourceDevice}"
+    private fun label(a: CloudRecoveryController.Archive) = "${if (a.kind == "device-zip") "Device ZIP" else "Cloud catalog"} · ${date(a.created)} · ${android.text.format.Formatter.formatShortFileSize(app, a.bytes.toLong())} · ${a.sourceDevice}\nArchive: ${a.id}"
     private fun publish(message: String) {
         if (closed) return
         val localPending = controller.hasPending()
