@@ -19,7 +19,7 @@ function database(db){
  const wrap=(s,sql)=>{const p={bind:(...args)=>wrap(s.bind(...args),sql),first:s.first.bind(s),all:s.all.bind(s),run:s.run.bind(s),raw:s.raw.bind(s)};measured.set(p,{s,sql});return p;};
  return {prepare:sql=>wrap(db.prepare(sql),sql),batch:async statements=>{
   const raw=statements.map(s=>measured.get(s)??{s,sql:''}),sql=raw.map(x=>x.sql).join('\n');
-  const point=sql.includes("state='ABORTING',busy_token=")?'claimAbort':sql.includes("state='UPLOADING',upload_id=")?'recordCreate':sql.includes("state='CREATING'")?'claimCreate':
+  const point=sql.includes("UPDATE cloud_replace_attempts SET state='DONE'")?'publishReplacement':sql.includes('INSERT INTO cloud_replace_attempts')?'reserveReplacement':sql.includes("state='ABORTING',busy_token=")?'claimAbort':sql.includes("state='UPLOADING',upload_id=")?'recordCreate':sql.includes("state='CREATING'")?'claimCreate':
    sql.includes('parts_json=?,next_part')?'recordPart':sql.includes("state='VERIFYING',object_etag=")?'recordComplete':
    sql.includes('state=?,verify_part=')?'recordVerify':sql.includes('DELETE FROM cloud_backup_slots')?'removeSlot':'batch';
   await hook(point+'.before');const r=await db.batch(raw.map(x=>x.s));await hook(point+'.after');return r;

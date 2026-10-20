@@ -57,13 +57,13 @@ before(async()=>{
   modules.push({type:'ESModule',path:resolve(f),contents:f.endsWith('.ts')?stripTypeScriptTypes(source,{mode:'strip'}):source});
  }
  mf=await runtime();await mf.ready;
- const migration=(await readFile(new URL('../migrations/0001_catalog_service.sql',import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ const migration=(await Promise.all(['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql'].map(f=>readFile(new URL('../migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
  await sql(...migration);
 });
 after(async()=>{if(mf)await mf.dispose();if(persistence)await rm(persistence,{recursive:true,force:true});});
 beforeEach(async()=>{
  await controls({options:{},fault:null,resetStats:true});
- await sql('DELETE FROM cloud_upload_changes','DELETE FROM cloud_upload_chunks','DELETE FROM cloud_uploads','DELETE FROM cloud_catalog_pages',
+ await sql('DELETE FROM cloud_replace_attempts','DELETE FROM cloud_replace_approvals','DELETE FROM cloud_replace_grants','DELETE FROM cloud_backup_control','DELETE FROM cloud_upload_changes','DELETE FROM cloud_upload_chunks','DELETE FROM cloud_uploads','DELETE FROM cloud_catalog_pages',
   'DELETE FROM cloud_receipts','DELETE FROM cloud_catalog_info','DELETE FROM cloud_devices','DELETE FROM cloud_head','DELETE FROM cloud_commit_assertion');
  await sql({sql:'INSERT INTO cloud_head VALUES(?,?,0,0,?)',args:['library-a','epoch-a',EMPTY_FP]},
   {sql:'INSERT INTO cloud_catalog_info VALUES(?,0,0,0,?)',args:['library-a',EMPTY_MANIFEST]},

@@ -5,6 +5,8 @@ import { CatalogService } from "./service.ts";
 import { RECOVERY_LIMITS as L, RecoveryError, archiveId, bytesDigest, readRecoveryManifest,
   recoveryDigest, recoveryFail as fail, recoveryObject, verifyCloudArchivePart, verifyZipEnd, verifyZipStart } from "./recovery-format.ts";
 import type { RecoveryManifest, CloudArchiveVerification } from "./recovery-format.ts";
+import { REPLACE_GRANT, REPLACEMENT_COOLDOWN_MS } from "./replacement-state.ts";
+import type { ReplacementApproval } from "./replacement-state.ts";
 
 type Control = { revision: string; next_ordinal: string; service_generation: string };
 type Slot = { library_id: string; slot: number; archive_id: string; object_key: string; owner_device: string;
@@ -143,9 +145,30 @@ export class RecoveryService {
       maxBytes: this.maximum, maxSlots: L.slots, partBytes: L.partBytes,
       lastSequence: own?.sequence ?? "0", operation: own && !["DONE", "CANCELED"].includes(own.state) ? await this.operationView(own) : null };
   }
-  async preview(raw: unknown, now = Date.now()) {
+  // undefined = ordinary backup, null = first replacement, ID = explicitly approved retry.
+  private replacementFence(retry: string | null | undefined) {
+    if (retry === undefined) return { sql: "NOT EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=b.library_id AND state='ACTIVE') AND (NOT EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=b.library_id AND state='STALE') OR (SELECT COUNT(*) FROM cloud_backup_slots WHERE library_id=b.library_id)<3)", values: [] as unknown[] };
+    if (retry === null) return { sql: "NOT EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=b.library_id AND state IN('ACTIVE','STALE'))", values: [] as unknown[] };
+    return { sql: "EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=b.library_id AND device_id=d.device_id AND state='STALE' AND archive_id=?)", values: [retry] as unknown[] };
+  }
+  private async requireReplacementFence(retry: string | null | undefined) {
+    const f = this.replacementFence(retry);
+    const row = await this.db.prepare("SELECT 1 FROM cloud_backup_control b JOIN cloud_devices d ON d.library_id=b.library_id WHERE " + AUTH + " AND " + f.sql + (retry !== undefined ? " AND " + REPLACE_GRANT : ""))
+      .bind(...args(this.context), ...f.values).first();
+    if (!row) fail("REPLACEMENT_PENDING_OR_NOT_AUTHORIZED");
+    return f;
+  }
+  async verifyReplacementArchive(id: string) {
+    await this.control();
+    const s = (await this.slots()).find(x => x.archive_id === id);
+    if (!s || s.state !== "READY" || !manifest(s).source) fail("REPLACEMENT_RECOVERY_NOT_READY");
+    const object = await this.extant(s);
+    return { manifest: manifest(s), digest: s.digest, objectEtag: object.etag, objectVersion: object.version };
+  }
+  async preview(raw: unknown, now = Date.now(), replacementRetry?: string | null) {
     const value = recoveryObject(raw, ["manifest"]), m = readRecoveryManifest(value.manifest, this.maximum);
     const control = await this.control(), slots = await this.slots();
+    const replacementFence = await this.requireReplacementFence(replacementRetry);
     const activeOp = await this.db.prepare("SELECT 1 AS n FROM cloud_backup_operations WHERE library_id=? AND " + active).bind(this.context.library).first();
     if (activeOp) fail("RECOVERY_UPLOAD_PENDING");
     if (slots.some(s => s.state !== "READY" || s.pin_until > now)) fail("RECOVERY_SLOT_PROTECTED");
@@ -156,15 +179,16 @@ export class RecoveryService {
       if (!source.initialized || !sameHead(source.head, m.source.head) || source.manifest !== m.source.manifest ||
         source.pages !== m.source.pages || source.bytes !== m.source.bytes) fail("CLOUD_ARCHIVE_SOURCE_CHANGED");
     }
-    const evict = slots.length === L.slots ? slots[0]! : null;
-    if (evict && slots.length - 1 !== 2) fail("RECOVERY_TWO_SURVIVORS_REQUIRED");
+    const evict = typeof replacementRetry === "string" ? slots.find(s => s.archive_id === replacementRetry) : slots.length === L.slots ? slots[0]! : null;
+    if (typeof replacementRetry === "string" && (!evict || slots.length < 2)) fail("REPLACEMENT_RETRY_REQUIRES_SURVIVOR");
+    if (replacementRetry == null && evict && slots.length - 1 !== 2) fail("RECOVERY_TWO_SURVIVORS_REQUIRED");
     const digest = await recoveryDigest(m), approval = crypto.randomUUID(), encoded = JSON.stringify(m);
     const headCheck = m.source ? " AND EXISTS(SELECT 1 FROM cloud_head h WHERE h.library_id=b.library_id AND h.epoch=? AND h.revision=CAST(? AS INTEGER) AND h.head_counter=CAST(? AS INTEGER) AND h.fingerprint=?)" : "";
     const headValues = m.source ? [m.source.head.epoch, m.source.head.revision, m.source.head.headCounter, m.source.head.fingerprint] : [];
     // Approval changes don't advance the rotation revision: they allocate no payload or pin.
     const guard = this.db.prepare("INSERT INTO cloud_commit_assertion(slot,ok) VALUES(1,(SELECT COUNT(*) FROM cloud_devices d JOIN cloud_backup_control b ON b.library_id=d.library_id WHERE " +
-      AUTH + " AND d.can_write=1 AND b.service_generation=? AND b.revision=CAST(? AS INTEGER)" + headCheck + "))")
-      .bind(...args(this.context), this.context.serviceGeneration, control.revision, ...headValues);
+      AUTH + " AND d.can_write=1 AND b.service_generation=? AND b.revision=CAST(? AS INTEGER)" + headCheck + " AND " + replacementFence.sql + (replacementRetry !== undefined ? " AND " + REPLACE_GRANT : "") + "))")
+      .bind(...args(this.context), this.context.serviceGeneration, control.revision, ...headValues, ...replacementFence.values);
     try {
       await this.db.batch([guard,
         this.db.prepare("INSERT INTO cloud_backup_approvals VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(library_id,device_id) DO UPDATE SET approval_id=excluded.approval_id,manifest=excluded.manifest,digest=excluded.digest,revision=excluded.revision,evict_id=excluded.evict_id,expires_at=excluded.expires_at")
@@ -175,7 +199,7 @@ export class RecoveryService {
       evictArchiveId: evict?.archive_id ?? null, expiresAt: String(now + L.approvalMs),
       occupiedSlots: slots.length, remainingArchives: slots.filter(s => s !== evict).map(s => s.archive_id) };
   }
-  async reserve(raw: unknown, now = Date.now()) {
+  async reserve(raw: unknown, now = Date.now(), forReplacement = false) {
     const r = recoveryObject(raw, ["approvalId", "sequence"]), approvalId = uuid(r.approvalId);
     if (typeof r.sequence !== "string") fail("INVALID_RECOVERY_SEQUENCE", 400);
     try { if (counter(r.sequence) === 0n) fail("INVALID_RECOVERY_SEQUENCE", 400); } catch { fail("INVALID_RECOVERY_SEQUENCE", 400); }
@@ -189,10 +213,16 @@ export class RecoveryService {
       .bind(this.context.library, this.context.device, approvalId).first<Approval>();
     if (!a || a.expires_at <= now) fail("RECOVERY_APPROVAL_EXPIRED", 410);
     if (a.revision !== control.revision) fail("RECOVERY_APPROVAL_CHANGED");
+    const ra = await this.db.prepare("SELECT * FROM cloud_replace_approvals WHERE library_id=? AND device_id=? AND approval_id=?")
+      .bind(this.context.library, this.context.device, approvalId).first<ReplacementApproval>();
+    if (forReplacement ? !ra || ra.expires_at <= now : ra !== null) fail("REPLACEMENT_APPROVAL_REQUIRED");
+    const retry = forReplacement ? ra!.retry_archive_id : undefined;
+    const replacementFence = await this.requireReplacementFence(retry);
     const slots = await this.slots();
     if (slots.some(s => s.state !== "READY" || s.pin_until > now)) fail("RECOVERY_SLOT_PROTECTED");
     await this.checkNamespace(slots); for (const s of slots) await this.extant(s);
-    const evict = slots.length === L.slots ? slots[0]! : null;
+    const evict = typeof retry === "string" ? slots.find(s => s.archive_id === retry) : slots.length === L.slots ? slots[0]! : null;
+    if (typeof retry === "string" && (!evict || slots.length < 2)) fail("REPLACEMENT_RETRY_REQUIRES_SURVIVOR");
     if ((evict?.archive_id ?? null) !== a.evict_id) fail("RECOVERY_APPROVAL_CHANGED");
     const free = evict?.slot ?? [0, 1, 2].find(n => !slots.some(s => s.slot === n));
     if (free === undefined) fail("RECOVERY_SLOT_LIMIT");
@@ -208,9 +238,27 @@ export class RecoveryService {
       statements.push(this.insertSlot(id, free, a.manifest, a.digest, now));
       statements.push(this.db.prepare("UPDATE cloud_backup_control SET next_ordinal=next_ordinal+1 WHERE library_id=?").bind(c.library));
     }
+    let replacementCheck = " AND " + replacementFence.sql;
+    const replacementValues = [...replacementFence.values];
+    if (forReplacement) {
+      const approved = ra!;
+      replacementCheck += " AND " + REPLACE_GRANT + " AND (b.last_replace_at=0 OR b.last_replace_at<=?) AND EXISTS(SELECT 1 FROM cloud_replace_approvals WHERE library_id=b.library_id AND device_id=d.device_id AND approval_id=? AND header=? AND next_epoch=? AND retry_archive_id IS ? AND retry_attempt_id IS ? AND expires_at>?)";
+      replacementValues.push(now - REPLACEMENT_COOLDOWN_MS, approvalId, approved.header, approved.next_epoch, approved.retry_archive_id, approved.retry_attempt_id, now);
+      replacementCheck += " AND d.resolved_sequence=CAST(json_extract(?,'$.sequence') AS INTEGER)-1 AND NOT EXISTS(SELECT 1 FROM cloud_uploads WHERE library_id=d.library_id AND device_id=d.device_id AND status IN('UPLOADING','SEALED'))";
+      replacementValues.push(approved.header);
+      if (approved.retry_attempt_id !== null) {
+        replacementCheck += " AND EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=b.library_id AND device_id=d.device_id AND attempt_id=? AND state='STALE')";
+        replacementValues.push(approved.retry_attempt_id);
+      }
+      statements.push(this.db.prepare("INSERT INTO cloud_replace_attempts(library_id,device_id,attempt_id,header,next_epoch,recovery_sequence,archive_id,slot,retry_archive_id,expires_at,state) VALUES(?,?,?,?,?,CAST(? AS INTEGER),?,?,?,?,'ACTIVE') ON CONFLICT(library_id,device_id) DO UPDATE SET attempt_id=excluded.attempt_id,header=excluded.header,next_epoch=excluded.next_epoch,recovery_sequence=excluded.recovery_sequence,archive_id=excluded.archive_id,slot=excluded.slot,retry_archive_id=excluded.retry_archive_id,expires_at=excluded.expires_at,state='ACTIVE'")
+        .bind(c.library, c.device, approvalId, approved.header, approved.next_epoch, sequence, id, free, approved.retry_archive_id, approved.expires_at));
+    } else {
+      replacementCheck += " AND NOT EXISTS(SELECT 1 FROM cloud_replace_approvals WHERE library_id=b.library_id AND device_id=d.device_id AND approval_id=?)";
+      replacementValues.push(approvalId);
+    }
     try {
-      await this.batch("b.revision=CAST(? AS INTEGER) AND NOT EXISTS(SELECT 1 FROM cloud_backup_operations WHERE library_id=b.library_id AND " + active + ") AND COALESCE((SELECT sequence FROM cloud_backup_operations WHERE library_id=b.library_id AND device_id=d.device_id),0)=CAST(? AS INTEGER)-1 AND EXISTS(SELECT 1 FROM cloud_backup_approvals WHERE library_id=b.library_id AND device_id=d.device_id AND approval_id=? AND expires_at>?)" + headCheck,
-        [control.revision, sequence, approvalId, now, ...hv], statements);
+      await this.batch("b.revision=CAST(? AS INTEGER) AND NOT EXISTS(SELECT 1 FROM cloud_backup_operations WHERE library_id=b.library_id AND " + active + ") AND COALESCE((SELECT sequence FROM cloud_backup_operations WHERE library_id=b.library_id AND device_id=d.device_id),0)=CAST(? AS INTEGER)-1 AND EXISTS(SELECT 1 FROM cloud_backup_approvals WHERE library_id=b.library_id AND device_id=d.device_id AND approval_id=? AND expires_at>?)" + headCheck + replacementCheck,
+        [control.revision, sequence, approvalId, now, ...hv, ...replacementValues], statements);
     } catch (e) {
       const winner = await this.ownOperation();
       if (!winner || winner.sequence !== sequence || winner.approval_id !== approvalId) return asError(e);
@@ -260,7 +308,9 @@ export class RecoveryService {
     if (op.state === "ROTATING") {
       const all = await this.slots(), control = await this.control();
       const survivors = all.filter(x => x.archive_id !== s.archive_id);
-      if (s.state !== "DELETING" || survivors.length !== 2 || survivors.some(x => x.state !== "READY" || counter(x.ordinal) <= counter(s.ordinal) || x.pin_until > now)) fail("RECOVERY_TWO_SURVIVORS_REQUIRED");
+      const retry = await this.db.prepare("SELECT 1 FROM cloud_replace_attempts WHERE library_id=? AND device_id=? AND state='ACTIVE' AND archive_id=? AND recovery_sequence=CAST(? AS INTEGER) AND retry_archive_id=?")
+        .bind(this.context.library, this.context.device, op.archive_id, op.sequence, s.archive_id).first();
+      if (s.state !== "DELETING" || (retry ? survivors.length < 1 : survivors.length !== 2) || survivors.some(x => x.state !== "READY" || (!retry && counter(x.ordinal) <= counter(s.ordinal)) || x.pin_until > now)) fail(retry ? "REPLACEMENT_RETRY_REQUIRES_SURVIVOR" : "RECOVERY_TWO_SURVIVORS_REQUIRED");
       for (const survivor of survivors) await this.extant(survivor);
       const old = await this.bucket.head(s.object_key);
       if (old && !this.matches(s, old)) fail("RECOVERY_OBJECT_MISSING_OR_CHANGED");

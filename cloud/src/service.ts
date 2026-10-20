@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 import { checkedHead, counter, sameHead } from "./protocol.ts";
 import type { Head } from "./protocol.ts";
-import { guardedCommit, inspectOperation, resolveOrRetire } from "./admission.ts";
+import { guardedCommit, guardedReplacement, inspectOperation, resolveOrRetire } from "./admission.ts";
 import type { AdmissionContext, Receipt } from "./admission.ts";
 import { byteLength, PAGE_LIMITS, parsePage, validPageId, sha256, readPages, pageManifest } from "./pages.ts";
 import type { CatalogPage, PageChange } from "./pages.ts";
 import { fingerprint } from "./catalog.ts";
+import { REPLACE_GRANT, REPLACEMENT_COOLDOWN_MS } from "./replacement-state.ts";
+import type { ReplacementProof } from "./replacement-state.ts";
 
 export class CatalogError extends Error {
   readonly code: string;
@@ -35,7 +37,7 @@ function count(value: unknown, maximum: number, minimum = 0): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < minimum || value > maximum) fail("INVALID_COUNT", 400);
   return value;
 }
-export type StageHeader = Readonly<{ mode: "initialize" | "sync"; sequence: string; before: Head;
+export type StageHeader = Readonly<{ mode: "initialize" | "sync" | "replace"; sequence: string; before: Head;
   targetFingerprint: string; chunkCount: number; changeCount: number; payloadBytes: number; digest: string }>;
 function exactHead(value: unknown): Head {
   const h = object(value, ["serviceGeneration", "library", "epoch", "revision", "headCounter", "fingerprint"]);
@@ -43,7 +45,7 @@ function exactHead(value: unknown): Head {
 }
 export function readStageHeader(value: unknown): StageHeader {
   const h = object(value, ["mode", "sequence", "before", "targetFingerprint", "chunkCount", "changeCount", "payloadBytes", "digest"]);
-  if (h.mode !== "initialize" && h.mode !== "sync") fail("UNSUPPORTED_OPERATION", 400);
+  if (h.mode !== "initialize" && h.mode !== "sync" && h.mode !== "replace") fail("UNSUPPORTED_OPERATION", 400);
   if (typeof h.sequence !== "string") fail("INVALID_SEQUENCE", 400);
   try { if (counter(h.sequence) === 0n) fail("INVALID_SEQUENCE", 400); } catch { fail("INVALID_SEQUENCE", 400); }
   if (typeof h.targetFingerprint !== "string" || !hashPattern.test(h.targetFingerprint) || typeof h.digest !== "string" || !hashPattern.test(h.digest)) fail("INVALID_DIGEST", 400);
@@ -74,7 +76,7 @@ export async function uploadDigest(header: Omit<StageHeader, "digest">, changes:
     [h.serviceGeneration, h.library, h.epoch, h.revision, h.headCounter, h.fingerprint], header.targetFingerprint,
     header.chunkCount, header.changeCount, header.payloadBytes, leafs]));
 }
-export async function makeUpload(mode: "initialize" | "sync", sequence: string, before: Head,
+export async function makeUpload(mode: "initialize" | "sync" | "replace", sequence: string, before: Head,
   targetFingerprint: string, changes: readonly PageChange[]): Promise<{ header: StageHeader; chunks: readonly (readonly PageChange[])[] }> {
   readChanges(changes);
   const chunks: PageChange[][] = []; let current: PageChange[] = [];
@@ -173,6 +175,7 @@ export class CatalogService {
       if (existing.expires_at <= now) fail("UPLOAD_EXPIRED", 410);
       return this.view(existing);
     }
+    const replacementCheck = header.mode === "replace" ? " AND " + REPLACE_GRANT + " AND EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=d.library_id AND device_id=d.device_id AND state='ACTIVE' AND header=? AND expires_at>?)" : " AND NOT EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=d.library_id AND device_id=d.device_id AND state='ACTIVE')";
     const condition = `d.resolved_sequence=CAST(? AS INTEGER)-1 AND h.epoch=? AND h.revision=CAST(? AS INTEGER)
       AND h.head_counter=CAST(? AS INTEGER) AND h.fingerprint=?
       AND EXISTS(SELECT 1 FROM cloud_catalog_info i WHERE i.library_id=h.library_id AND i.initialized=?)
@@ -180,9 +183,9 @@ export class CatalogService {
       AND (SELECT COUNT(*) FROM cloud_uploads u WHERE u.library_id=d.library_id AND u.status IN('UPLOADING','SEALED'))<?
       AND COALESCE((SELECT SUM(u.expected_bytes) FROM cloud_uploads u WHERE u.library_id=d.library_id AND u.status IN('UPLOADING','SEALED')),0)+?<=?`;
     try {
-      await this.writeBatch(condition, [header.sequence, header.before.epoch, header.before.revision, header.before.headCounter,
+      await this.writeBatch(condition + replacementCheck, [header.sequence, header.before.epoch, header.before.revision, header.before.headCounter,
       header.before.fingerprint, Number(header.mode !== "initialize"), TRANSPORT_LIMITS.pendingDevices,
-      header.payloadBytes, this.limits.maxCatalogBytes * TRANSPORT_LIMITS.pendingDevices], [
+      header.payloadBytes, this.limits.maxCatalogBytes * TRANSPORT_LIMITS.pendingDevices, ...(header.mode === "replace" ? [encoded, now] : [])], [
       this.db.prepare("DELETE FROM cloud_uploads WHERE library_id=? AND device_id=?").bind(c.library, c.device),
       this.db.prepare(`INSERT INTO cloud_uploads(library_id,device_id,sequence,digest,header,status,expires_at,expected_chunks,expected_changes,expected_bytes)
        VALUES(?,?,CAST(? AS INTEGER),?,?,'UPLOADING',?,?,?,?)`).bind(c.library, c.device, header.sequence, header.digest, encoded,
@@ -278,6 +281,13 @@ export class CatalogService {
     return this.view(await this.requireUpload(sequence, digest));
   }
   async publish(sequence: string, digest: string, now = Date.now()): Promise<{ receipt: Receipt }> {
+    return this.publishSealed(sequence, digest, now, null);
+  }
+  /** Called only after the recovery service checked the immutable outgoing object. */
+  async publishReplacement(sequence: string, digest: string, proof: ReplacementProof, now = Date.now()): Promise<{ receipt: Receipt }> {
+    return this.publishSealed(sequence, digest, now, proof);
+  }
+  private async publishSealed(sequence: string, digest: string, now: number, proof: ReplacementProof | null): Promise<{ receipt: Receipt }> {
     const existing = await this.resolve(sequence, digest);
     if (existing) { if (existing.outcome === "RETIRED") fail("OPERATION_RETIRED"); return { receipt: existing }; }
     const u = await this.getUpload(), c = this.context;
@@ -289,6 +299,7 @@ export class CatalogService {
     if (u.digest !== digest) fail("REPLAY_MISMATCH");
     if (u.expires_at <= now) fail("UPLOAD_NOT_SEALED_OR_EXPIRED");
     const h = readStageHeader(JSON.parse(u.header));
+    if (h.mode === "replace" ? !proof || proof.attempt.header !== u.header : proof !== null) fail("REPLACEMENT_PROOF_REQUIRED");
     const predicate = `EXISTS(SELECT 1 FROM cloud_uploads u JOIN cloud_catalog_info i ON i.library_id=u.library_id
       WHERE u.library_id=? AND u.device_id=? AND u.sequence=CAST(? AS INTEGER) AND u.digest=? AND u.status='SEALED'
       AND u.expires_at>? AND u.verified_pages IS NOT NULL AND u.verified_bytes IS NOT NULL AND u.verified_manifest IS NOT NULL
@@ -310,8 +321,32 @@ export class CatalogService {
       this.db.prepare("UPDATE cloud_uploads SET status='COMMITTED' WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER)").bind(c.library, c.device, sequence),
       this.db.prepare("DELETE FROM cloud_upload_changes WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER)").bind(c.library, c.device, sequence),
       this.db.prepare("DELETE FROM cloud_upload_chunks WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER)").bind(c.library, c.device, sequence)];
-    const receipt = await guardedCommit(this.db, c, { sequence, digest, before: h.before, nextFingerprint: h.targetFingerprint }, mutations);
-    return { receipt };
+    const operation = { sequence, digest, before: h.before, nextFingerprint: h.targetFingerprint };
+    if (!proof) return { receipt: await guardedCommit(this.db, c, operation, mutations) };
+    const a = proof.attempt;
+    const replacementGuard = this.db.prepare(`UPDATE cloud_commit_assertion SET ok=(SELECT COUNT(*) FROM cloud_replace_attempts r
+      JOIN cloud_devices d ON d.library_id=r.library_id AND d.device_id=r.device_id
+      JOIN cloud_backup_control b ON b.library_id=r.library_id
+      JOIN cloud_backup_slots s ON s.library_id=r.library_id AND s.archive_id=r.archive_id AND s.slot=r.slot
+      JOIN cloud_backup_operations o ON o.library_id=r.library_id AND o.device_id=r.device_id AND o.archive_id=r.archive_id AND o.sequence=r.recovery_sequence
+      JOIN cloud_uploads u ON u.library_id=r.library_id AND u.device_id=r.device_id
+      WHERE ${AUTH} AND ${REPLACE_GRANT} AND b.service_generation=? AND b.revision<9223372036854775807 AND (b.last_replace_at=0 OR b.last_replace_at<=?)
+      AND r.attempt_id=? AND r.state='ACTIVE' AND r.header=? AND r.next_epoch=? AND r.expires_at>?
+      AND u.sequence=CAST(? AS INTEGER) AND u.digest=? AND u.header=r.header
+      AND s.archive_id=? AND s.state='READY' AND s.digest=? AND s.object_etag=? AND s.object_version=? AND o.state='DONE'
+      AND json_extract(s.manifest,'$.kind')='cloud-catalog'
+      AND json_extract(s.manifest,'$.source.head.serviceGeneration')=? AND json_extract(s.manifest,'$.source.head.library')=?
+      AND json_extract(s.manifest,'$.source.head.epoch')=? AND json_extract(s.manifest,'$.source.head.revision')=?
+      AND json_extract(s.manifest,'$.source.head.headCounter')=? AND json_extract(s.manifest,'$.source.head.fingerprint')=?
+      AND json_extract(s.manifest,'$.source.manifest')=(SELECT manifest FROM cloud_catalog_info WHERE library_id=r.library_id)) WHERE slot=1`)
+      .bind(...args(c), c.serviceGeneration, now - REPLACEMENT_COOLDOWN_MS, a.attempt_id, a.header, a.next_epoch, now,
+        sequence, digest, a.archive_id, proof.digest, proof.objectEtag, proof.objectVersion,
+        h.before.serviceGeneration, h.before.library, h.before.epoch, h.before.revision, h.before.headCounter, h.before.fingerprint);
+    mutations.push(this.db.prepare("UPDATE cloud_replace_attempts SET state='DONE' WHERE library_id=? AND device_id=? AND attempt_id=?")
+      .bind(c.library, c.device, a.attempt_id));
+    mutations.push(this.db.prepare("UPDATE cloud_backup_control SET last_replace_at=?,revision=revision+1 WHERE library_id=? AND revision<9223372036854775807")
+      .bind(now, c.library));
+    return { receipt: await guardedReplacement(this.db, c, operation, a.next_epoch, [replacementGuard], mutations) };
   }
   async retire(sequence: string, digest: string): Promise<{ receipt: Receipt }> {
     // Resolve sequence, terminalize the exact upload and delete its reserved payload
@@ -319,7 +354,9 @@ export class CatalogService {
     const c = this.context;
     const stagedIdentity = this.db.prepare(`UPDATE cloud_commit_assertion SET ok=CASE WHEN EXISTS(
       SELECT 1 FROM cloud_uploads WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER) AND digest!=?
-      ) THEN 0 ELSE 1 END WHERE slot=1`).bind(c.library, c.device, sequence, digest);
+      ) OR EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=? AND device_id=? AND state='ACTIVE'
+        AND json_extract(header,'$.sequence')=? AND json_extract(header,'$.digest')!=?)
+      THEN 0 ELSE 1 END WHERE slot=1`).bind(c.library, c.device, sequence, digest, c.library, c.device, sequence, digest);
     const mutations = [stagedIdentity,
       this.db.prepare("UPDATE cloud_uploads SET status='RETIRED' WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER) AND digest=?")
         .bind(c.library, c.device, sequence, digest),

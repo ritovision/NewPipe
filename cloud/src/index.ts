@@ -5,6 +5,7 @@ import { CatalogError, CatalogService, authenticateToken, DEFAULT_SERVICE_LIMITS
 import type { Head } from "./protocol.ts";
 import { RecoveryService, readRecoveryReference } from "./recovery.ts";
 import { RecoveryError, RECOVERY_LIMITS } from "./recovery-format.ts";
+import { ReplacementService, canReplace } from "./replacement.ts";
 
 export interface CloudEnvironment {
   DB: D1Database;
@@ -15,6 +16,7 @@ export interface CloudEnvironment {
   MAX_CATALOG_BYTES?: string;
   MAX_CATALOG_PAGES?: string;
   ENABLE_RECOVERY_API?: string;
+  ENABLE_REPLACEMENT_API?: string;
   MAX_RECOVERY_BYTES?: string;
   RECOVERY?: R2Bucket;
   REQUEST_LIMITER: { limit(options: { key: string }): Promise<{ success: boolean }> };
@@ -62,7 +64,9 @@ const paths = new Set(["/v1/connect", "/v1/head", "/v1/pages", "/v1/uploads/star
   "/v1/uploads/seal", "/v1/uploads/publish", "/v1/uploads/status", "/v1/uploads/retire",
   "/v1/recovery/status", "/v1/recovery/preview", "/v1/recovery/reserve", "/v1/recovery/advance",
   "/v1/recovery/part", "/v1/recovery/complete", "/v1/recovery/abort", "/v1/recovery/pin",
-  "/v1/recovery/release", "/v1/recovery/download", "/v1/recovery/abandon"]);
+  "/v1/recovery/release", "/v1/recovery/download", "/v1/recovery/abandon",
+  "/v1/replacement/status", "/v1/replacement/preview", "/v1/replacement/reserve",
+  "/v1/replacement/publish", "/v1/replacement/settle", "/v1/replacement/abandon"]);
 
 /** This is the deployable typed entry point. Test SQL/fault injection exists only in test/ harnesses. */
 export async function handleRequest(request: Request, env: CloudEnvironment): Promise<Response> {
@@ -81,6 +85,22 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
     const limits = serviceLimits(environmentNumber(env.MAX_CATALOG_BYTES, DEFAULT_SERVICE_LIMITS.maxCatalogBytes),
       environmentNumber(env.MAX_CATALOG_PAGES, DEFAULT_SERVICE_LIMITS.maxPages));
     const recoveryEnabled = env.ENABLE_RECOVERY_API === "true" && env.RECOVERY !== undefined;
+    const replacementEnabled = recoveryEnabled && env.ENABLE_REPLACEMENT_API === "true";
+    if (url.pathname.startsWith("/v1/replacement/")) {
+      if (!replacementEnabled) fail("REPLACEMENT_API_DISABLED", 503);
+      if (!context.writable) fail("AUTH_REJECTED", 403);
+      const maximum = environmentNumber(env.MAX_RECOVERY_BYTES, RECOVERY_LIMITS.bytes);
+      if (maximum < 22 || maximum > RECOVERY_LIMITS.bytes) fail("SERVICE_CONFIGURATION_INVALID", 503);
+      const replacement = new ReplacementService(env.DB, env.RECOVERY!, context, limits, maximum), data = await body(request);
+      switch (url.pathname) {
+        case "/v1/replacement/status": exact(data, []); return response(await replacement.status());
+        case "/v1/replacement/preview": return response(await replacement.preview(data));
+        case "/v1/replacement/reserve": return response(await replacement.reserve(data));
+        case "/v1/replacement/publish": return response(await replacement.publish(data));
+        case "/v1/replacement/settle": return response(await replacement.settle(data));
+        case "/v1/replacement/abandon": return response(await replacement.abandon(data));
+      }
+    }
     if (url.pathname.startsWith("/v1/recovery/")) {
       if (!recoveryEnabled) fail("RECOVERY_API_DISABLED", 503);
       if (!context.writable && !["status", "pin", "release", "download"].some(name => url.pathname === "/v1/recovery/" + name)) fail("AUTH_REJECTED", 403);
@@ -113,18 +133,22 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
       case "/v1/connect":
       case "/v1/head": {
         exact(data, []);
+        const replacementAllowed = replacementEnabled && await canReplace(env.DB, context);
         return response({ protocol: 1, device: context.device, scope: { service: context.serviceGeneration, library: context.library },
           ...await service.status(), deviceState: await service.deviceState(), limits: { ...limits, requestBytes: TRANSPORT_LIMITS.requestBytes, uploadLifetimeMs: TRANSPORT_LIMITS.stageLifetimeMs },
           capabilities: [...(context.writable ? ["catalog.read", "catalog.initialize", "catalog.sync", "operation.retire"] : ["catalog.read"]),
-            ...(recoveryEnabled ? (context.writable ? ["backup.r2", "backup.read"] : ["backup.read"]) : [])],
-          unavailableCapabilities: ["catalog.replace", ...(recoveryEnabled ? [] : ["backup.r2"])] });
+            ...(recoveryEnabled ? (context.writable ? ["backup.r2", "backup.read"] : ["backup.read"]) : []),
+            ...(replacementAllowed ? ["catalog.replace"] : [])],
+          unavailableCapabilities: [...(replacementAllowed ? [] : ["catalog.replace"]), ...(recoveryEnabled ? [] : ["backup.r2"])] });
       }
       case "/v1/pages": {
         const p = exact(data, ["head", "cursor"]);
         if (p.cursor !== null && typeof p.cursor !== "string") fail("INVALID_CURSOR", 400);
         return response(await service.download(p.head as Head, p.cursor as string | null));
       }
-      case "/v1/uploads/start": return response(await service.start(data));
+      case "/v1/uploads/start":
+        if ((data as { mode?: unknown })?.mode === "replace" && !replacementEnabled) fail("REPLACEMENT_API_DISABLED", 503);
+        return response(await service.start(data));
       case "/v1/uploads/chunk": {
         const p = exact(data, ["sequence", "index", "changes"]);
         if (typeof p.sequence !== "string" || typeof p.index !== "number") fail("INVALID_CHUNK", 400);

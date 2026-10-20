@@ -82,14 +82,14 @@ before(async()=>{
   const source=await readFile(new URL('../'+f,import.meta.url),'utf8');modules.push({type:'ESModule',path:resolve(f),contents:f.endsWith('.ts')?stripTypeScriptTypes(source,{mode:'strip'}):source});
  }
  mf=new Miniflare(convertV4MiniflareOptions({cf:false,modules,compatibilityDate:'2026-08-25',d1Databases:{DB:'recovery-local'},r2Buckets:{RECOVERY:'recovery-local'},resourcePersistencePath:persistence}));await mf.ready;
- for(const file of ['0001_catalog_service.sql','0002_recovery.sql']){
+ for(const file of ['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql']){
   const statements=(await readFile(new URL('../migrations/'+file,import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);await sql(...statements);
  }
 });
 after(async()=>{if(mf)await mf.dispose();if(persistence)await rm(persistence,{recursive:true,force:true});});
 beforeEach(async()=>{
  ok(await call('/__test/reset'));
- await sql(...['cloud_backup_slots','cloud_backup_operations','cloud_backup_approvals','cloud_backup_control','cloud_upload_changes','cloud_upload_chunks','cloud_uploads','cloud_catalog_pages','cloud_receipts','cloud_catalog_info','cloud_devices','cloud_head','cloud_commit_assertion'].map(t=>'DELETE FROM '+t));
+ await sql(...['cloud_replace_attempts','cloud_replace_approvals','cloud_replace_grants','cloud_backup_slots','cloud_backup_operations','cloud_backup_approvals','cloud_backup_control','cloud_upload_changes','cloud_upload_chunks','cloud_uploads','cloud_catalog_pages','cloud_receipts','cloud_catalog_info','cloud_devices','cloud_head','cloud_commit_assertion'].map(t=>'DELETE FROM '+t));
  await sql({sql:'INSERT INTO cloud_head VALUES(?,?,0,0,?)',args:['library-a','epoch-a',EMPTY_FP]},
   {sql:'INSERT INTO cloud_catalog_info VALUES(?,0,0,0,?)',args:['library-a',EMPTY_MANIFEST]},
   ...await Promise.all(Object.entries(tokens).map(async([key,token])=>({sql:'INSERT INTO cloud_devices VALUES(?,?,?,?,1,0,?,0)',args:['library-a',token.split('.')[0],await sha256(token.split('.')[1]),'service-a',Number(key!=='r')]}))),
@@ -297,4 +297,143 @@ test('concurrent uncertain abort cannot hide a quarantined slot behind a cancele
  assert.equal((await state()).operation.state,'QUARANTINED');await control({release:true});failure(await first,'RECOVERY_STATE_CHANGED');
  const status=await state();assert.equal(status.occupiedSlots,1);assert.equal(status.operation.state,'QUARANTINED');assert.equal(status.archives[0].state,'QUARANTINED');
  ok(await recovery('abort',ref(op)));assert.equal((await state()).occupiedSlots,0);assert.equal((await control({})).uploads,0);
+});
+
+// Protected replacement tests share the real local D1/R2 HTTP harness above.
+const replace=(path,data={},token=tokens.a)=>call('/v1/replacement/'+path,data,token);
+async function enableReplacement(){
+ await control({options:{ENABLE_REPLACEMENT_API:'true'}});
+ await sql("INSERT OR REPLACE INTO cloud_replace_grants SELECT library_id,device_id,service_generation,auth_generation,1 FROM cloud_devices WHERE can_write=1");
+}
+async function replacementPreview(source,{name='rename',token=tokens.a,retryAttemptId=null}={}){
+ const h=ok(await call('/v1/head',{},token)),target=catalog(name),pages=await encodePages(target,source.pages);
+ const upload=await makeUpload('replace',String(BigInt(h.deviceState.resolvedSequence)+1n),h.head,await fingerprint(target),changedPages(source.pages,pages));
+ const preview=ok(await replace('preview',{incoming:upload.header,manifest:await manifest(source.bytes,source.source),retryAttemptId},token));
+ return {preview,upload,bytes:source.bytes,token};
+}
+async function reserveReplacement(p){
+ const recoverySequence=String(BigInt((await state(p.token)).lastSequence)+1n);
+ const reserved=ok(await replace('reserve',{approvalId:p.preview.approvalId,recoverySequence},p.token));
+ return {...p,...reserved,operation:{...reserved.operation,bytes:p.bytes}};
+}
+async function sealReplacement(p){
+ ok(await call('/v1/uploads/start',p.upload.header,p.token));
+ for(let index=0;index<p.upload.chunks.length;index++)ok(await call('/v1/uploads/chunk',{sequence:p.upload.header.sequence,index,changes:p.upload.chunks[index]},p.token));
+ ok(await call('/v1/uploads/seal',{sequence:p.upload.header.sequence,digest:p.upload.header.digest},p.token));
+}
+const publishReplacement=p=>replace('publish',{attemptId:p.attempt.attemptId},p.token);
+const settleReplacement=(p,keepForRetry)=>replace('settle',{attemptId:p.attempt.attemptId,keepForRetry},p.token);
+
+test('replacement: exact outgoing backup precedes atomic new epoch, receipt and cooldown',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ await finish(p.operation);await sealReplacement(p);
+ failure(await call('/v1/uploads/publish',{sequence:p.upload.header.sequence,digest:p.upload.header.digest}),'REPLACEMENT_PROOF_REQUIRED');
+ const result=ok(await publishReplacement(p)),h=ok(await call('/v1/head'));
+ assert.equal(result.receipt.head.epoch,p.preview.nextEpoch);assert.equal(h.head.epoch,p.preview.nextEpoch);assert.equal(h.head.revision,'1');
+ assert.equal(h.head.headCounter,String(BigInt(source.source.head.headCounter)+1n));assert.equal(h.head.fingerprint,await fingerprint(catalog('rename')));
+ assert.equal(result.attempt.state,'DONE');assert.deepEqual(ok(await publishReplacement(p)).receipt,result.receipt);
+ const pin=ok(await recovery('pin',{archiveId:p.attempt.archiveId}));
+ const download=await mf.dispatchFetch('https://recovery.test/v1/recovery/download',{method:'POST',headers:{Authorization:'Bearer '+tokens.a,'Content-Type':'application/json'},body:JSON.stringify({archiveId:p.attempt.archiveId,pinId:pin.pinId,part:1})});
+ assert.deepEqual(Buffer.from(await download.arrayBuffer()),source.bytes);ok(await recovery('release',{archiveId:p.attempt.archiveId,pinId:pin.pinId}));
+ assert.equal((await rows('cloud_backup_control'))[0].last_replace_at>0,true);assert.equal((await control({})).calls.create,1);
+ const renamedPages=await encodePages(catalog('rename'),source.pages),nextSource={pages:renamedPages,source:{head:h.head,pages:h.pages,bytes:h.bytes,manifest:h.manifest}};
+ nextSource.bytes=Buffer.from(cloudArchiveHeader(nextSource.source)+renamedPages.map(cloudArchivePage).join(''));
+ await assert.rejects(()=>replacementPreview(nextSource,{name:'base'}),/PRECONDITION_FAILED/);
+});
+test('replacement: disabled API and absent or stale explicit grant cannot allocate',async()=>{
+ const source=await publishCatalog('base');failure(await replace('status'),'REPLACEMENT_API_DISABLED');
+ await control({options:{ENABLE_REPLACEMENT_API:'true'}});
+ await assert.rejects(()=>replacementPreview(source),/REPLACEMENT_NOT_AUTHORIZED/);
+ await enableReplacement();await sql("UPDATE cloud_devices SET auth_generation=auth_generation+1 WHERE device_id='device-a'");
+ await assert.rejects(()=>replacementPreview(source),/REPLACEMENT_NOT_AUTHORIZED/);
+ assert.equal((await state()).occupiedSlots,0);assert.equal((await control({})).calls.create??0,0);
+});
+test('replacement: changed head invalidates reservation without evicting any history',async()=>{
+ await enableReplacement();for(let i=0;i<3;i++)await backup(zip(16+i));
+ const source=await publishCatalog('base'),p=await replacementPreview(source),before=(await state()).archives.map(a=>a.archiveId);
+ await publishCatalog('rename',tokens.b,source.pages);
+ failure(await replace('reserve',{approvalId:p.preview.approvalId,recoverySequence:'4'}));
+ assert.deepEqual((await state()).archives.map(a=>a.archiveId),before);assert.equal((await rows('cloud_replace_attempts')).length,0);
+});
+test('replacement: unverified outgoing bytes and ordinary reservation cannot authorize publication',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),preview=await replacementPreview(source);
+ failure(await recovery('reserve',{approvalId:preview.preview.approvalId,sequence:'1'}),'REPLACEMENT_APPROVAL_REQUIRED');
+ const p=await reserveReplacement(preview);await sealReplacement(p);
+ failure(await publishReplacement(p),'REPLACEMENT_RECOVERY_NOT_READY');
+ assert.deepEqual(ok(await call('/v1/head')).head,source.source.head);
+});
+test('replacement: revoked grant at final transaction preserves cloud and verified archive',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ await finish(p.operation);await sealReplacement(p);await control({block:'publishReplacement.before'});
+ const publishing=publishReplacement(p);await waitBlocked('publishReplacement.before');
+ await sql("UPDATE cloud_replace_grants SET can_replace=0 WHERE device_id='device-a'");await control({release:true});failure(await publishing);
+ assert.deepEqual(ok(await call('/v1/head')).head,source.source.head);assert.equal((await state()).archives[0].usable,true);
+ ok(await settleReplacement(p,false));
+});
+test('replacement: stale CAS retry reuses its own slot without a second historical eviction',async()=>{
+ await enableReplacement();const original=[];for(let i=0;i<3;i++)original.push((await backup(zip(20+i))).archiveId);
+ const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));await finish(p.operation);await sealReplacement(p);
+ const changed=await publishCatalog('rename',tokens.b,source.pages);failure(await publishReplacement(p),'PRECONDITION_FAILED');
+ assert.equal(ok(await settleReplacement(p,true)).attempt.state,'STALE');
+ const retry=await reserveReplacement(await replacementPreview(changed,{name:'empty',retryAttemptId:p.attempt.attemptId}));
+ assert.equal(retry.attempt.slot,p.attempt.slot);assert.equal(retry.preview.evictArchiveId,p.attempt.archiveId);
+ await finish(retry.operation);await sealReplacement(retry);ok(await publishReplacement(retry));
+ const retained=(await state()).archives.map(a=>a.archiveId);
+ assert.deepEqual(new Set(retained),new Set([original[1],original[2],retry.attempt.archiveId]));assert.equal((await control({})).maxPayloads,3);
+ failure(await publishReplacement(p),'REPLACEMENT_RESULT_EXPIRED');
+});
+test('replacement: retry never deletes its last verified copy and permits a separate spare-slot backup',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ await finish(p.operation);await sealReplacement(p);const changed=await publishCatalog('rename',tokens.b,source.pages);
+ failure(await publishReplacement(p));ok(await settleReplacement(p,true));
+ await assert.rejects(()=>replacementPreview(changed,{name:'empty',retryAttemptId:p.attempt.attemptId}),/REPLACEMENT_RETRY_REQUIRES_SURVIVOR/);
+ assert.equal((await state()).archives[0].archiveId,p.attempt.archiveId);
+ const safety=await backup(zip(40));const retry=await reserveReplacement(await replacementPreview(changed,{name:'empty',retryAttemptId:p.attempt.attemptId}));
+ await finish(retry.operation);await sealReplacement(retry);ok(await publishReplacement(retry));
+ assert.deepEqual(new Set((await state()).archives.map(a=>a.archiveId)),new Set([safety.archiveId,retry.attempt.archiveId]));
+});
+test('replacement: two device confirmations have one active winner',async()=>{
+ await enableReplacement();const source=await publishCatalog('base');
+ const a=await replacementPreview(source),b=await replacementPreview(source,{token:tokens.b});
+ const results=await Promise.all([replace('reserve',{approvalId:a.preview.approvalId,recoverySequence:'1'}),replace('reserve',{approvalId:b.preview.approvalId,recoverySequence:'1'},tokens.b)]);
+ assert.equal(results.filter(r=>r.status===200).length,1);assert.equal((await rows('cloud_replace_attempts')).length,1);assert.equal((await state()).occupiedSlots,1);
+});
+test('replacement: cancel before reserve fences delayed reservation and incoming stage',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await replacementPreview(source),r={approvalId:p.preview.approvalId,recoverySequence:'1'};
+ assert.equal(ok(await replace('abandon',r)).receipt.outcome,'RETIRED');
+ failure(await replace('reserve',r));const late=ok(await call('/v1/uploads/start',p.upload.header));assert.equal(late.receipt.outcome,'RETIRED');
+ assert.equal((await state()).occupiedSlots,0);assert.equal((await rows('cloud_replace_attempts')).length,0);assert.equal((await control({})).calls.create??0,0);
+});
+test('replacement: exact reservation replay and lost publication reply never duplicate rotation or epoch',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ const again=ok(await replace('reserve',{approvalId:p.preview.approvalId,recoverySequence:p.attempt.recoverySequence}));
+ assert.equal(again.attempt.archiveId,p.attempt.archiveId);await finish(p.operation);await sealReplacement(p);
+ await control({fault:'publishReplacement.after'});const first=ok(await publishReplacement(p)),againPublish=ok(await publishReplacement(p));
+ assert.deepEqual(first.receipt,againPublish.receipt);assert.equal((await control({})).calls.create,1);
+});
+test('replacement: cancellation wins against a delayed final publication',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ await finish(p.operation);await sealReplacement(p);await control({block:'publishReplacement.before'});
+ const publishing=publishReplacement(p);await waitBlocked('publishReplacement.before');
+ assert.equal(ok(await settleReplacement(p,false)).attempt.state,'CANCELED');await control({release:true});
+ failure(await publishing,'OPERATION_RETIRED');assert.deepEqual(ok(await call('/v1/head')).head,source.source.head);assert.equal((await state()).archives[0].usable,true);
+});
+test('replacement: active incoming sequence cannot be substituted or retired under another digest',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ const changedMode={...p.upload.header,mode:'sync'};
+ failure(await call('/v1/uploads/start',changedMode));failure(await call('/v1/uploads/retire',{sequence:p.upload.header.sequence,digest:'e'.repeat(64)}));
+ await finish(p.operation);await sealReplacement(p);ok(await publishReplacement(p));
+});
+test('replacement: approval expiry keeps the verified recovery point and requires explicit resolution',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ await finish(p.operation);await sealReplacement(p);
+ await sql("UPDATE cloud_replace_attempts SET expires_at=1");failure(await publishReplacement(p),'REPLACEMENT_APPROVAL_EXPIRED');
+ assert.equal((await state()).archives[0].usable,true);assert.equal(ok(await settleReplacement(p,true)).attempt.state,'STALE');
+});
+test('replacement: an unknown multipart creation keeps its attempt and occupied slot visible',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ await control({fault:'create.after'});failure(await recovery('advance',ref(p.operation)),'RECOVERY_CREATION_OUTCOME_UNKNOWN');
+ failure(await settleReplacement(p,false),'RECOVERY_OPERATOR_CLEANUP_REQUIRED');
+ assert.equal(ok(await replace('status')).attempt.state,'ACTIVE');assert.equal((await state()).occupiedSlots,1);
+ failure(await recovery('preview',{manifest:await manifest(zip())}),'REPLACEMENT_PENDING_OR_NOT_AUTHORIZED');
 });
