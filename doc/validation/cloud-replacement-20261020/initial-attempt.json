@@ -1,0 +1,104 @@
+{
+  "status": "FAIL",
+  "steps": [
+    {
+      "step": "connect",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": false,
+      "seconds": 5.475,
+      "logSha256": "1e94cdadd492b7b7c2e0b3ff6b5e09343a8a8054e6a1ccfcd8ccf757023bea88"
+    },
+    {
+      "step": "initialize",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": true,
+      "seconds": 5.502,
+      "logSha256": "181bfa5ffe5a8f3e134e30476db328beaefafa7df1034d38d0aca2e015e675ec"
+    },
+    {
+      "step": "deviceBackup",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "archiveId": "09de4b17-e454-44f8-98f1-c2f98a79c0d2",
+      "evicted": null,
+      "bytes": 6897,
+      "kind": "device-zip",
+      "retained": [
+        "09de4b17-e454-44f8-98f1-c2f98a79c0d2"
+      ],
+      "content": "5824fa132b6b69572f1ac6d2521198a61631594a048b7cd717ed802e148aedb7",
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": true,
+      "seconds": 8.185,
+      "logSha256": "bc20e1478039f64673c0e92c7fe5ba7f926b165fc6d3d2482e106836e44d5da4"
+    },
+    {
+      "step": "deviceBackup",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "archiveId": "2dba60fb-ed03-4567-b8ae-93d708b3240c",
+      "evicted": null,
+      "bytes": 6897,
+      "kind": "device-zip",
+      "retained": [
+        "09de4b17-e454-44f8-98f1-c2f98a79c0d2",
+        "2dba60fb-ed03-4567-b8ae-93d708b3240c"
+      ],
+      "content": "5824fa132b6b69572f1ac6d2521198a61631594a048b7cd717ed802e148aedb7",
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": true,
+      "seconds": 8.1,
+      "logSha256": "82a160fe9753fd3ecb9a32421729f1ece2547c442c709597b88abd9f01d449db"
+    },
+    {
+      "step": "deviceBackup",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "syntheticOnly": true,
+      "archiveId": "8d70eb09-8d85-4810-ab10-608d20a4de24",
+      "evicted": null,
+      "bytes": 6897,
+      "kind": "device-zip",
+      "retained": [
+        "09de4b17-e454-44f8-98f1-c2f98a79c0d2",
+        "2dba60fb-ed03-4567-b8ae-93d708b3240c",
+        "8d70eb09-8d85-4810-ab10-608d20a4de24"
+      ],
+      "content": "5824fa132b6b69572f1ac6d2521198a61631594a048b7cd717ed802e148aedb7",
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": true,
+      "seconds": 7.992,
+      "logSha256": "555359f649b9cc75ae10c1ba05673561693b297e7e015345c4232eb04100949d"
+    },
+    {
+      "step": "connect",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "syntheticOnly": true,
+      "fingerprint": "0c813521adde8f623925785af5227cead8352495b09888a784d4a7fd5d62c03c",
+      "enabled": false,
+      "seconds": 3.708,
+      "logSha256": "da34a7ffef05340b1c5e7611fa5f7832dce5d8e9e4b437b2aa0adeca0d8b2d5b"
+    },
+    {
+      "step": "enable",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "syntheticOnly": true,
+      "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "enabled": true,
+      "seconds": 4.314,
+      "logSha256": "769ffe56101ae5f14c6fd81d06c44c43a9344e8efe97ea020d2d646d0c48a012"
+    },
+    {
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "syntheticOnly": true,
+      "before": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343",
+      "after": "5489525dd554c1492cad9feb00f95c9816ac0f74f6f7147598b64eda0bb1b10a",
+      "enabled": true,
+      "step": "holdDirtyReplacement"
+    }
+  ],
+  "error": "Live replacement step failed: 09-a-replaceCloud"
+}

@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import subprocess
 import time
+import urllib.request
 
 p = argparse.ArgumentParser()
 p.add_argument("--adb", required=True)
@@ -14,6 +15,7 @@ p.add_argument("--serial", required=True)
 p.add_argument("--credentials", required=True)
 p.add_argument("--output", required=True)
 p.add_argument("--allow-phone", action="store_true")
+p.add_argument("--resume-after-setup", help="Prior failed output directory; requires untouched cloud/archives and no admitted replacement")
 args = p.parse_args()
 if not args.serial.startswith("emulator-") and not args.allow_phone:
     p.error("A physical device requires --allow-phone.")
@@ -34,17 +36,43 @@ def adb(*parts, data=None, timeout=180):
     return r.stdout.decode(errors="replace")
 if adb("get-state").strip() != "device":
     raise RuntimeError("Selected device is unavailable")
-for key, package in packages.items():
-    if "package:" not in adb("shell", "pm", "path", package):
-        raise RuntimeError("Missing isolated QA package")
-    adb("shell", "am", "force-stop", package)
-    adb("shell", "run-as", package, "mkdir", "-p", "no_backup")
-    payload = json.dumps({"syntheticOnly": True, "origin": config["origin"], "token": config["tokens"][key]}).encode()
-    adb("shell", "-T", "run-as", package, "dd", "of=no_backup/live-qa.json", data=payload)
-    adb("shell", "run-as", package, "chmod", "600", "no_backup/live-qa.json")
-    if adb("exec-out", "run-as", package, "cat", "no_backup/live-qa.json").encode() != payload:
-        raise RuntimeError("Private credential transfer did not round-trip")
 results = []
+backups = None
+if args.resume_after_setup:
+    previous = Path(args.resume_after_setup)
+    old = json.loads((previous / "results.json").read_text())
+    steps = old.get("steps", [])
+    expected = ["connect", "initialize", "deviceBackup", "deviceBackup", "deviceBackup", "connect", "enable", "holdDirtyReplacement"]
+    if old.get("status") != "FAIL" or [x.get("step") for x in steps] != expected:
+        raise RuntimeError("Resume requires the exact completed setup and dirty-hold witness")
+    for index, value in enumerate(steps):
+        if value.get("syntheticOnly") is not True or value.get("package") != packages["a" if index < 5 else "b"]:
+            raise RuntimeError("Prior setup is outside the isolated QA packages")
+    def check_remote(endpoint):
+        request = urllib.request.Request(config["origin"] + "/v1/" + endpoint, data=b"{}", headers={
+            "Authorization": "Bearer " + config["tokens"]["a"], "Content-Type": "application/json", "User-Agent": "NewPipe-Cloud-QA/1"})
+        with urllib.request.urlopen(request, timeout=25) as response:
+            return json.load(response)
+    head = check_remote("head")
+    archives = check_remote("recovery/status")
+    attempt = check_remote("replacement/status")
+    if (head["head"]["library"] != config["library"] or head["head"]["serviceGeneration"] != config["serviceGeneration"] or
+            head["head"]["fingerprint"] != steps[1]["fingerprint"] or head["head"]["epoch"] != config["epoch"] or
+            head["head"]["headCounter"] != "1" or head["deviceState"]["upload"] is not None or attempt["attempt"] is not None or
+            archives["operation"] is not None or archives["occupiedSlots"] != 3 or
+            {x["archiveId"] for x in archives["archives"]} != {x["archiveId"] for x in steps[2:5]} or
+            not all(x["usable"] for x in archives["archives"])):
+        raise RuntimeError("Prior cloud setup changed; resume refused")
+    for index, value in enumerate(steps[:6]):
+        peer = "a" if index < 5 else "b"
+        name = f"{index+1:02}-{peer}-{value['step']}.log"
+        data = (previous / name).read_bytes()
+        if hashlib.sha256(data).hexdigest() != value["logSha256"]:
+            raise RuntimeError("Prior setup log checksum mismatch")
+        (out / name).write_bytes(data)
+    results = steps[:6]
+    backups = steps[2:5]
+    print("PASS exact previous setup verified; preserving its three archives", flush=True)
 def step(key, action, **parameters):
     package = packages[key]
     for target in packages.values():
@@ -102,10 +130,21 @@ def hold_dirty():
     print("PASS b durable dirty branch and process stop", flush=True)
     return marker
 try:
-    step("a", "connect")
-    step("a", "initialize")
-    backups = [step("a", "deviceBackup") for _ in range(3)]
-    step("b", "connect")
+    for key, package in packages.items():
+        if "package:" not in adb("shell", "pm", "path", package):
+            raise RuntimeError("Missing isolated QA package")
+        adb("shell", "am", "force-stop", package)
+        adb("shell", "run-as", package, "mkdir", "-p", "no_backup")
+        payload = json.dumps({"syntheticOnly": True, "origin": config["origin"], "token": config["tokens"][key]}).encode()
+        adb("shell", "-T", "run-as", package, "dd", "of=no_backup/live-qa.json", data=payload)
+        adb("shell", "run-as", package, "chmod", "600", "no_backup/live-qa.json")
+        if adb("exec-out", "run-as", package, "cat", "no_backup/live-qa.json").encode() != payload:
+            raise RuntimeError("Private credential transfer did not round-trip")
+    if backups is None:
+        step("a", "connect")
+        step("a", "initialize")
+        backups = [step("a", "deviceBackup") for _ in range(3)]
+        step("b", "connect")
     step("b", "enable")
     dirty = hold_dirty()
     replaced = step("a", "replaceCloud")

@@ -131,7 +131,9 @@ internal class CloudHttpClient(rawOrigin: String, private val credential: String
             "/v1/connect", "/v1/head", "/v1/pages", "/v1/uploads/start", "/v1/uploads/chunk", "/v1/uploads/seal",
             "/v1/uploads/publish", "/v1/uploads/status", "/v1/uploads/retire",
             "/v1/recovery/status", "/v1/recovery/preview", "/v1/recovery/reserve", "/v1/recovery/advance",
-            "/v1/recovery/complete", "/v1/recovery/abort", "/v1/recovery/pin", "/v1/recovery/release", "/v1/recovery/abandon"
+            "/v1/recovery/complete", "/v1/recovery/abort", "/v1/recovery/pin", "/v1/recovery/release", "/v1/recovery/abandon",
+            "/v1/replacement/status", "/v1/replacement/preview", "/v1/replacement/reserve",
+            "/v1/replacement/publish", "/v1/replacement/settle", "/v1/replacement/abandon"
         )
         fun normalizeOrigin(raw: String): String {
             val url = raw.trim().toHttpUrl()

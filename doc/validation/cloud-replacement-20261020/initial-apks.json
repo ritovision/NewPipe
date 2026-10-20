@@ -1,0 +1,29 @@
+{
+  "sourceCommit": "e5a9affef48bd0e072541b15fd76b77ba9d2d126",
+  "artifacts": {
+    "a-app": {
+      "applicationId": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "bytes": 41272277,
+      "sha256": "9bc1d8750b95acd4330e55ebe7bb2777cc0868f40cd5ef0d28983da47aee56fc",
+      "signerSha256": "934d9e21083080b4d409074d68afe64fed6e34d66bb18db7378b2c0a587b12a2"
+    },
+    "a-tests": {
+      "applicationId": "org.schabi.newpipe.debug.featurecloudsyncv120261019.test",
+      "bytes": 2793436,
+      "sha256": "b5d371a9b3ddf2e001027c891f65e43cd3257834f2f47b6dccd7729d662b0b98",
+      "signerSha256": "934d9e21083080b4d409074d68afe64fed6e34d66bb18db7378b2c0a587b12a2"
+    },
+    "b-app": {
+      "applicationId": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "bytes": 34915612,
+      "sha256": "90f64af932d6062913d08f42b0138bbefa508691db6f9e0f2d53f30c68342358",
+      "signerSha256": "934d9e21083080b4d409074d68afe64fed6e34d66bb18db7378b2c0a587b12a2"
+    },
+    "b-tests": {
+      "applicationId": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb.test",
+      "bytes": 2651049,
+      "sha256": "d9f4ef132f178afd6aeb7491c24e5a8742616e8cda50a496e3dc8b56808007b3",
+      "signerSha256": "934d9e21083080b4d409074d68afe64fed6e34d66bb18db7378b2c0a587b12a2"
+    }
+  }
+}

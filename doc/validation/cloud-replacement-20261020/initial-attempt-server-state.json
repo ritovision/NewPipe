@@ -1,0 +1,116 @@
+[
+  {
+    "endpoint": "head",
+    "status": 200,
+    "data": {
+      "protocol": 1,
+      "device": "replace-qa-a-16caffaf-912e-41fc-a9f0-e5bf24395076",
+      "scope": {
+        "service": "8c5ee780-166d-4497-8ad8-18e129dde998",
+        "library": "newpipe-replace-qa-0ff7b6b0-49f1-4303-b111-9eabe9f5e851"
+      },
+      "head": {
+        "serviceGeneration": "8c5ee780-166d-4497-8ad8-18e129dde998",
+        "library": "newpipe-replace-qa-0ff7b6b0-49f1-4303-b111-9eabe9f5e851",
+        "epoch": "8b7350c8-f32e-4be9-a062-bdb61dcb46a9",
+        "revision": "1",
+        "headCounter": "1",
+        "fingerprint": "81b5b04cdc93e710b76a2287fe04a09df0732ad08ba3e4db9d9a09a351ac1343"
+      },
+      "initialized": true,
+      "pages": 1,
+      "bytes": 2106,
+      "manifest": "ae690222f591c4a0e55043d75c13b1bc686d4e80ba134fb5b703ef538556d797",
+      "deviceState": {
+        "resolvedSequence": "1",
+        "upload": null,
+        "replacement": null
+      },
+      "limits": {
+        "maxCatalogBytes": 65536,
+        "maxPages": 8,
+        "requestBytes": 65536,
+        "uploadLifetimeMs": 3600000
+      },
+      "capabilities": [
+        "catalog.read",
+        "catalog.initialize",
+        "catalog.sync",
+        "operation.retire",
+        "backup.r2",
+        "backup.read",
+        "catalog.replace"
+      ],
+      "unavailableCapabilities": []
+    }
+  },
+  {
+    "endpoint": "recovery/status",
+    "status": 200,
+    "data": {
+      "revision": "27",
+      "archives": [
+        {
+          "archiveId": "09de4b17-e454-44f8-98f1-c2f98a79c0d2",
+          "slot": 0,
+          "kind": "device-zip",
+          "sourceDevice": "replace-qa-a-16caffaf-912e-41fc-a9f0-e5bf24395076",
+          "createdAt": "1792496284040",
+          "bytes": 6897,
+          "state": "READY",
+          "usable": true,
+          "protectedUntil": "0",
+          "checksum": "sha256-chunk-manifest-v1",
+          "digest": "fd672730560ba753df57cbf691f8dbbf3ae7ed0f6031f6ea585e3d02813d9b7d",
+          "validation": "producer-native-validation-and-verified-transfer",
+          "error": null
+        },
+        {
+          "archiveId": "2dba60fb-ed03-4567-b8ae-93d708b3240c",
+          "slot": 1,
+          "kind": "device-zip",
+          "sourceDevice": "replace-qa-a-16caffaf-912e-41fc-a9f0-e5bf24395076",
+          "createdAt": "1792496298910",
+          "bytes": 6897,
+          "state": "READY",
+          "usable": true,
+          "protectedUntil": "0",
+          "checksum": "sha256-chunk-manifest-v1",
+          "digest": "2c1c311ca9c6864722657476111c913d2856c1a3de3c9fa34a39dd6bc51297b6",
+          "validation": "producer-native-validation-and-verified-transfer",
+          "error": null
+        },
+        {
+          "archiveId": "8d70eb09-8d85-4810-ab10-608d20a4de24",
+          "slot": 2,
+          "kind": "device-zip",
+          "sourceDevice": "replace-qa-a-16caffaf-912e-41fc-a9f0-e5bf24395076",
+          "createdAt": "1792496313541",
+          "bytes": 6897,
+          "state": "READY",
+          "usable": true,
+          "protectedUntil": "0",
+          "checksum": "sha256-chunk-manifest-v1",
+          "digest": "b259e1842f54cc4c85ee8be9ede441c4be48dbc034ce6552a6595c63ec53eaba",
+          "validation": "producer-native-validation-and-verified-transfer",
+          "error": null
+        }
+      ],
+      "occupiedSlots": 3,
+      "reservedBytes": 20691,
+      "maxBytes": 1048576,
+      "maxSlots": 3,
+      "partBytes": 8388608,
+      "lastSequence": "3",
+      "operation": null
+    }
+  },
+  {
+    "endpoint": "replacement/status",
+    "status": 200,
+    "data": {
+      "attempt": null,
+      "cooldownUntil": "0"
+    }
+  }
+]
