@@ -135,7 +135,11 @@ internal class CloudReplacementScreenModel(application: Application) : AndroidVi
     }
     fun stop() = run("Resolving publication and stopping the attempt…") {
         current = controller.cancel()
-        "Attempt resolved. Completed recovery copies are retained. Automatic sync remains off."
+        if (current?.pending == true) {
+            "This request is resolved. An earlier replacement still needs attention. Stop it or review the current cloud to retry. Automatic sync remains off."
+        } else {
+            "Attempt resolved. Completed recovery copies are retained. Automatic sync remains off."
+        }
     }
     fun cancelPreview() = run("Discarding the local preview…") {
         clearPreview()

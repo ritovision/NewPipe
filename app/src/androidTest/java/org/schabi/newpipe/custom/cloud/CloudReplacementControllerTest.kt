@@ -209,4 +209,91 @@ class CloudReplacementControllerTest {
         c.cancel()
         assertFalse(c.hasPending())
     }
+
+    @Test fun supersededRecoveryPreviewDoesNotTrapAnUnadmittedReplacement() {
+        val c = controller()
+        val p = c.prepare()
+        val recovery = CloudRecoveryController(f.context, sync, peer::client)
+        recovery.prepareUpload("cloud-catalog")
+        assertThrows(IllegalStateException::class.java) { c.confirm(p) }
+        assertNull(peer.attempt)
+        controller().cancel()
+        assertFalse(c.hasPending())
+        assertEquals(0, peer.recovery.created)
+        assertEquals(0L, peer.recovery.sequence)
+        assertEquals(CloudCatalog(), peer.catalog.catalog())
+        recovery.cancelUploadPreview()
+        sync.forget()
+        assertNull(sync.connection.read())
+    }
+
+    @Test fun cancelingUnadmittedRetryPreservesEarlierStaleAuthorityAcrossRecreation() {
+        val c = controller()
+        val p = c.prepare()
+        peer.before = { path ->
+            if (path == "/v1/replacement/publish") {
+                peer.before = null
+                peer.catalog.external(CloudCatalog())
+            }
+        }
+        assertThrows(CloudRemoteException::class.java) { c.confirm(p) }
+        c.resolveForRetry()
+        val fresh = c.prepare()
+        peer.fault = "reserve.before"
+        assertThrows(CloudRemoteException::class.java) { c.confirm(fresh) }
+        val retained = peer.recovery.copies.single().id
+        val result = controller().cancel()
+        assertTrue(result.pending)
+        assertEquals(p.approval, peer.attempt!!.getString("attemptId"))
+        assertEquals("STALE", controller().pendingPhase())
+        assertFalse(File(root(), "pending.json").exists())
+        assertTrue(File(root(), "observed.json").exists())
+        assertThrows(IllegalStateException::class.java) { sync.forget() }
+        assertThrows(IllegalStateException::class.java) { sync.prepare(false) }
+        controller().cancel()
+        assertEquals("CANCELED", peer.attempt!!.getString("state"))
+        assertEquals(retained, peer.recovery.copies.single().id)
+        assertFalse(controller().hasPending())
+        sync.forget()
+        assertNull(sync.connection.read())
+    }
+
+    @Test fun observedActiveAttemptBlocksForgetWithoutLocalPayloadAndCanBeResolved() {
+        val c = controller()
+        val p = c.prepare()
+        peer.fault = "reserve.after"
+        assertThrows(CloudRemoteException::class.java) { c.confirm(p) }
+        sync.inspect()
+        assertTrue(File(root(), "observed.json").exists())
+        assertTrue(File(root(), "pending.json").delete())
+        assertTrue(File(root(), "outgoing.payload").delete())
+        assertTrue(File(root(), "outbox").deleteRecursively())
+        assertTrue(controller().hasPending())
+        assertEquals("ACTIVE", controller().pendingPhase())
+        assertThrows(IllegalStateException::class.java) { sync.forget() }
+        controller().cancel()
+        assertEquals("CANCELED", peer.attempt!!.getString("state"))
+        assertFalse(controller().hasPending())
+        sync.forget()
+        assertNull(sync.connection.read())
+    }
+
+    @Test fun failedAuthorityRefreshKeepsLastIntentUntilCancellationIsResolved() {
+        val c = controller()
+        val p = c.prepare()
+        peer.fault = "reserve.after"
+        assertThrows(CloudRemoteException::class.java) { c.confirm(p) }
+        peer.before = { path ->
+            if (path == "/v1/connect") {
+                peer.before = null
+                throw CloudRemoteException("CLOUD_NETWORK_UNAVAILABLE")
+            }
+        }
+        assertThrows(CloudRemoteException::class.java) { controller().cancel() }
+        assertEquals("CANCELED", peer.attempt!!.getString("state"))
+        assertTrue(File(root(), "pending.json").exists())
+        assertThrows(IllegalStateException::class.java) { sync.forget() }
+        controller().cancel()
+        assertFalse(controller().hasPending())
+    }
 }

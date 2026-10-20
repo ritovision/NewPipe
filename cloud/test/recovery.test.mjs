@@ -461,3 +461,34 @@ test('replacement review: database clock rejects approval expiry despite an earl
  failure(await call('/__test/slow-replacement',{attemptId:p.attempt.attemptId}));
  assert.deepEqual(ok(await call('/v1/head')).head,source.source.head);assert.equal((await state()).archives[0].usable,true);
 });
+
+test('replacement Android review: superseded recovery preview does not prevent cancellation',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await replacementPreview(source);
+ const later=ok(await recovery('preview',{manifest:await manifest(zip())}));
+ failure(await replace('reserve',{approvalId:p.preview.approvalId,recoverySequence:'1'}),'RECOVERY_APPROVAL_EXPIRED');
+ const stopped=ok(await replace('abandon',{approvalId:p.preview.approvalId,recoverySequence:'1'}));
+ assert.equal(stopped.receipt.outcome,'RETIRED');assert.equal(stopped.attempt,null);
+ assert.deepEqual(ok(await call('/v1/head')).head,source.source.head);assert.equal((await state()).occupiedSlots,0);
+ failure(await replace('reserve',{approvalId:p.preview.approvalId,recoverySequence:'1'}));
+ const ordinary=ok(await recovery('reserve',{approvalId:later.approvalId,sequence:'1'}));
+ assert.equal(ordinary.approvalId,later.approvalId);
+});
+test('replacement Android review: an unadmitted retry preserves the older stale authority and recovery receipt',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+ await finish(p.operation);await sealReplacement(p);const changed=await publishCatalog('rename',tokens.b,source.pages);
+ failure(await publishReplacement(p));ok(await settleReplacement(p,true));await backup(zip(40),{token:tokens.b});
+ const retry=await replacementPreview(changed,{name:'empty',retryAttemptId:p.attempt.attemptId});
+ const before=await rows('cloud_backup_operations'),archives=(await state()).archives.map(a=>a.archiveId);
+ const stop=ok(await replace('abandon',{approvalId:retry.preview.approvalId,recoverySequence:'2'}));
+ assert.equal(stop.receipt.outcome,'RETIRED');assert.equal(ok(await replace('status')).attempt.attemptId,p.attempt.attemptId);
+ assert.equal(ok(await replace('status')).attempt.state,'STALE');assert.deepEqual(await rows('cloud_backup_operations'),before);
+ assert.deepEqual((await state()).archives.map(a=>a.archiveId),archives);
+ failure(await replace('reserve',{approvalId:retry.preview.approvalId,recoverySequence:'2'}));
+ ok(await settleReplacement(p,false));assert.equal(ok(await call('/v1/head')).deviceState.replacement,null);
+});
+test('replacement Android review: retiring an unadmitted intent fences a delayed reservation',async()=>{
+ await enableReplacement();const source=await publishCatalog('base'),p=await replacementPreview(source),request={approvalId:p.preview.approvalId,recoverySequence:'1'};
+ await control({block:'reserveReplacement.before'});const late=replace('reserve',request);await waitBlocked('reserveReplacement.before');
+ assert.equal(ok(await replace('abandon',request)).receipt.outcome,'RETIRED');await control({release:true});failure(await late);
+ assert.equal((await state()).occupiedSlots,0);assert.equal(ok(await replace('status')).attempt,null);assert.equal((await control({})).calls.create??0,0);
+});

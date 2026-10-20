@@ -109,7 +109,11 @@ internal class CloudSyncController(
                     (remote.head.epoch != h.epoch || CloudCounter.parse(remote.head.revision) >= CloudCounter.parse(h.revision))
             ) { "CLOUD_REMOTE_ROLLBACK_SUSPECTED" }
         }
-        connection.update(s.generation) { it.copy(highest = remote.head) }
+        TagRuntime.lock.withLock {
+            connection.requireCurrent(s.generation)
+            CloudReplacementController.observeRemote(connection.directory, s, remote.replacement)
+            connection.update(s.generation) { it.copy(highest = remote.head) }
+        }
         return remote
     }
     fun inspect(): CloudRemoteStatus = operation {

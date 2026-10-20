@@ -1,0 +1,20 @@
+{
+  "physicalDevice": "Pixel 7, Android 17/API 37, 4 KiB pages",
+  "scope": "Isolated QA A package; native cloud package suite, includes 16 replacement tests",
+  "counts": {
+    "passed": 148,
+    "failed": 0,
+    "error": 0,
+    "ignored": 0,
+    "assumptionSkipped": 11
+  },
+  "runnerCount": 159,
+  "deviceDurationSeconds": 72.086,
+  "logSha256": "aa0a5c0686a328ccb4c8a33dab20d00254ef65924210c8ea9e79cf957b44f9c3",
+  "backendTests": 269,
+  "backendSkipped": 0,
+  "backendLogSha256": "79a94fcc5c2bdf17f0831e574727dff42ad5f0d5df3c411ffc508eb6fd8fb3ad",
+  "routeBoundaryJvmTests": 2,
+  "liveReplacement": "pending",
+  "review": "fix follow-up running"
+}

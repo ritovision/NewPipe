@@ -61,7 +61,10 @@ internal class CloudReplacementController(
     private fun api(s: CloudConnectionStore.State) = apiFactory(s.origin, connection.token(s)) { connection.requireCurrent(s.generation) }
     private fun markerExists() = marker.baseFile.exists() || File(marker.baseFile.path + ".bak").exists()
     fun hasPending() = hasPending(connection.directory)
-    fun pendingPhase(): String? = operation { if (markerExists()) pending(connected()).getString("phase") else null }
+    fun pendingPhase(): String? = operation {
+        val s = connected()
+        if (markerExists()) pending(s).getString("phase") else observedPhase(connection.directory, s)
+    }
     private fun pending(s: CloudConnectionStore.State): JsonObject {
         val p = CloudWireJson.obj(CloudTransferStore.read(marker, 16384).toString(Charsets.UTF_8))
         check(
@@ -199,6 +202,9 @@ internal class CloudReplacementController(
     private fun finish(p: JsonObject, receipt: JsonObject) {
         if (receipt.getString("outcome") == "COMMITTED") check(CloudWireJson.head(receipt["head"]).epoch == p.getString("nextEpoch")) { "CLOUD_RECEIPT_CONTENT_MISMATCH" }
         sync.recordReplacementReceipt(p.getObject("incoming"), receipt, p.getString("incarnation"))
+        // A canceled, unadmitted retry can leave an older STALE attempt on the server.
+        // Persist that authority before deleting the last local intent; failures keep it retryable.
+        sync.inspect()
         clearPending()
     }
     private fun resumeLocked(s: CloudConnectionStore.State, witness: CloudNativeSnapshot?): Status {
@@ -307,7 +313,8 @@ internal class CloudReplacementController(
                 val receipt = response["receipt"] as? JsonObject ?: api.post("/v1/uploads/status", mapOf("sequence" to h.getString("sequence"), "digest" to h.getString("digest")))["receipt"] as? JsonObject
                 sync.recordReplacementReceipt(h, checkNotNull(receipt) { "INVALID_RETIREMENT_RECEIPT" }, null)
             }
-            // Without the final marker no request was sent from this staging directory.
+            // Resolve any observed server authority before removing orphan staging files.
+            sync.inspect()
             clearPending()
         }
         inspectLocked(connected())
@@ -319,9 +326,48 @@ internal class CloudReplacementController(
         check(!markerExists()) { "REPLACEMENT_LOCAL_CLEANUP_FAILED" }
     }
     companion object {
+        private fun observed(directory: File) = AtomicFile(File(directory, "remote-replacement/observed.json"))
+        private fun exists(file: AtomicFile) = file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()
+        private fun observedPhase(directory: File, s: CloudConnectionStore.State): String? {
+            val file = observed(directory)
+            if (!exists(file)) return null
+            val o = CloudWireJson.obj(CloudTransferStore.read(file, 4096).toString(Charsets.UTF_8))
+            check(
+                o.getInt("version") == 1 && o.getString("origin") == s.origin && o.getString("device") == s.device &&
+                    o.getString("service") == s.scope.service && o.getString("library") == s.scope.library
+            ) { "REPLACEMENT_LOCAL_AUTHORITY_CHANGED" }
+            check(CloudRecoveryFormat.UUID.matches(o.getString("attemptId")) && o.getString("state") in setOf("ACTIVE", "STALE")) { "REPLACEMENT_LOCAL_RECORD_CORRUPT" }
+            return o.getString("state")
+        }
+
+        /** Called only for a current, authenticated and rollback-checked device status. */
+        fun observeRemote(directory: File, s: CloudConnectionStore.State, attempt: JsonObject?) {
+            check(TagRuntime.lock.isHeldByCurrentThread) { "REPLACEMENT_OBSERVATION_REQUIRES_BARRIER" }
+            val file = observed(directory)
+            if (attempt == null) {
+                file.delete()
+                check(!exists(file)) { "REPLACEMENT_LOCAL_CLEANUP_FAILED" }
+                return
+            }
+            val id = attempt.getString("attemptId")
+            val state = attempt.getString("state")
+            check(CloudRecoveryFormat.UUID.matches(id) && state in setOf("ACTIVE", "STALE")) { "INVALID_REPLACEMENT_STATUS" }
+            val bytes = CloudWireJson.encode(
+                linkedMapOf(
+                    "version" to 1,
+                    "origin" to s.origin,
+                    "device" to s.device,
+                    "service" to s.scope.service,
+                    "library" to s.scope.library,
+                    "attemptId" to id,
+                    "state" to state
+                )
+            ).toByteArray(Charsets.UTF_8)
+            if (!exists(file) || !CloudTransferStore.read(file, 4096).contentEquals(bytes)) CloudTransferStore.write(file, bytes)
+        }
         fun hasPending(directory: File): Boolean {
             val root = File(directory, "remote-replacement")
-            return listOf("pending.json", "pending.json.bak", "outbox/manifest.json", "outbox/manifest.json.bak").any { File(root, it).exists() }
+            return listOf("pending.json", "pending.json.bak", "outbox/manifest.json", "outbox/manifest.json.bak", "observed.json", "observed.json.bak").any { File(root, it).exists() }
         }
     }
 }

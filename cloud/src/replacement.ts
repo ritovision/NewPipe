@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 import type { AdmissionContext } from "./admission.ts";
 import { inspectOperation } from "./admission.ts";
-import { sameHead } from "./protocol.ts";
+import { counter, sameHead } from "./protocol.ts";
 import { CatalogService, readStageHeader } from "./service.ts";
 import type { ServiceLimits } from "./service.ts";
 import { RecoveryService } from "./recovery.ts";
@@ -103,6 +103,8 @@ export class ReplacementService {
   }
   async abandon(raw: unknown) {
     const r = recoveryObject(raw, ["approvalId", "recoverySequence"]), id = uuid(r.approvalId);
+    if (typeof r.recoverySequence !== "string") fail("INVALID_RECOVERY_SEQUENCE", 400);
+    try { if (counter(r.recoverySequence) === 0n) fail("INVALID_RECOVERY_SEQUENCE", 400); } catch { fail("INVALID_RECOVERY_SEQUENCE", 400); }
     await this.catalog.status();
     let current = await this.own();
     if (current?.attempt_id === id) return this.settle({ attemptId: id, keepForRetry: false });
@@ -112,7 +114,9 @@ export class ReplacementService {
     const h = readStageHeader(JSON.parse(approval.header));
     // Retirement prevents a not-yet-admitted reserve as well as delayed publication.
     const result = await this.catalog.retire(h.sequence, h.digest);
-    await this.recovery.abandon({ approvalId: id, sequence: r.recoverySequence });
+    // The catalog sequence also fences recovery reservation. An unadmitted replacement
+    // owns no recovery operation: do not consume a sequence or require an obsolete preview.
+    // A reserve that won before retirement has an exact attempt and is settled below.
     current = await this.own();
     if (current?.attempt_id === id) return this.settle({ attemptId: id, keepForRetry: false });
     if (result.receipt.outcome !== "RETIRED") fail("REPLACEMENT_IDENTITY_CHANGED");

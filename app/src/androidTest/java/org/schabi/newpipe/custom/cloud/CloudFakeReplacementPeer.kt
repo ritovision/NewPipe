@@ -98,13 +98,14 @@ internal class CloudFakeReplacementPeer(val recovery: CloudFakeRecoveryPeer) {
             }
 
             "abandon", "settle" -> {
-                val a = attempt
-                if (a == null) {
+                if (path == "abandon" && attempt?.getString("attemptId") != body["approvalId"]) {
                     val p = checkNotNull(approval)
+                    check(p.getString("approvalId") == body["approvalId"])
                     val r = inner.post("/v1/uploads/retire", reference(p))
-                    inner.post("/v1/recovery/abandon", mapOf("approvalId" to body["approvalId"], "sequence" to body["recoverySequence"]))
                     return json(mapOf("receipt" to r["receipt"], "attempt" to null))
                 }
+                val a = checkNotNull(attempt)
+                check(a.getString("attemptId") == body[if (path == "abandon") "approvalId" else "attemptId"])
                 val r = inner.post("/v1/uploads/retire", reference(a))
                 if (r.getObject("receipt").getString("outcome") == "COMMITTED") {
                     a["state"] = "DONE"
