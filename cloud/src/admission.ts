@@ -86,6 +86,20 @@ function committed(r: Receipt): Receipt {
  */
 export async function guardedCommit(db: D1Database, c: AdmissionContext, o: Operation,
   mutations: readonly D1PreparedStatement[]): Promise<Receipt> {
+  return guardedPublication(db, c, o, mutations, null);
+}
+
+/** Internal compiler seam only. The replacement service must supply its approval/archive/grant
+ * assertions in this same transaction. No HTTP route exposes epoch replacement yet. */
+export async function guardedReplacement(db: D1Database, c: AdmissionContext, o: Operation,
+  nextEpoch: string, assertions: readonly D1PreparedStatement[], mutations: readonly D1PreparedStatement[]): Promise<Receipt> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(nextEpoch) || nextEpoch === o.before.epoch) fail("INVALID_REPLACEMENT_EPOCH");
+  if (assertions.length === 0 || assertions.length > 4) fail("REPLACEMENT_ASSERTIONS_REQUIRED");
+  return guardedPublication(db, c, o, [...assertions, ...mutations], nextEpoch);
+}
+
+async function guardedPublication(db: D1Database, c: AdmissionContext, o: Operation,
+  mutations: readonly D1PreparedStatement[], nextEpoch: string | null): Promise<Receipt> {
   checkedHead(o.before);
   if (o.before.serviceGeneration !== c.serviceGeneration || o.before.library !== c.library || !hash.test(o.nextFingerprint)) fail("INVALID_OPERATION");
   if (mutations.length > MAX_MUTATIONS) fail("STATEMENT_BUDGET_EXCEEDED");
@@ -100,11 +114,11 @@ export async function guardedCommit(db: D1Database, c: AdmissionContext, o: Oper
     .bind(...parameters(c), o.sequence, o.before.epoch, o.before.revision, o.before.headCounter, o.before.fingerprint);
   const insertReceipt = db.prepare(`INSERT INTO cloud_receipts
     (library_id,device_id,sequence,digest,outcome,epoch,revision,head_counter,fingerprint)
-    SELECT library_id,?,CAST(? AS INTEGER),?,'COMMITTED',epoch,revision+1,head_counter+1,?
-    FROM cloud_head WHERE library_id=?`).bind(c.device, o.sequence, o.digest, o.nextFingerprint, c.library);
+    SELECT library_id,?,CAST(? AS INTEGER),?,'COMMITTED',COALESCE(?,epoch),CASE WHEN ? IS NULL THEN revision+1 ELSE 1 END,head_counter+1,?
+    FROM cloud_head WHERE library_id=?`).bind(c.device, o.sequence, o.digest, nextEpoch, nextEpoch, o.nextFingerprint, c.library);
   const batch = [guard, ...mutations, insertReceipt,
-    db.prepare("UPDATE cloud_head SET revision=revision+1,head_counter=head_counter+1,fingerprint=? WHERE library_id=?")
-      .bind(o.nextFingerprint, c.library),
+    db.prepare("UPDATE cloud_head SET epoch=COALESCE(?,epoch),revision=CASE WHEN ? IS NULL THEN revision+1 ELSE 1 END,head_counter=head_counter+1,fingerprint=? WHERE library_id=?")
+      .bind(nextEpoch, nextEpoch, o.nextFingerprint, c.library),
     db.prepare("UPDATE cloud_devices SET resolved_sequence=CAST(? AS INTEGER) WHERE library_id=? AND device_id=?")
       .bind(o.sequence, c.library, c.device),
     db.prepare("DELETE FROM cloud_commit_assertion WHERE slot=1"),

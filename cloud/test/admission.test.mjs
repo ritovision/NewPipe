@@ -19,7 +19,7 @@ async function sql(...statements){const r=await rpc({kind:'sql',statements:state
 const commit=(c=context,o=operation,mutations=[insert()],inject)=>rpc({kind:'commit',context:c,operation:o,mutations,inject});
 const retire=(c=context,o=operation)=>rpc({kind:'retire',context:c,operation:o});
 async function count(table){return (await sql(`SELECT COUNT(*) AS n FROM ${table}`))[0].results[0].n;}
-async function state(){const r=await sql('SELECT CAST(revision AS TEXT) AS revision,CAST(head_counter AS TEXT) AS headCounter,fingerprint FROM cloud_head', 'SELECT CAST(resolved_sequence AS TEXT) AS seq FROM cloud_devices WHERE device_id=\'device-a\'');return {head:r[0].results[0],seq:r[1].results[0].seq};}
+async function state(){const r=await sql('SELECT epoch,CAST(revision AS TEXT) AS revision,CAST(head_counter AS TEXT) AS headCounter,fingerprint FROM cloud_head', 'SELECT CAST(resolved_sequence AS TEXT) AS seq FROM cloud_devices WHERE device_id=\'device-a\'');return {head:r[0].results[0],seq:r[1].results[0].seq};}
 function error(r,code){assert.equal(r.ok,false,JSON.stringify(r));assert.equal(r.code,code);}
 before(async()=>{
  const modules=[];
@@ -96,4 +96,46 @@ test('64-bit values above JS safe range remain exact',async()=>{
 test('counter exhaustion cannot become floating point',async()=>{
  const n='9223372036854775807';await sql(sqlStatement('UPDATE cloud_head SET revision=CAST(? AS INTEGER),head_counter=CAST(? AS INTEGER)',[n,n]));
  error(await commit(context,{...operation,before:{...base,revision:n,headCounter:n}}),'PRECONDITION_FAILED');assert.equal(await count('proof_values'),0);assert.equal((await state()).head.revision,n);
+});
+
+// Replacement transaction primitive only: end-to-end approval/R2 proof is a separate service gate.
+const replacementEpoch='9239176e-0bde-4c82-950c-5a4bb3c825bb';
+const replacement=(c=context,o=operation,options={})=>rpc({kind:'replace',context:c,operation:o,nextEpoch:replacementEpoch,
+ assertions:[sqlStatement('UPDATE cloud_commit_assertion SET ok=1 WHERE slot=1')],mutations:[insert()],...options});
+test('replacement commits new epoch and revision one while the global counter advances',async()=>{
+ const r=await replacement();assert.equal(r.ok,true,JSON.stringify(r));
+ assert.deepEqual(r.result.head,{...base,epoch:replacementEpoch,revision:'1',headCounter:'11',fingerprint:operation.nextFingerprint});
+ assert.equal((await state()).head.epoch,replacementEpoch);assert.equal((await state()).head.revision,'1');assert.equal((await state()).seq,'1');
+ assert.equal(await count('proof_values'),1);assert.equal(await count('cloud_receipts'),1);
+});
+test('replacement assertion failure rolls back head, domain and receipt together',async()=>{
+ error(await replacement(context,operation,{assertions:[sqlStatement('UPDATE cloud_commit_assertion SET ok=0 WHERE slot=1')]}),'PRECONDITION_FAILED');
+ assert.equal((await state()).head.epoch,base.epoch);assert.equal((await state()).head.revision,'10');assert.equal((await state()).seq,'0');
+ assert.equal(await count('proof_values'),0);assert.equal(await count('cloud_receipts'),0);
+});
+test('replacement cannot omit its domain assertion or reuse an epoch',async()=>{
+ error(await replacement(context,operation,{assertions:[]}),'REPLACEMENT_ASSERTIONS_REQUIRED');
+ error(await replacement(context,{...operation,before:{...base,epoch:replacementEpoch}}),'INVALID_REPLACEMENT_EPOCH');
+ error(await replacement(context,operation,{nextEpoch:'invalid'}),'INVALID_REPLACEMENT_EPOCH');assert.equal(await count('cloud_receipts'),0);
+});
+test('a normal publication racing replacement has exactly one winner',async()=>{
+ const results=await Promise.all([replacement(),commit(contextB,{...operation,digest:H('competing normal')},[insert('normal')])]);
+ assert.equal(results.filter(x=>x.ok).length,1,JSON.stringify(results));assert.equal(await count('proof_values'),1);assert.equal(await count('cloud_receipts'),1);assert.equal((await state()).head.headCounter,'11');
+});
+test('replacement with stale base cannot overwrite newer cloud or reset its epoch',async()=>{
+ const published=await commit(contextB,{...operation,digest:H('newer')},[insert('newer')]);assert.equal(published.ok,true);
+ error(await replacement(),'PRECONDITION_FAILED');assert.equal((await state()).head.epoch,base.epoch);assert.equal((await state()).head.revision,'11');assert.equal(await count('proof_values'),1);assert.equal((await state()).seq,'0');
+});
+test('replacement completion lost response and exact retry return the original epoch receipt',async()=>{
+ const first=await replacement(context,operation,{inject:'lostAfterCommit'});assert.equal(first.ok,true,JSON.stringify(first));
+ const again=await replacement();assert.deepEqual(again.result,first.result);assert.equal(await count('proof_values'),1);assert.equal((await state()).head.headCounter,'11');
+});
+test('retiring a replacement fences a delayed request without changing the cloud epoch',async()=>{
+ assert.equal((await retire()).ok,true);error(await replacement(),'OPERATION_RETIRED');assert.equal((await state()).head.epoch,base.epoch);assert.equal(await count('proof_values'),0);
+});
+test('ordinary sync after replacement continues the new epoch and global counter',async()=>{
+ const first=await replacement();assert.equal(first.ok,true);
+ const next={...operation,sequence:'2',digest:H('after replacement'),before:first.result.head,nextFingerprint:H('next')};
+ const normal=await commit(context,next,[insert('next')]);assert.equal(normal.ok,true,JSON.stringify(normal));
+ assert.equal(normal.result.head.epoch,replacementEpoch);assert.equal(normal.result.head.revision,'2');assert.equal(normal.result.head.headCounter,'12');
 });

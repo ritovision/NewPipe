@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // TEST HARNESS ONLY: accepts synthetic SQL. Never a deployment entry point.
-import {guardedCommit,resolveOrRetire} from '../src/admission.ts';
+import {guardedCommit,guardedReplacement,resolveOrRetire} from '../src/admission.ts';
 export default {
  async fetch(request,env) {
   try {
@@ -15,9 +15,12 @@ export default {
     if(data.inject==='lostAfterCommit')throw new Error('synthetic lost response');
     return result;
    }};
+   const statements=items=>(items??[]).map(s=>db.prepare(s.sql).bind(...(s.args??[])));
    const result=data.kind==='retire'
     ?await resolveOrRetire(database,data.context,data.operation.sequence,data.operation.digest)
-    :await guardedCommit(database,data.context,data.operation,(data.mutations??[]).map(s=>db.prepare(s.sql).bind(...(s.args??[]))));
+    :data.kind==='replace'
+     ?await guardedReplacement(database,data.context,data.operation,data.nextEpoch,statements(data.assertions),statements(data.mutations))
+     :await guardedCommit(database,data.context,data.operation,statements(data.mutations));
    return Response.json({ok:true,result});
   }catch(error){return Response.json({ok:false,code:error.message},{status:409});}
  }
