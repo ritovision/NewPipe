@@ -68,7 +68,7 @@ try{
   d1_databases:[{binding:'DB',database_name:names.data,database_id:scope.database,migrations_dir:resolve(root,'migrations')},
    {binding:'CONTROL',database_name:names.control,database_id:scope.fence.control,migrations_dir:resolve(root,'control-migrations')}],
   r2_buckets:[{binding:'RECOVERY',bucket_name:scope.bucket}],observability:{enabled:false}};
- const application={...common,name:names.worker,main:resolve(root,'src/index.ts'),
+ const application={...common,name:names.worker,main:resolve(root,'src/index.ts'),minify:true,
   vars:{PUBLIC_ORIGIN:record.origin,LIBRARY_ID:scope.library,SERVICE_GENERATION:record.activeGeneration,FENCE_RESOURCE:scope.fence.resource,
    ENABLE_CATALOG_API:'false',ENABLE_HOUSEKEEPING:'false',ENABLE_RECOVERY_API:'false',ENABLE_REPLACEMENT_API:'false',MAX_RECOVERY_BYTES:'1048576',MAX_CATALOG_BYTES:'65536',MAX_CATALOG_PAGES:'8'},
   ratelimits:[{name:'REQUEST_LIMITER',namespace_id:'2026102002',simple:{limit:120,period:60}}]};

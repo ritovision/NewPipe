@@ -171,10 +171,17 @@ class CloudChangePreviewDialog : DialogFragment() {
         const val TAG = "cloud-change-preview"
 
         internal fun fitWindow(dialog: Dialog, host: View) {
-            val visible = Rect()
-            host.getWindowVisibleDisplayFrame(visible)
-            val available = visible.height().takeIf { it > 0 } ?: host.resources.displayMetrics.heightPixels
-            dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, (available * 0.94f).toInt())
+            fun resize() {
+                val visible = Rect()
+                host.getWindowVisibleDisplayFrame(visible)
+                // A recreated host can briefly report its previous orientation's frame.
+                // Never size the confirmation window taller than the current display.
+                val screen = host.resources.displayMetrics.heightPixels
+                val available = minOf(visible.height().takeIf { it > 0 } ?: screen, screen)
+                dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, (available * 0.94f).toInt())
+            }
+            resize()
+            host.post { if (dialog.isShowing) resize() }
         }
 
         /** Keep the confirmation and exact changes reachable with large fonts, a keyboard or landscape. */

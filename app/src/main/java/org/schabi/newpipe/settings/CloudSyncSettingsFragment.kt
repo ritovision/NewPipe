@@ -155,8 +155,9 @@ class CloudSyncSettingsFragment : BasePreferenceFragment() {
         )
         val dialog = AlertDialog.Builder(context).setTitle(if (reconnect) R.string.cloud_reconnect else R.string.cloud_connection_title).setView(ScrollView(context).apply { addView(layout) })
             .setNegativeButton(R.string.cancel, null).setPositiveButton(if (reconnect) R.string.cloud_reconnect_button else R.string.cloud_connect_button, null).create()
+        // Protect the window before its first visible frame, not in a later show callback.
+        dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         dialog.setOnShowListener {
-            dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val url = origin.text.toString()
                 val secret = token.text.toString().trim()

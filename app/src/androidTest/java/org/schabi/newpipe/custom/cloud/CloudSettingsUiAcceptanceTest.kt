@@ -33,6 +33,7 @@ import org.schabi.newpipe.R
 import org.schabi.newpipe.custom.tagging.TagRuntime
 import org.schabi.newpipe.settings.CloudSyncSettingsFragment
 import org.schabi.newpipe.settings.SettingsActivity
+import org.schabi.newpipe.util.ThemeHelper
 
 /** Explicit QA only: real connected views, preview cancellation, rotation and credential secrecy. */
 class CloudSettingsUiAcceptanceTest {
@@ -50,7 +51,7 @@ class CloudSettingsUiAcceptanceTest {
         check(app.packageName == "org.schabi.newpipe.debug.featurecloudsyncv120261019")
         val probe = checkNotNull(arguments.getString("cloudUiProbe"))
         require(probe.matches(Regex("[a-z0-9-]{1,48}")))
-        val output = File(app.cacheDir, "cloud-ui-$probe").also { it.mkdirs() }
+        val output = File(app.noBackupFilesDir, "cloud-ui-$probe").also { it.mkdirs() }
         val controller = CloudSyncController(app)
         val before = checkNotNull(controller.connection.read())
         assertFalse("QA must begin with sync disabled", before.enabled)
@@ -61,6 +62,7 @@ class CloudSettingsUiAcceptanceTest {
         val key = app.getString(R.string.theme_key)
         val old = preferences.getString(key, null)
         check(preferences.edit().putString(key, app.getString(theme)).commit())
+        instrumentation.runOnMainSync { ThemeHelper.setDayNightMode(app) }
         try {
             ActivityScenario.launch(SettingsActivity::class.java).use { scenario ->
                 scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
@@ -69,7 +71,7 @@ class CloudSettingsUiAcceptanceTest {
                     it.supportFragmentManager.executePendingTransactions()
                     it.supportFragmentManager.beginTransaction().replace(R.id.settings_fragment_holder, CloudSyncSettingsFragment()).commitNow()
                 }
-                waitFor(scenario) { model(it).state.value?.let { s -> s.connected && !s.busy } == true }
+                waitFor(scenario) { model(it).state.value?.let { s -> s.connected && !s.busy } == true && fragment(it).lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) && it.window.decorView.hasWindowFocus() }
                 scenario.onActivity {
                     val f = fragment(it)
                     assertFalse(f.findPreference<SwitchPreferenceCompat>("cloud_enabled")!!.isChecked)
@@ -96,6 +98,10 @@ class CloudSettingsUiAcceptanceTest {
                 screenshot(File(output, "$name-preview-portrait.png"))
                 scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
                 waitFor(scenario) { it.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && preview(it)?.isShowing == true }
+                // Rotation changes configuration before the replacement window finishes layout.
+                instrumentation.waitForIdleSync()
+                Thread.sleep(750)
+                screenshot(File(output, "$name-preview-landscape-before-assertion.png"))
                 scenario.onActivity {
                     assertEquals(previewId, model(it).state.value!!.previewId)
                     assertEquals("Synthetic", model(it).query)
@@ -122,7 +128,7 @@ class CloudSettingsUiAcceptanceTest {
                     editors[1].setText("synthetic-qa-secret-not-a-credential")
                 }
                 scenario.recreate()
-                waitFor(scenario) { model(it).state.value?.let { s -> s.connected && !s.busy } == true }
+                waitFor(scenario) { model(it).state.value?.let { s -> s.connected && !s.busy } == true && fragment(it).lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) && it.window.decorView.hasWindowFocus() }
                 scenario.onActivity {
                     assertNull(credentials(fragment(it)))
                     assertEquals("", secretEditor!!.text.toString())
@@ -137,6 +143,7 @@ class CloudSettingsUiAcceptanceTest {
             File(output, "$name-passed.txt").writeText("preview-cancel-no-mutation;real-rotation;secure-credential-dismissal;sync-off\n")
         } finally {
             check(preferences.edit().apply { if (old == null) remove(key) else putString(key, old) }.commit())
+            instrumentation.runOnMainSync { ThemeHelper.setDayNightMode(app) }
             instrumentation.waitForIdleSync()
         }
     }
@@ -154,12 +161,13 @@ class CloudSettingsUiAcceptanceTest {
     private fun assertReachable(view: View) {
         val rect = Rect()
         assertTrue(view.isShown && view.isEnabled && view.getGlobalVisibleRect(rect))
-        assertTrue("Confirmation button is clipped", rect.height() >= view.height - 1 && rect.width() >= view.width - 1)
+        assertTrue("Confirmation button is clipped: visible=$rect measured=${view.width}x${view.height}; " + generateSequence(view as View?) { it.parent as? View }.joinToString { "${it.javaClass.simpleName} ${it.width}x${it.height} top=${it.top} padding=${it.paddingTop}/${it.paddingBottom}" }, rect.height() >= view.height - 1 && rect.width() >= view.width - 1)
     }
     private fun screenshot(file: File) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         instrumentation.waitForIdleSync()
         val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+        check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs())
         file.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
         bitmap.recycle()
     }
@@ -171,6 +179,8 @@ class CloudSettingsUiAcceptanceTest {
             if (ready) return
             Thread.sleep(100)
         }
-        error("Cloud UI did not reach the expected state")
+        var details = "unavailable"
+        scenario.onActivity { details = "${model(it).state.value}; lifecycle=${fragment(it).lifecycle.currentState}; preview=${preview(it)?.isShowing}" }
+        error("Cloud UI did not reach the expected state: $details")
     }
 }
