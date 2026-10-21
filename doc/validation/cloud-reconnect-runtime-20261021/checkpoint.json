@@ -1,0 +1,28 @@
+{
+  "sourceCommit": "ac2fa9dc52273f74e736729286303e251d425662",
+  "nativeSourceHashesMatch": true,
+  "apkHashesMatch": true,
+  "host": "primary NotCodex Windows ADB",
+  "serial": "emulator-5576",
+  "avd": "Pixel_9_API_35",
+  "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+  "suite": "CloudSyncControllerTest",
+  "tests": 34,
+  "passed": 34,
+  "failed": 0,
+  "reconnectionTestsPassed": [
+    "reconnectPreservesLocalContentIdsAndEveryOldPendingFileUntilExplicitPreview",
+    "reconnectRejectsSameGenerationOtherLibraryAndOldDeviceBeforeChangingAnything",
+    "reconnectRejectsAnEmptyRecoveredLibraryAndKeepsOldWork",
+    "reconnectRechecksLocalEditsAfterTheSafetyBackupBeforeStarting",
+    "reconnectResumesAfterJournalCommit",
+    "reconnectResumesAfterPartialTransferArchival",
+    "reconnectResumesAfterWitnessRemoval",
+    "reconnectResumesAfterScopeAndBaselineCommit",
+    "reconnectResumesAfterCredentialCommit"
+  ],
+  "actualProcessDeath": false,
+  "firstAttempt": "startup ANR; no tests counted; observed CPU/memory pressure",
+  "retryPreparation": "cmd package compile -m speed -f for isolated QA app and test package",
+  "logSha256": "3d2e568f83f1bebf7d5412c4df50812d0399312efcb0c961de8c6afc04bf9f97"
+}
