@@ -33,4 +33,10 @@
     <string name="cloud_recovery_history">Cloud recovery copies</string>
     <string name="cloud_replace_remote">Replace cloud with this device</string>
     <string name="cloud_replace_remote_summary">Explicitly replace the shared library after previewing changes and preserving the outgoing cloud copy</string>
+    <string name="cloud_reconnect">Reconnect after cloud recovery</string>
+    <string name="cloud_reconnect_button">Reconnect</string>
+    <string name="cloud_reconnect_summary">Use a fresh device token after the operator recovers this cloud library.</string>
+    <string name="cloud_resume_reconnect">Finish reconnecting</string>
+    <string name="cloud_resume_reconnect_summary">Resume the interrupted reconnection. Your local library and old pending files are preserved.</string>
+    <string name="cloud_reconnect_explanation">Enter a new device token for the recovered version of this same library. Your local videos, playlists and tags stay unchanged. A verified local backup replaces the previous manual recovery copy. Old pending transfers are kept on this device and will not be sent again. Sync stays off until you review a fresh preview.</string>
 </resources>

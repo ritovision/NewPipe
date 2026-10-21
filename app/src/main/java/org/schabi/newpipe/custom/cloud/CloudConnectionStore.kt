@@ -22,6 +22,8 @@ import org.schabi.newpipe.custom.tagging.TagRuntime
 internal class CloudConnectionStore(context: Context, root: File = File(context.noBackupFilesDir, "cloud-sync")) {
     val directory: File = root
     private val file = AtomicFile(File(root, "connection.json"))
+    private val reconnectFile = AtomicFile(File(root, "reconnect.json"))
+    class Reconnect(val previous: State, val next: State)
     private val alias = context.packageName + ".cloud." + CloudWireJson.sha256(root.canonicalPath).take(24)
     class State(
         val generation: String,
@@ -48,9 +50,11 @@ internal class CloudConnectionStore(context: Context, root: File = File(context.
     fun read(): State? = TagRuntime.lock.withLock {
         if (!file.baseFile.exists() && !File(file.baseFile.path + ".bak").exists()) return@withLock null
         val bytes = CloudTransferStore.read(file, 65536)
-        val o = CloudWireJson.obj(bytes.toString(Charsets.UTF_8))
+        decode(CloudWireJson.obj(bytes.toString(Charsets.UTF_8)))
+    }
+    private fun decode(o: com.grack.nanojson.JsonObject): State {
         check(o.getInt("version") == 1) { "UNSUPPORTED_CONNECTION_VERSION" }
-        State(
+        return State(
             o.getString("generation"), o.getString("origin"), o.getString("device"),
             CloudIdentityStore.Scope(o.getString("service"), o.getString("library")), o.getString("incarnation"),
             o.getBoolean("enabled"), o.getString("credential"), o["highest"]?.let(CloudWireJson::head),
@@ -58,6 +62,7 @@ internal class CloudConnectionStore(context: Context, root: File = File(context.
         )
     }
     fun create(origin: String, token: String, device: String, scope: CloudIdentityStore.Scope, incarnation: String, head: CloudHead): State = TagRuntime.lock.withLock {
+        check(!reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
         check(read() == null) { "FORGET_EXISTING_CONNECTION_FIRST" }
         check(token.startsWith("$device.") && Regex("[A-Za-z0-9_-]{1,128}\\.[0-9a-f]{64}").matches(token)) { "INVALID_DEVICE_TOKEN" }
         val state = State(UUID.randomUUID().toString(), origin, device, scope, incarnation, false, encrypt(token, origin, device, scope), head, "Connected. Sync is off.", 0)
@@ -71,12 +76,14 @@ internal class CloudConnectionStore(context: Context, root: File = File(context.
         next
     }
     fun requireCurrent(generation: String, enabled: Boolean = false): State {
+        check(!reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
         val s = read()
         check(s != null && s.generation == generation && (!enabled || s.enabled)) { "CLOUD_CONNECTION_CHANGED" }
         return s
     }
     fun disable(message: String = "Sync is off. Local edits stay on this device."): State? = TagRuntime.lock.withLock {
         val s = read() ?: return@withLock null
+        if (reconnectPending()) return@withLock s
         val next = s.copy(generation = UUID.randomUUID().toString(), enabled = false, message = message)
         save(next)
         next
@@ -118,17 +125,53 @@ internal class CloudConnectionStore(context: Context, root: File = File(context.
     }
     private fun aad(origin: String, device: String, scope: CloudIdentityStore.Scope): ByteArray = CloudWireJson.encode(listOf(alias, origin, device, scope.service, scope.library)).toByteArray(Charsets.UTF_8)
 
+    private fun encode(s: State): Map<String, Any?> = linkedMapOf(
+        "version" to 1, "generation" to s.generation, "origin" to s.origin, "device" to s.device,
+        "service" to s.scope.service, "library" to s.scope.library, "incarnation" to s.incarnation, "enabled" to s.enabled,
+        "credential" to s.encryptedCredential, "highest" to s.highest?.let(CloudApplyPlanJson::head), "message" to s.message,
+        "lastSuccess" to s.lastSuccess.toString()
+    )
+    fun reconnectPending(): Boolean = reconnectFile.baseFile.exists() || File(reconnectFile.baseFile.path + ".bak").exists()
+    fun pendingReconnect(): Reconnect? = TagRuntime.lock.withLock {
+        if (!reconnectPending()) return@withLock null
+        val o = CloudWireJson.obj(CloudTransferStore.read(reconnectFile, 128 * 1024).toString(Charsets.UTF_8))
+        check(o.getInt("version") == 1) { "CLOUD_RECONNECT_RECORD_INVALID" }
+        val p = Reconnect(decode(o.getObject("previous")), decode(o.getObject("next")))
+        check(
+            !p.previous.enabled && !p.next.enabled && p.previous.origin == p.next.origin &&
+                p.previous.scope.library == p.next.scope.library && p.previous.scope.service != p.next.scope.service &&
+                p.previous.device != p.next.device && p.previous.incarnation == p.next.incarnation &&
+                p.previous.generation != p.next.generation && Regex("[0-9a-f-]{36}").matches(p.next.generation)
+        ) { "CLOUD_RECONNECT_RECORD_INVALID" }
+        p
+    }
+
+    /** Persist both encrypted connections before any old transfer or native metadata changes. */
+    fun beginReconnect(expected: String, token: String, device: String, scope: CloudIdentityStore.Scope, head: CloudHead): Reconnect = TagRuntime.lock.withLock {
+        val old = requireCurrent(expected)
+        check(old.scope.library == scope.library && old.scope.service != scope.service && old.device != device) { "CLOUD_RECOVERED_SCOPE_REQUIRED" }
+        check(token.startsWith("$device.") && Regex("[A-Za-z0-9_-]{1,128}\\.[0-9a-f]{64}").matches(token)) { "INVALID_DEVICE_TOKEN" }
+        val next = State(
+            UUID.randomUUID().toString(), old.origin, device, scope, old.incarnation, false,
+            encrypt(token, old.origin, device, scope), head, "Reconnected. Sync is off. Review the cloud copy before enabling sync.", 0
+        )
+        val previous = old.copy(generation = UUID.randomUUID().toString(), enabled = false, message = "Finish reconnecting after cloud recovery. Local edits are safe.")
+        save(previous)
+        val bytes = CloudWireJson.encode(mapOf("version" to 1, "previous" to encode(previous), "next" to encode(next))).toByteArray(Charsets.UTF_8)
+        check(bytes.size <= 128 * 1024) { "CONNECTION_TOO_LARGE" }
+        CloudTransferStore.write(reconnectFile, bytes)
+        Reconnect(previous, next)
+    }
+    fun completeReconnect(p: Reconnect, afterSave: () -> Unit) = TagRuntime.lock.withLock {
+        check(pendingReconnect()?.next?.generation == p.next.generation && read()?.generation in setOf(p.previous.generation, p.next.generation)) { "CLOUD_CONNECTION_CHANGED" }
+        save(p.next)
+        afterSave()
+        reconnectFile.delete()
+    }
     private fun save(s: State) {
         check(TagRuntime.lock.isHeldByCurrentThread) { "CONNECTION_WRITE_REQUIRES_BARRIER" }
         check(directory.isDirectory || directory.mkdirs()) { "CLOUD_STORAGE_UNAVAILABLE" }
-        val bytes = CloudWireJson.encode(
-            linkedMapOf(
-                "version" to 1, "generation" to s.generation, "origin" to s.origin, "device" to s.device,
-                "service" to s.scope.service, "library" to s.scope.library, "incarnation" to s.incarnation, "enabled" to s.enabled,
-                "credential" to s.encryptedCredential, "highest" to s.highest?.let(CloudApplyPlanJson::head), "message" to s.message,
-                "lastSuccess" to s.lastSuccess.toString()
-            )
-        ).toByteArray(Charsets.UTF_8)
+        val bytes = CloudWireJson.encode(encode(s)).toByteArray(Charsets.UTF_8)
         check(bytes.size <= 65536) { "CONNECTION_TOO_LARGE" }
         val output = file.startWrite()
         try {

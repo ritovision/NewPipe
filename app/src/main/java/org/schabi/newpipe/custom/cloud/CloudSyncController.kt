@@ -26,7 +26,8 @@ internal class CloudSyncController(
     val connection: CloudConnectionStore = CloudConnectionStore(context.applicationContext),
     private val repository: () -> TagRepository = { TagRuntime.get(context) },
     private val apiFactory: (String, String, () -> Unit) -> CloudApi = { origin, token, admit -> CloudHttpClient(origin, token, admit) },
-    private val safetyBackup: ((CloudNativeSnapshot) -> Unit)? = null
+    private val safetyBackup: ((CloudNativeSnapshot) -> Unit)? = null,
+    private val reconnectCheckpoint: ((String) -> Unit)? = null
 ) {
     enum class Direction { TO_DEVICE, INITIALIZE_CLOUD }
     class Preview(
@@ -44,9 +45,10 @@ internal class CloudSyncController(
     }
     private val transfers = CloudTransferStore(connection.directory)
     private val lock = operationLock(connection.directory)
-    private inline fun <T> operation(body: () -> T): T {
+    private inline fun <T> operation(recoverReconnection: Boolean = false, body: () -> T): T {
         check(lock.tryLock()) { "CLOUD_OPERATION_BUSY" }
         try {
+            check(recoverReconnection || !connection.reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
             return body()
         } finally {
             lock.unlock()
@@ -73,8 +75,68 @@ internal class CloudSyncController(
         }
         connection.create(origin, token, remote.device, remote.scope, snapshot.identities.incarnation, remote.head)
     }
+
+    /** Explicit recovery enrollment: no old upload is resumed or silently discarded. */
+    fun reconnect(token: String): CloudConnectionStore.State = operation {
+        check(!connection.reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
+        val s = checkNotNull(connection.read()) { "CLOUD_NOT_CONNECTED" }
+        connection.requireCurrent(s.generation)
+        require(Regex("[A-Za-z0-9_-]{1,128}\\.[0-9a-f]{64}").matches(token)) { "INVALID_DEVICE_TOKEN" }
+        val remote = CloudRemoteCatalog.status(apiFactory(s.origin, token) { connection.requireCurrent(s.generation) })
+        check(remote.device == token.substringBefore('.')) { "CLOUD_DEVICE_MISMATCH" }
+        check(remote.scope.library == s.scope.library && remote.scope.service != s.scope.service && remote.device != s.device) { "CLOUD_RECOVERED_SCOPE_REQUIRED" }
+        check(remote.initialized && remote.sequence == "0" && remote.upload == null && remote.replacement == null) { "CLOUD_FRESH_RECOVERY_TOKEN_REQUIRED" }
+        val before = native(s)
+        localRecovery(before)
+        TagRuntime.lock.withLock {
+            connection.requireCurrent(s.generation)
+            sameLocal(before, native(s))
+            connection.beginReconnect(s.generation, token, remote.device, remote.scope, remote.head)
+            reconnectCheckpoint?.invoke("journal")
+        }
+        finishReconnect()
+    }
+    fun resumeReconnect(): CloudConnectionStore.State = operation(recoverReconnection = true) { finishReconnect() }
+    private fun finishReconnect(): CloudConnectionStore.State = TagRuntime.lock.withLock {
+        val p = checkNotNull(connection.pendingReconnect()) { "CLOUD_RECONNECT_NOT_PENDING" }
+        check(connection.read()?.generation in setOf(p.previous.generation, p.next.generation)) { "CLOUD_CONNECTION_CHANGED" }
+        val r = repository()
+        CloudNativeApply.recoverLocked(r)
+        val identities = checkNotNull(CloudIdentityStore.context(r.store.readableDatabase)) { "CLOUD_RECONNECT_LOCAL_IDENTITY_CHANGED" }
+        check(identities.incarnation == p.previous.incarnation && identities.scope in setOf(p.previous.scope, p.next.scope)) { "CLOUD_RECONNECT_LOCAL_IDENTITY_CHANGED" }
+        // A supported restore or changed native binding must still fail the ordinary capture guards.
+        CloudNativeCatalog(r).capture(identities.scope, identities.incarnation)
+        val archive = File(connection.directory, "retired-connections/${p.next.generation}")
+        check(archive.isDirectory || archive.mkdirs()) { "CLOUD_RECONNECT_STORAGE_UNAVAILABLE" }
+        for (name in listOf("outbox", "remote-recovery", "remote-replacement", "catalog-cache.json", "catalog-cache.json.bak", "catalog-cache.json.new")) {
+            val source = File(connection.directory, name)
+            val target = File(archive, name)
+            if (source.exists()) {
+                check(!target.exists()) { "CLOUD_RECONNECT_ARCHIVE_CONFLICT" }
+                Files.move(source.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
+            }
+            reconnectCheckpoint?.invoke("archived-$name")
+        }
+        // Commit witness removal before clearing its baseline. A crash in between
+        // leaves a valid old baseline with no witness, never a lost apply journal.
+        r.library.runInTransaction { r.library.openHelper.writableDatabase.execSQL("DELETE FROM rv_cloud_apply_receipt") }
+        reconnectCheckpoint?.invoke("witness")
+        r.store.transaction { side ->
+            check(CloudApplyStore.pending(side) == null) { "LOCAL_CLOUD_RECOVERY_REQUIRED" }
+            side.execSQL(
+                "UPDATE cloud_catalog_context SET service=? WHERE slot=1 AND incarnation=? AND library=?",
+                arrayOf<Any>(p.next.scope.service, p.next.incarnation, p.next.scope.library)
+            )
+            CloudApplyStore.discard(side)
+        }
+        reconnectCheckpoint?.invoke("metadata")
+        CloudNativeCatalog(r).capture(p.next.scope, p.next.incarnation)
+        connection.completeReconnect(p) { reconnectCheckpoint?.invoke("connection") }
+        p.next
+    }
     fun disable(): CloudConnectionStore.State? = connection.disable()
     fun forget() = operation {
+        check(!connection.reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
         val s = connection.read() ?: return@operation
         TagRuntime.lock.withLock {
             check(!transfers.hasPending() && !CloudRecoveryController.hasPending(connection.directory) && !CloudReplacementController.hasPending(connection.directory)) { "RESOLVE_PENDING_UPLOAD_BEFORE_FORGET" }
@@ -424,6 +486,11 @@ internal class CloudSyncController(
 
 internal object CloudUserMessages {
     fun error(error: Throwable): String = when (error.message) {
+        "CLOUD_RECONNECT_RECOVERY_REQUIRED" -> "Finish reconnecting after cloud recovery before using other cloud actions. Local edits are safe."
+        "CLOUD_RECOVERED_SCOPE_REQUIRED" -> "Use a fresh device token for the recovered version of this same cloud library."
+        "CLOUD_FRESH_RECOVERY_TOKEN_REQUIRED" -> "This token is not a fresh enrollment for an initialized recovered library. Ask the operator for a new token."
+        "CLOUD_RECONNECT_LOCAL_IDENTITY_CHANGED", "CLOUD_RECONNECT_RECORD_INVALID", "CLOUD_RECONNECT_ARCHIVE_CONFLICT" -> "The saved reconnection no longer matches this installation. Local content and pending files have been kept for recovery."
+        "CLOUD_RECONNECT_STORAGE_UNAVAILABLE" -> "Reconnection could not preserve the old pending files. Free local storage and resume reconnecting."
         "CLOUD_REPLACEMENT_PENDING", "REPLACEMENT_PENDING_OR_NOT_AUTHORIZED" -> "Resolve the current cloud replacement before starting another catalog action."
         "REPLACEMENT_NOT_AUTHORIZED", "REPLACEMENT_API_DISABLED" -> "Cloud replacement is not enabled for this connection."
         "RESOLVE_PENDING_UPLOAD_BEFORE_REPLACEMENT" -> "Resolve the existing catalog or backup upload before replacing the cloud."

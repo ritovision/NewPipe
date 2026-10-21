@@ -1,0 +1,104 @@
+{
+  "baselineCommit": "9d22549011ac090f40791c86e53f5d92d7b614e7",
+  "commands": [
+    ":app:compileDebugKotlin :app:compileDebugAndroidTestKotlin",
+    ":app:testDebugUnitTest --tests org.schabi.newpipe.custom.cloud.* :app:assembleDebug :app:assembleDebugAndroidTest"
+  ],
+  "buildPassed": true,
+  "jvmTests": {
+    "tests": 34,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "jvmSuites": [
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudApplyBoundsTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudBindingMarkerTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudChangeExplorerTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudHttpRouteTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudProtocolTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudRecoveryFormatTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudWireTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "nativeTestsAdded": [
+    "reconnectPreservesLocalContentIdsAndEveryOldPendingFileUntilExplicitPreview",
+    "reconnectRejectsSameGenerationOtherLibraryAndOldDeviceBeforeChangingAnything",
+    "reconnectRejectsAnEmptyRecoveredLibraryAndKeepsOldWork",
+    "reconnectRechecksLocalEditsAfterTheSafetyBackupBeforeStarting",
+    "reconnectResumesAfterJournalCommit",
+    "reconnectResumesAfterPartialTransferArchival",
+    "reconnectResumesAfterWitnessRemoval",
+    "reconnectResumesAfterScopeAndBaselineCommit",
+    "reconnectResumesAfterCredentialCommit"
+  ],
+  "nativeTestsExecuted": false,
+  "nativeBlocker": {
+    "adbDevices": 0,
+    "emulatorInstalled": false,
+    "kvmAvailable": false,
+    "notcodex2": "Internal error"
+  },
+  "sourceSha256": {
+    "app/src/androidTest/java/org/schabi/newpipe/custom/cloud/CloudSyncControllerTest.kt": "f3a3beb899aa05aa6aba9c9e87491c2ee109cf8e2a08d741cb49ae1e08992ceb",
+    "app/src/main/java/org/schabi/newpipe/custom/cloud/CloudConnectionStore.kt": "704c439e9a7f7978f5769025384acdcbc29ee4ccefaeb52399271d33eef5f466",
+    "app/src/main/java/org/schabi/newpipe/custom/cloud/CloudScreenModel.kt": "ea7feb46c79c546ea57bc31e5c132603f7705d06a73f1c5440e8936375ae728d",
+    "app/src/main/java/org/schabi/newpipe/custom/cloud/CloudSyncController.kt": "46daad40e62073bea88889022f9d3d0af3b051e3bac749b9577d99f0ff7a2ada",
+    "app/src/main/java/org/schabi/newpipe/settings/CloudSyncSettingsFragment.kt": "2b8d08d18b7922d9071d7964b419e5c489e14227a049c182750013df8f5c9fcc",
+    "app/src/main/res/values/cloud_sync_strings.xml": "4bb08d3810fd8c380d053ca9cf5075131c9ea808f8bf685f77c904c8665410fb",
+    "app/src/main/res/xml/cloud_sync_settings.xml": "1301e6fee53c6a0c79d2605fca70c86fc84deba9aec1a34c94b7c4be3a7128de"
+  },
+  "artifacts": [
+    {
+      "file": "app/build/outputs/apk/debug/app-debug.apk",
+      "bytes": 34935991,
+      "sha256": "04eaf0cadf927e2ee3e7d46a6caa79ce223c45d69056aff24e455e0c2cdcda5c"
+    },
+    {
+      "file": "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk",
+      "bytes": 2659552,
+      "sha256": "c1ae20888f2f0ea02619dd250e6331aaf992440d24c506125c1ff022dfe00547"
+    }
+  ]
+}

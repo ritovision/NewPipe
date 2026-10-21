@@ -39,12 +39,13 @@ class CloudSyncControllerTest {
         connection = CloudConnectionStore(f.context, f.dir.resolve("connection").toFile())
         controller = newController()
     }
-    private fun newController(realBackup: Boolean = false) = CloudSyncController(
+    private fun newController(realBackup: Boolean = false, checkpoint: ((String) -> Unit)? = null) = CloudSyncController(
         f.context,
         connection,
         { f.repo },
         peer::client,
-        if (realBackup) null else { _: CloudNativeSnapshot -> backups++ }
+        if (realBackup) null else { _: CloudNativeSnapshot -> backups++ },
+        checkpoint
     )
 
     @After fun cleanup() {
@@ -75,6 +76,156 @@ class CloudSyncControllerTest {
         assertEquals(s.generation, CloudConnectionStore(f.context, connection.directory).read()!!.generation)
         assertFalse(s.toString().contains(peer.tokenA))
     }
+
+    private fun recoveredPeer(catalog: CloudCatalog, library: String = f.scope.library, service: String = "recovered-service") {
+        peer = CloudFakePeer(CloudIdentityStore.Scope(service, library))
+        peer.external(catalog)
+        controller = newController()
+    }
+    private fun currentCapture(): CloudNativeSnapshot {
+        val s = connection.read()!!
+        return CloudNativeCatalog(f.repo).capture(s.scope, s.incarnation)
+    }
+    private fun interruptedOldUpload(): CloudNativeSnapshot {
+        f.seed()
+        enable()
+        f.media("UnsentAfterRecovery")
+        peer.fault = "beforeStart"
+        assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+        return f.capture()
+    }
+
+    @Test fun reconnectPreservesLocalContentIdsAndEveryOldPendingFileUntilExplicitPreview() {
+        val before = interruptedOldUpload()
+        val old = connection.read()!!
+        val manifest = File(connection.directory, "outbox/manifest.json").readText()
+        for (path in listOf("remote-recovery/pending.json", "remote-recovery/payload.zip", "remote-replacement/pending.json", "remote-replacement/outgoing.payload")) {
+            File(connection.directory, path).apply {
+                parentFile!!.mkdirs()
+                writeText("opaque old pending bytes: $path")
+            }
+        }
+        recoveredPeer(peer.catalog())
+        val s = controller.reconnect(peer.tokenB)
+        assertFalse(s.enabled)
+        assertFalse(connection.reconnectPending())
+        assertFalse(controller.hasPending())
+        assertFalse(CloudRecoveryController.hasPending(connection.directory))
+        assertFalse(CloudReplacementController.hasPending(connection.directory))
+        assertEquals(before.fingerprint, currentCapture().fingerprint)
+        assertEquals(before.nativeIds, currentCapture().nativeIds)
+        assertEquals(old.incarnation, s.incarnation)
+        assertNotEquals(old.generation, s.generation)
+        assertEquals(null, CloudApplyStore.baseline(f.repo.store.readableDatabase))
+        val archive = File(connection.directory, "retired-connections/${s.generation}")
+        assertEquals(manifest, File(archive, "outbox/manifest.json").readText())
+        for (path in listOf("remote-recovery/pending.json", "remote-recovery/payload.zip", "remote-replacement/pending.json", "remote-replacement/outgoing.payload")) {
+            assertEquals("opaque old pending bytes: $path", File(archive, path).readText())
+        }
+        assertEquals(peer.tokenB, connection.token(s))
+        assertFalse(File(connection.directory, "connection.json").readText().contains(peer.tokenB))
+        reject("CLOUD_CONNECTION_CHANGED") { connection.requireCurrent(old.generation) }
+        val preview = controller.prepare(true)
+        assertEquals(before.fingerprint, preview.before.fingerprint)
+        assertFalse(connection.read()!!.enabled)
+        assertEquals(before.fingerprint, currentCapture().fingerprint)
+        controller.confirm(preview)
+        assertTrue(connection.read()!!.enabled)
+        assertEquals(CloudCatalogCodec.fingerprint(peer.catalog()), currentCapture().fingerprint)
+    }
+
+    @Test fun reconnectRejectsSameGenerationOtherLibraryAndOldDeviceBeforeChangingAnything() {
+        val before = interruptedOldUpload()
+        val old = connection.read()!!
+        val catalog = peer.catalog()
+        for ((library, service, token) in listOf(
+            Triple(f.scope.library, f.scope.service, peer.tokenB),
+            Triple("other-library", "recovered-service", peer.tokenB),
+            Triple(f.scope.library, "recovered-service", peer.tokenA)
+        )) {
+            recoveredPeer(catalog, library, service)
+            reject("CLOUD_RECOVERED_SCOPE_REQUIRED") { controller.reconnect(token) }
+            assertEquals(old.generation, connection.read()!!.generation)
+            assertTrue(controller.hasPending())
+            assertFalse(connection.reconnectPending())
+            assertEquals(before.fingerprint, f.capture().fingerprint)
+        }
+    }
+
+    @Test fun reconnectRejectsAnEmptyRecoveredLibraryAndKeepsOldWork() {
+        val before = interruptedOldUpload()
+        peer = CloudFakePeer(CloudIdentityStore.Scope("recovered-service", f.scope.library))
+        controller = newController()
+        reject("CLOUD_FRESH_RECOVERY_TOKEN_REQUIRED") { controller.reconnect(peer.tokenB) }
+        assertTrue(controller.hasPending())
+        assertFalse(connection.reconnectPending())
+        assertEquals(before.fingerprint, f.capture().fingerprint)
+    }
+
+    @Test fun reconnectRechecksLocalEditsAfterTheSafetyBackupBeforeStarting() {
+        interruptedOldUpload()
+        recoveredPeer(peer.catalog())
+        controller = CloudSyncController(f.context, connection, { f.repo }, peer::client, { f.media("LateDuringReconnectBackup") })
+        reject("CLOUD_LOCAL_PREVIEW_CHANGED") { controller.reconnect(peer.tokenB) }
+        assertTrue(controller.hasPending())
+        assertFalse(connection.reconnectPending())
+        assertEquals(f.scope, connection.read()!!.scope)
+        assertTrue(f.capture().catalog.library.any { it.url.endsWith("/LateDuringReconnectBackup") })
+    }
+
+    private fun reconnectCrash(phase: String) {
+        val first = f.seed()
+        peer.external(f.target(first))
+        connect()
+        controller.confirm(controller.prepare(true))
+        assertNotNull(f.repo.library.cloudApplyReceiptDao().current())
+        f.media("PendingBeforeReconnect")
+        peer.fault = "beforeStart"
+        assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+        val before = f.capture()
+        val catalog = peer.catalog()
+        recoveredPeer(catalog)
+        controller = newController(checkpoint = { if (it == phase) error("SIMULATED_RECONNECT_CRASH") })
+        reject("SIMULATED_RECONNECT_CRASH") { controller.reconnect(peer.tokenB) }
+        assertTrue(connection.reconnectPending())
+        assertFalse(connection.read()!!.enabled)
+        val record = File(connection.directory, "reconnect.json").readText()
+        assertFalse(record.contains(peer.tokenA))
+        assertFalse(record.contains(peer.tokenB))
+        val dir = connection.directory
+        f.reopen()
+        connection = CloudConnectionStore(f.context, dir)
+        controller = newController()
+        val generation = connection.read()!!.generation
+        controller.disable()
+        assertEquals(generation, connection.read()!!.generation)
+        reject("CLOUD_RECONNECT_RECOVERY_REQUIRED") { controller.forget() }
+        reject("CLOUD_RECONNECT_RECOVERY_REQUIRED") { controller.inspect() }
+        reject("CLOUD_RECONNECT_RECOVERY_REQUIRED") { connection.token(connection.read()!!) }
+        TagRuntime.lock.withLock { CloudNativeApply.recoverLocked(f.repo) }
+        peer.fault = "offline"
+        val calls = peer.calls
+        val s = controller.resumeReconnect()
+        assertEquals(calls, peer.calls)
+        assertFalse(s.enabled)
+        assertFalse(connection.reconnectPending())
+        assertFalse(controller.hasPending())
+        assertEquals(before.fingerprint, currentCapture().fingerprint)
+        assertEquals(before.nativeIds, currentCapture().nativeIds)
+        assertTrue(File(dir, "retired-connections/${s.generation}/outbox/manifest.json").isFile)
+        assertEquals(null, f.repo.library.cloudApplyReceiptDao().current())
+        assertEquals(null, CloudApplyStore.baseline(f.repo.store.readableDatabase))
+    }
+
+    @Test fun reconnectResumesAfterJournalCommit() = reconnectCrash("journal")
+
+    @Test fun reconnectResumesAfterPartialTransferArchival() = reconnectCrash("archived-outbox")
+
+    @Test fun reconnectResumesAfterWitnessRemoval() = reconnectCrash("witness")
+
+    @Test fun reconnectResumesAfterScopeAndBaselineCommit() = reconnectCrash("metadata")
+
+    @Test fun reconnectResumesAfterCredentialCommit() = reconnectCrash("connection")
 
     @Test fun encryptedCredentialIsBoundToTheDestinationAndScope() {
         connect()

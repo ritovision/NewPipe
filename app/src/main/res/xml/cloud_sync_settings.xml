@@ -6,6 +6,8 @@
         android:selectable="false" android:persistent="false" app:iconSpaceReserved="false" />
     <Preference android:key="cloud_connect" android:title="@string/cloud_connection_title"
         android:summary="@string/cloud_connection_summary" android:persistent="false" app:iconSpaceReserved="false" />
+    <Preference android:key="cloud_reconnect" android:title="@string/cloud_reconnect"
+        android:summary="@string/cloud_reconnect_summary" android:persistent="false" app:iconSpaceReserved="false" />
     <Preference android:key="cloud_check" android:title="@string/cloud_check_connection"
         android:persistent="false" app:iconSpaceReserved="false" />
     <SwitchPreferenceCompat android:key="cloud_enabled" android:title="@string/cloud_sync_enabled"

@@ -28,7 +28,8 @@ internal class CloudScreenModel(application: Application) : AndroidViewModel(app
         val hasLocalRecovery: Boolean = false,
         val previewId: String? = null,
         val previewSummary: String = "",
-        val confirmLabel: String = "Confirm"
+        val confirmLabel: String = "Confirm",
+        val reconnectPending: Boolean = false
     )
     data class Row(val group: String, val title: String, val detail: String, val action: String, val kind: String = "")
     private val app = application.applicationContext
@@ -64,7 +65,8 @@ internal class CloudScreenModel(application: Application) : AndroidViewModel(app
                 "Use cloud and enable sync"
             } else {
                 "Restore this cloud copy"
-            }
+            },
+            controller.connection.reconnectPending()
         )
     }
     private fun summary(p: CloudSyncController.Preview): String {
@@ -98,6 +100,16 @@ internal class CloudScreenModel(application: Application) : AndroidViewModel(app
     }
     fun connect(origin: String, token: String) = run("Checking the Worker and securing this device token…") {
         controller.connect(origin, token)
+        null
+    }
+    fun reconnect(token: String) = run("Checking the recovered library and preserving pending work…") {
+        controller.reconnect(token)
+        preview = null
+        null
+    }
+    fun resumeReconnect() = run("Finishing the saved reconnection…") {
+        controller.resumeReconnect()
+        preview = null
         null
     }
     fun inspect() = run("Checking cloud connection…") {

@@ -9,6 +9,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.Lifecycle
@@ -28,6 +29,10 @@ class CloudSyncSettingsFragment : BasePreferenceFragment() {
         addPreferencesFromResourceRegistry()
         preference<Preference>("cloud_connect").setOnPreferenceClickListener {
             connectDialog()
+            true
+        }
+        preference<Preference>("cloud_reconnect").setOnPreferenceClickListener {
+            if (model.state.value?.reconnectPending == true) model.resumeReconnect() else connectDialog(reconnect = true)
             true
         }
         preference<Preference>("cloud_check").setOnPreferenceClickListener {
@@ -91,25 +96,31 @@ class CloudSyncSettingsFragment : BasePreferenceFragment() {
             isEnabled = !state.connected && !state.busy
             summary = if (state.connected) "${state.origin}\nDevice: ${state.device}" else getString(R.string.cloud_connection_summary)
         }
+        preference<Preference>("cloud_reconnect").apply {
+            isVisible = state.connected
+            isEnabled = state.connected && !state.busy
+            setTitle(if (state.reconnectPending) R.string.cloud_resume_reconnect else R.string.cloud_reconnect)
+            setSummary(if (state.reconnectPending) R.string.cloud_resume_reconnect_summary else R.string.cloud_reconnect_summary)
+        }
         preference<SwitchPreferenceCompat>("cloud_enabled").apply {
             isChecked = state.enabled
-            isEnabled = state.connected && (state.enabled || !state.busy)
+            isEnabled = state.connected && !state.reconnectPending && (state.enabled || !state.busy)
         }
-        for (key in listOf("cloud_check", "cloud_restore", "cloud_forget", "cloud_remote_recovery", "cloud_replace")) preference<Preference>(key).isEnabled = state.connected && !state.busy
+        for (key in listOf("cloud_check", "cloud_restore", "cloud_forget", "cloud_remote_recovery", "cloud_replace")) preference<Preference>(key).isEnabled = state.connected && !state.busy && !state.reconnectPending
         preference<Preference>("cloud_now").isEnabled = state.connected && state.enabled && !state.busy
         preference<Preference>("cloud_last").summary = state.lastSync
         preference<Preference>("cloud_pending").apply {
-            isVisible = state.pending
-            isEnabled = state.connected && !state.busy
+            isVisible = state.pending && !state.reconnectPending
+            isEnabled = state.connected && !state.busy && !state.reconnectPending
         }
-        preference<Preference>("cloud_local_restore").isEnabled = state.hasLocalRecovery && !state.busy
-        if (state.previewId != null && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && !parentFragmentManager.isStateSaved &&
+        preference<Preference>("cloud_local_restore").isEnabled = state.hasLocalRecovery && !state.busy && !state.reconnectPending
+        if (state.previewId != null && !state.reconnectPending && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && !parentFragmentManager.isStateSaved &&
             parentFragmentManager.findFragmentByTag(CloudChangePreviewDialog.TAG) == null
         ) {
             CloudChangePreviewDialog().show(parentFragmentManager, CloudChangePreviewDialog.TAG)
         }
     }
-    private fun connectDialog() {
+    private fun connectDialog(reconnect: Boolean = false) {
         if (credentialDialog?.isShowing == true) return
         val context = requireContext()
         val padding = (20 * resources.displayMetrics.density).toInt()
@@ -121,7 +132,8 @@ class CloudSyncSettingsFragment : BasePreferenceFragment() {
             hint = getString(R.string.cloud_worker_origin)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
             setSingleLine()
-            setText("https://newpipe-cloud-sync-v1.ritorhymes.workers.dev")
+            setText(if (reconnect) model.state.value?.origin.orEmpty() else "https://newpipe-cloud-sync-v1.ritorhymes.workers.dev")
+            isEnabled = !reconnect
             isSaveEnabled = false
             contentDescription = getString(R.string.cloud_worker_origin)
         }
@@ -137,12 +149,12 @@ class CloudSyncSettingsFragment : BasePreferenceFragment() {
         layout.addView(token)
         layout.addView(
             TextView(context).apply {
-                text = getString(R.string.cloud_token_explanation)
+                text = getString(if (reconnect) R.string.cloud_reconnect_explanation else R.string.cloud_token_explanation)
                 setPadding(0, padding / 2, 0, padding / 2)
             }
         )
-        val dialog = AlertDialog.Builder(context).setTitle(R.string.cloud_connection_title).setView(layout)
-            .setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.cloud_connect_button, null).create()
+        val dialog = AlertDialog.Builder(context).setTitle(if (reconnect) R.string.cloud_reconnect else R.string.cloud_connection_title).setView(ScrollView(context).apply { addView(layout) })
+            .setNegativeButton(R.string.cancel, null).setPositiveButton(if (reconnect) R.string.cloud_reconnect_button else R.string.cloud_connect_button, null).create()
         dialog.setOnShowListener {
             dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -152,7 +164,7 @@ class CloudSyncSettingsFragment : BasePreferenceFragment() {
                     token.error = getString(R.string.cloud_device_token)
                     return@setOnClickListener
                 }
-                model.connect(url, secret)
+                if (reconnect) model.reconnect(secret) else model.connect(url, secret)
                 token.text.clear()
                 dialog.dismiss()
             }
