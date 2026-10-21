@@ -359,3 +359,16 @@ test('oversized legacy sealed stages refuse publication and retirement before de
  assert.equal(await rows('cloud_upload_chunks'),count);assert.equal(await rows('cloud_receipts'),0);
  assert.deepEqual((await status()).head,before);
 });
+
+test('polling authenticates and reads head plus own pending state in two DATA statements',async()=>{
+ const u=await stage(catalog('base'),{seal:false});
+ await controls({resetStats:true});
+ const state=await status();
+ assert.equal(state.deviceState.resolvedSequence,'0');assert.equal(state.deviceState.upload.sequence,'1');
+ assert.equal(state.deviceState.upload.status,'UPLOADING');assert.equal(state.deviceState.replacement,null);
+ const measured=await controls({});assert.equal(measured.statements,2,JSON.stringify(measured));
+ assert.equal((await call('/v1/uploads/retire',u.ref)).status,200);
+ await controls({resetStats:true});
+ const retired=await status();assert.equal(retired.deviceState.resolvedSequence,'1');assert.equal(retired.deviceState.upload,null);
+ assert.equal((await controls({})).statements,2);
+});

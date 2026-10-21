@@ -103,9 +103,24 @@ type Upload = { sequence: string; digest: string; header: string; status: "UPLOA
   verified_bytes: number | null; verified_manifest: string | null };
 const AUTH = `d.library_id=? AND d.device_id=? AND d.token_hash=? AND d.auth_generation=CAST(? AS INTEGER)
  AND d.service_generation=? AND d.revoked=0`;
-const STATUS = `SELECT h.epoch,CAST(h.revision AS TEXT) AS revision,CAST(h.head_counter AS TEXT) AS head_counter,h.fingerprint,
- i.initialized,i.page_count,i.payload_bytes,i.manifest FROM cloud_head h JOIN cloud_catalog_info i ON i.library_id=h.library_id
- JOIN cloud_devices d ON d.library_id=h.library_id WHERE ${AUTH}`;
+const STATUS_COLUMNS = `h.epoch,CAST(h.revision AS TEXT) AS revision,CAST(h.head_counter AS TEXT) AS head_counter,h.fingerprint,
+ i.initialized,i.page_count,i.payload_bytes,i.manifest`;
+const STATUS_FROM = ` FROM cloud_head h JOIN cloud_catalog_info i ON i.library_id=h.library_id
+ JOIN cloud_devices d ON d.library_id=h.library_id`;
+const STATUS = `SELECT ${STATUS_COLUMNS}${STATUS_FROM} WHERE ${AUTH}`;
+type DeviceState = { resolvedSequence: string; upload: { sequence: string; digest: string; status: string } | null;
+ replacement: { attemptId: string; state: string } | null };
+type DeviceStateRow = { resolved_sequence: string; upload_sequence: string | null; upload_digest: string; upload_status: string;
+ attempt_id: string | null; attempt_state: string };
+const DEVICE_COLUMNS = `CAST(d.resolved_sequence AS TEXT) AS resolved_sequence,CAST(u.sequence AS TEXT) AS upload_sequence,
+ u.digest AS upload_digest,u.status AS upload_status,r.attempt_id,r.state AS attempt_state`;
+const DEVICE_JOINS = ` LEFT JOIN cloud_uploads u ON u.library_id=d.library_id AND u.device_id=d.device_id AND u.status IN('UPLOADING','SEALED')
+ LEFT JOIN cloud_replace_attempts r ON r.library_id=d.library_id AND r.device_id=d.device_id AND r.state IN('ACTIVE','STALE')`;
+function deviceStateRow(row: DeviceStateRow): DeviceState {
+ return { resolvedSequence: row.resolved_sequence,
+  upload: row.upload_sequence === null ? null : { sequence: row.upload_sequence, digest: row.upload_digest, status: row.upload_status },
+  replacement: row.attempt_id === null ? null : { attemptId: row.attempt_id, state: row.attempt_state } };
+}
 const args = (c: AdmissionContext): string[] => [c.library, c.device, c.tokenHash, c.authGeneration, c.serviceGeneration];
 const UPLOAD_SELECT = `SELECT CAST(u.sequence AS TEXT) AS sequence,u.digest,u.header,u.status,u.expires_at,u.expected_chunks,
  u.expected_changes,u.expected_bytes,u.received_chunks,u.received_changes,u.received_bytes,u.verified_pages,u.verified_bytes,u.verified_manifest
@@ -150,15 +165,20 @@ export class CatalogService {
     return { sequence: u.sequence, digest: u.digest, status: u.status, nextChunk: u.received_chunks,
       expectedChunks: u.expected_chunks, expiresAt: String(u.expires_at), verifiedPages: u.verified_pages, verifiedBytes: u.verified_bytes };
   }
-  async deviceState(): Promise<{ resolvedSequence: string; upload: { sequence: string; digest: string; status: string } | null; replacement: { attemptId: string; state: string } | null }> {
-    const row = await this.db.prepare(`SELECT CAST(d.resolved_sequence AS TEXT) AS sequence FROM cloud_devices d WHERE ${AUTH}`)
-      .bind(...args(this.context)).first<{ sequence: string }>();
+  async deviceState(): Promise<DeviceState> {
+    const row = await this.db.prepare(`SELECT ${DEVICE_COLUMNS} FROM cloud_devices d${DEVICE_JOINS} WHERE ${AUTH}`)
+      .bind(...args(this.context)).first<DeviceStateRow>();
+    if (!row) fail("AUTH_OR_LIBRARY_UNAVAILABLE", 401); return deviceStateRow(row);
+  }
+  /** One primary snapshot for polling; avoids three extra round trips and copying
+   * an entire staged header merely to return its public status. Authority remains
+   * part of this query and is independently rechecked by every write transaction.
+   */
+  async connectionStatus(): Promise<CatalogStatus & { deviceState: DeviceState }> {
+    const row = await this.db.prepare(`SELECT ${STATUS_COLUMNS},${DEVICE_COLUMNS}${STATUS_FROM}${DEVICE_JOINS} WHERE ${AUTH}`)
+      .bind(...args(this.context)).first<CatalogRow & DeviceStateRow>();
     if (!row) fail("AUTH_OR_LIBRARY_UNAVAILABLE", 401);
-    const upload = await this.getUpload();
-    const replacement = await this.db.prepare("SELECT attempt_id AS attemptId,state FROM cloud_replace_attempts WHERE library_id=? AND device_id=? AND state IN('ACTIVE','STALE')")
-      .bind(this.context.library, this.context.device).first<{ attemptId: string; state: string }>();
-    return { resolvedSequence: row.sequence, upload: upload && (upload.status === "UPLOADING" || upload.status === "SEALED")
-      ? { sequence: upload.sequence, digest: upload.digest, status: upload.status } : null, replacement };
+    return { ...this.statusRow(row), deviceState: deviceStateRow(row) };
   }
   async uploadStatus(sequence: string, digest: string) {
     const r = await this.resolve(sequence, digest); if (r) return { receipt: r };
