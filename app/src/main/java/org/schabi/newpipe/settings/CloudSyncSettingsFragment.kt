@@ -132,7 +132,7 @@ class CloudSyncSettingsFragment : BasePreferenceFragment() {
             hint = getString(R.string.cloud_worker_origin)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
             setSingleLine()
-            setText(if (reconnect) model.state.value?.origin.orEmpty() else "https://newpipe-cloud-sync-v1.ritorhymes.workers.dev")
+            setText(if (reconnect) model.state.value?.origin.orEmpty() else "")
             isEnabled = !reconnect
             isSaveEnabled = false
             contentDescription = getString(R.string.cloud_worker_origin)
