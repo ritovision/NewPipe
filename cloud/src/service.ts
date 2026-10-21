@@ -242,9 +242,13 @@ export class CatalogService {
     if (u.received_changes + changes.length > u.expected_changes || u.received_bytes + bytes > u.expected_bytes) fail("DECLARED_TRANSFER_LIMIT", 413);
     const condition = `d.resolved_sequence=CAST(? AS INTEGER)-1 AND EXISTS(SELECT 1 FROM cloud_uploads u
       WHERE u.library_id=d.library_id AND u.device_id=d.device_id AND u.sequence=CAST(? AS INTEGER) AND u.status='UPLOADING'
-       AND u.digest=? AND u.expires_at>? AND u.received_chunks=? AND u.received_changes+?<=u.expected_changes AND u.received_bytes+?<=u.expected_bytes)`;
+       AND u.digest=? AND u.expires_at>? AND u.received_chunks=? AND u.received_changes+?<=u.expected_changes AND u.received_bytes+?<=u.expected_bytes)
+      AND NOT EXISTS(SELECT 1 FROM cloud_upload_changes c WHERE c.library_id=d.library_id AND c.device_id=d.device_id
+       AND c.sequence=CAST(? AS INTEGER) AND c.page_id>=?)`;
     try {
-      await this.writeBatch(condition, [sequence, sequence, u.digest, now, index, changes.length, bytes], [
+      // Global ordering also proves cross-chunk uniqueness INSIDE the committing
+      // CHECK guard. Expected hostile input cannot escape as an unknown UNIQUE write.
+      await this.writeBatch(condition, [sequence, sequence, u.digest, now, index, changes.length, bytes, sequence, changes[0]!.id], [
         this.db.prepare(`INSERT INTO cloud_upload_changes(library_id,device_id,sequence,page_id,body)
           SELECT ?,?,CAST(? AS INTEGER),json_extract(value,'$.id'),json_extract(value,'$.body') FROM json_each(?)`)
           .bind(c.library, c.device, sequence, JSON.stringify(changes)),

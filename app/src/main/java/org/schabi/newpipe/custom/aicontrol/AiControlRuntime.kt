@@ -22,6 +22,11 @@ import org.schabi.newpipe.NewPipeDatabase
 import org.schabi.newpipe.custom.library.LibraryBindingStore
 import org.schabi.newpipe.custom.library.LibraryRepository
 
+/** Reversible command quiescence. The final commit begins irreversible native restore. */
+internal interface AiRestoreSession : AutoCloseable {
+    fun commit(beginNativeRestore: () -> Unit)
+}
+
 internal data class AiUiSnapshot(
     val state: AiLocalState? = null,
     val connection: String = "LOADING",
@@ -56,6 +61,8 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
     private val serviceActive = AtomicBoolean(false)
     private val policy = AiPolicyGate()
     private val restoring = AtomicBoolean(false)
+    private val restoreQuiescing = AtomicBoolean(false)
+    internal val restoreAdmissionBlocked: Boolean get() = restoring.get() || restoreQuiescing.get()
     private val generation = AtomicLong()
     private val pairingCall = java.util.concurrent.atomic.AtomicReference<okhttp3.Call?>()
 
@@ -118,7 +125,7 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
     }
 
     fun pair(origin: String, name: String, code: String, permissions: Set<String>, done: (String?) -> Unit) {
-        if (restoring.get()) {
+        if (restoreAdmissionBlocked) {
             complete(done, "APP_RESTART_REQUIRED")
             return
         }
@@ -142,7 +149,7 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
                             proposed,
                             code.trim(),
                             keys,
-                            check = { if (version != policy.version || restoring.get()) throw AiFailure("CANCELLED", AiOutcome.NOT_EXECUTED) },
+                            check = { if (version != policy.version || restoreAdmissionBlocked) throw AiFailure("CANCELLED", AiOutcome.NOT_EXECUTED) },
                             registered = { pairingCall.set(it) },
                             released = { pairingCall.compareAndSet(it, null) }
                         )
@@ -189,7 +196,7 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
     }
 
     private fun change(done: (String?) -> Unit, transform: (AiLocalState) -> AiLocalState) {
-        if (restoring.get()) {
+        if (restoreAdmissionBlocked) {
             complete(done, "APP_RESTART_REQUIRED")
             return
         }
@@ -200,7 +207,7 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
                 // forces disabled state and rotates epoch before the database is replaced.
                 try {
                     access.disable()
-                    val value = policy.applyOrdered(version, { store.update { previous -> transform(previous).let { if (restoring.get()) it.copy(enabled = false) else it } } }, { it.enabled && !restoring.get() }) { latest ->
+                    val value = policy.applyOrdered(version, { store.update { previous -> transform(previous).let { if (restoring.get()) it.copy(enabled = false) else it } } }, { it.enabled && !restoreAdmissionBlocked }) { latest ->
                         publish { it.copy(state = latest, connection = if (latest.enabled) "STARTING" else "DISABLED", error = null) }
                     }
                     if (version == policy.version && value.enabled && serviceActive.get()) connect()
@@ -214,13 +221,13 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
     }
 
     fun forget(done: (String?) -> Unit) {
-        if (restoring.get()) {
+        if (restoreAdmissionBlocked) {
             complete(done, "APP_RESTART_REQUIRED")
             return
         }
         policy.enqueueChange(::stopConnection) { version ->
             control.execute {
-                if (restoring.get()) {
+                if (restoreAdmissionBlocked) {
                     complete(done, "APP_RESTART_REQUIRED")
                     return@execute
                 }
@@ -245,6 +252,7 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
     fun serviceStarted() {
         serviceActive.set(true)
         control.execute {
+            if (restoreQuiescing.get()) return@execute
             if (policy.enabled && snapshot.state?.enabled == true) {
                 connect()
             } else {
@@ -265,7 +273,7 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
 
     private fun stopStartedService() {
         // If a foreground start is pending, serviceStarted() stops only after notification setup.
-        if (serviceActive.get() && !policy.enabled) app.stopService(Intent(app, AiControlService::class.java))
+        if (serviceActive.get() && !policy.enabled && !restoreQuiescing.get()) app.stopService(Intent(app, AiControlService::class.java))
     }
 
     private fun stopConnection() {
@@ -302,7 +310,7 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
     private fun current(value: AiRelayTransport, token: Long = generation.get()): Boolean {
         val state = snapshot.state ?: return false
         val expected = value.identity
-        return !restoring.get() && relay === value && token == generation.get() && policy.enabled && serviceActive.get() &&
+        return !restoreAdmissionBlocked && relay === value && token == generation.get() && policy.enabled && serviceActive.get() &&
             state.enabled && state.paired && state.deviceId == expected.deviceId && state.catalogEpoch == expected.catalogEpoch &&
             state.gatewayOrigin == expected.gatewayOrigin && state.ownerId == expected.ownerId &&
             state.keyFingerprint == expected.keyFingerprint && state.permissions == expected.permissions
@@ -469,23 +477,93 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
         }
     }
 
-    /** Never call on main or inside Room. Import only begins after this barrier completes. */
-    fun beforeRestore(timeoutSeconds: Long = 20) {
+    /** Stop admission/drain commands WITHOUT changing persisted pairing. Never
+     * wait here with the native writer/Room lock: commands acquire those locks.
+     */
+    fun quiesceForRestore(timeoutSeconds: Long = 20): AiRestoreSession {
         check(Looper.myLooper() != Looper.getMainLooper())
-        restoring.set(true)
+        check(!org.schabi.newpipe.custom.tagging.TagRuntime.lock.isHeldByCurrentThread)
+        check(!restoring.get() && restoreQuiescing.compareAndSet(false, true)) { "APP_RESTART_REQUIRED" }
         val version = policyChange()
-        control.submit {
-            if (version != policy.version) throw AiFailure("SETUP_CHANGED", AiOutcome.NOT_EXECUTED)
-            access.disable()
-            policy.invalidate { stopConnection() }
-            commands.submit {}.get(timeoutSeconds, TimeUnit.SECONDS)
-            val value = store.update { it.copy(enabled = false, paired = false, catalogEpoch = UUID.randomUUID().toString(), clients = emptyMap()) }
-            publish { it.copy(state = value, connection = "DISABLED", error = null) }
-        }.get(timeoutSeconds, TimeUnit.SECONDS)
-        main.post { if (!policy.enabled) stopStartedService() }
+        val lease = object : AiRestoreSession {
+            private val closed = AtomicBoolean(false)
+            private val irreversible = AtomicBoolean(false)
+            override fun commit(beginNativeRestore: () -> Unit) {
+                check(!closed.get() && !irreversible.get() && restoreQuiescing.get()) { "RESTORE_QUIESCENCE_CHANGED" }
+                // No drain or access-gate wait here. Draining completed before the
+                // final native barrier. A policy race refuses BEFORE native freeze.
+                check(
+                    policy.commit(version, false) {
+                        beginNativeRestore()
+                        irreversible.set(true)
+                        restoring.set(true)
+                        restoreQuiescing.set(false)
+                        val value = store.update {
+                            it.copy(
+                                enabled = false,
+                                paired = false,
+                                catalogEpoch = UUID.randomUUID().toString(),
+                                clients = emptyMap()
+                            )
+                        }
+                        publish { it.copy(state = value, connection = "DISABLED", error = null) }
+                        main.post { stopStartedService() }
+                    }
+                ) { "RESTORE_QUIESCENCE_CHANGED" }
+            }
+            override fun close() {
+                if (!closed.compareAndSet(false, true) || irreversible.get()) return
+                // Ordered behind already admitted local changes/drain. Resume the
+                // latest durable policy, never a captured state that could undo revoke.
+                control.submit {
+                    if (!restoring.get()) {
+                        val value = store.read()
+                        val current = policy.version
+                        restoreQuiescing.set(false)
+                        policy.commit(current, value.enabled) {
+                            publish { it.copy(state = value, connection = if (value.enabled) "STOPPED" else "DISABLED", error = null) }
+                        }
+                        if (policy.enabled && serviceActive.get()) connect()
+                    }
+                }.get(timeoutSeconds, TimeUnit.SECONDS)
+            }
+        }
+        try {
+            control.submit {
+                check(version == policy.version) { "RESTORE_QUIESCENCE_CHANGED" }
+                access.disable()
+                commands.submit {}.get(timeoutSeconds, TimeUnit.SECONDS)
+                check(version == policy.version) { "RESTORE_QUIESCENCE_CHANGED" }
+                store.read() // Validate durable state before returning the reversible lease.
+            }.get(timeoutSeconds, TimeUnit.SECONDS)
+            return lease
+        } catch (failure: Exception) {
+            try {
+                lease.close()
+            } catch (cleanup: Exception) {
+                failure.addSuppressed(cleanup)
+            }
+            throw failure
+        }
+    }
+
+    /** Exit/legacy callers intentionally unpair, without a later native admission. */
+    fun beforeRestore(timeoutSeconds: Long = 20) {
+        quiesceForRestore(timeoutSeconds).use { it.commit {} }
+    }
+
+    internal fun closeIsolatedForTest() {
+        check(instance !== this)
+        stopConnection()
+        commands.shutdownNow()
+        network.shutdownNow()
+        control.shutdown()
+        control.awaitTermination(5, TimeUnit.SECONDS)
     }
 
     companion object {
+        internal fun isolatedForTest(context: Context): AiControlRuntime = AiControlRuntime(context)
+
         @Volatile private var instance: AiControlRuntime? = null
         fun get(context: Context): AiControlRuntime = instance ?: synchronized(this) {
             instance ?: AiControlRuntime(context).also { instance = it }

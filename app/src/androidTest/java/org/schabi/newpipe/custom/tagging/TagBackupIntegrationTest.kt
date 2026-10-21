@@ -274,6 +274,104 @@ class TagBackupIntegrationTest {
         }
     }
 
+    private fun withRealPairedRuntime(test: (org.schabi.newpipe.custom.aicontrol.AiControlRuntime, org.schabi.newpipe.custom.aicontrol.AiLocalStateStore, org.schabi.newpipe.custom.aicontrol.AiLocalState) -> Unit) {
+        val device = UUID.randomUUID().toString()
+        val keys = org.schabi.newpipe.custom.aicontrol.AiDeviceKeys()
+        val publicKey = keys.create(device)
+        val state = org.schabi.newpipe.custom.aicontrol.AiLocalState(
+            deviceId = device,
+            deviceName = "Isolated restore QA",
+            gatewayOrigin = "https://example.test",
+            ownerId = UUID.randomUUID().toString(),
+            keyFingerprint = org.schabi.newpipe.custom.aicontrol.AiProtocol.digest(publicKey),
+            paired = true,
+            enabled = true,
+            clients = mapOf("c_" + "a".repeat(64) to "Retain this paired client")
+        )
+        val store = org.schabi.newpipe.custom.aicontrol.AiLocalStateStore(context)
+        store.replace(state)
+        val runtime = org.schabi.newpipe.custom.aicontrol.AiControlRuntime.isolatedForTest(context)
+        try {
+            test(runtime, store, state)
+        } finally {
+            runtime.closeIsolatedForTest()
+            java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry("rv.newpipe.ai.$device")
+        }
+    }
+
+    @Test fun finalAdmissionRefusalRestoresActualAiPairingAndRuntimeWithoutNativeMutation() {
+        val tag = repository.createTag("Keep", null)
+        item("paired-refusal", tag)
+        val before = org.schabi.newpipe.custom.cloud.CloudRoomContentDigest.of(db.openHelper.readableDatabase)
+        withRealPairedRuntime { runtime, store, state ->
+            TagBackupCoordinator.prepare(context, file(exported())).use { prepared ->
+                var admitted = 0
+                val error = assertThrows(IllegalStateException::class.java) {
+                    TagBackupCoordinator.installReviewedWithQuiescence(context, prepared, {
+                        admitted++
+                        check(admitted == 1) { "CLOUD_PREVIEW_EXPIRED" }
+                    }) {
+                        runtime.quiesceForRestore().also {
+                            assertTrue(runtime.restoreAdmissionBlocked)
+                            assertEquals(state, store.read())
+                        }
+                    }
+                }
+                assertEquals("CLOUD_PREVIEW_EXPIRED", error.message)
+                assertEquals(2, admitted)
+                assertEquals(state, store.read())
+                assertEquals(state, runtime.snapshot.state)
+                assertFalse(runtime.restoreAdmissionBlocked)
+                assertFalse(TagRuntime.restoring)
+                assertEquals(before, org.schabi.newpipe.custom.cloud.CloudRoomContentDigest.of(db.openHelper.readableDatabase))
+            }
+        }
+    }
+
+    @Test fun changedCatalogDuringReversibleQuiescenceDoesNotUnpairOnRefusal() {
+        withRealPairedRuntime { runtime, store, state ->
+            TagBackupCoordinator.prepare(context, file(exported())).use { prepared ->
+                val version = repository.store.version()
+                assertThrows(IllegalStateException::class.java) {
+                    TagBackupCoordinator.installReviewedWithQuiescence(context, prepared, {
+                        check(repository.store.version() == version) { "CLOUD_LOCAL_PREVIEW_CHANGED" }
+                    }) {
+                        runtime.quiesceForRestore().also { repository.createTag("Legitimate concurrent edit", null) }
+                    }
+                }
+                assertEquals(state, store.read())
+                assertFalse(runtime.restoreAdmissionBlocked)
+                assertFalse(TagRuntime.restoring)
+                assertEquals("Legitimate concurrent edit", repository.definitions().tags.single().name)
+            }
+        }
+    }
+
+    @Test fun admittedNativeRestoreStillUnpairsOnlyAfterFinalAdmissionAndRequiresRestart() {
+        val tag = repository.createTag("Archive", null)
+        item("restore-paired", tag)
+        withRealPairedRuntime { runtime, store, state ->
+            TagBackupCoordinator.prepare(context, file(exported())).use { prepared ->
+                var admitted = 0
+                TagBackupCoordinator.installReviewedWithQuiescence(context, prepared, {
+                    admitted++
+                    assertEquals(state, store.read())
+                    assertFalse(TagRuntime.restoring)
+                }) { runtime.quiesceForRestore() }
+                assertEquals(2, admitted)
+                assertTrue(TagRuntime.restoring)
+                assertTrue(runtime.restoreAdmissionBlocked)
+                val after = store.read()
+                assertFalse(after.paired)
+                assertFalse(after.enabled)
+                assertTrue(after.clients.isEmpty())
+                assertTrue(after.catalogEpoch != state.catalogEpoch)
+            }
+        }
+        reopen()
+        assertEquals("Archive", repository.definitions().tags.single().name)
+    }
+
     @Test fun malformedDatabaseDoesNotFenceOrAlterExistingCatalog() {
         val tag = repository.createTag("Keep", null)
         val media = item("stay", tag)

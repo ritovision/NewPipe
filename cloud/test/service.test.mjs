@@ -2,6 +2,7 @@
 import {before,after,beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
 import {seedBudget} from './budget-fixture.mjs';
+import {closeFence} from '../src/maintenance.ts';
 import {readFile,readdir,mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
@@ -63,7 +64,7 @@ before(async()=>{
  await controlDb.batch(fenceSchema.map(s=>controlDb.prepare(s)));
  await controlDb.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,created_at) VALUES('test-resource','test-db','test-bucket','library-a','service-a','fresh-resources-v1','OPEN',0)").run();
 
- const migration=(await Promise.all(['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql'].map(f=>readFile(new URL('../migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ const migration=(await Promise.all(['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql','0004_operator_receipts.sql','0005_reopen_receipts.sql','0006_housekeeping.sql'].map(f=>readFile(new URL('../migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
  await sql(...migration);
 });
 after(async()=>{if(mf)await mf.dispose();if(persistence)await rm(persistence,{recursive:true,force:true});});
@@ -371,4 +372,28 @@ test('polling authenticates and reads head plus own pending state in two DATA st
  await controls({resetStats:true});
  const retired=await status();assert.equal(retired.deviceState.resolvedSequence,'1');assert.equal(retired.deviceState.upload,null);
  assert.equal((await controls({})).statements,2);
+});
+
+for(const variant of ['duplicate','descending'])test('Claude 001: cross-chunk '+variant+' rejection settles its ticket and permits maintenance',async()=>{
+ const control=await mf.getD1Database('CONTROL');
+ const ids=['1'.repeat(64),'2'.repeat(64)];
+ const first=variant==='duplicate'?ids[0]:ids[1],second=ids[0];
+ const initial=await status();
+ const header={mode:'initialize',sequence:'1',before:initial.head,targetFingerprint:EMPTY_FP,chunkCount:2,changeCount:2,payloadBytes:0,digest:'a'.repeat(64)};
+ assert.equal((await call('/v1/uploads/start',header)).status,200);
+ assert.equal((await call('/v1/uploads/chunk',{sequence:'1',index:0,changes:[{id:first,body:null}]})).status,200);
+ const before=await sql('SELECT * FROM cloud_upload_changes','SELECT * FROM cloud_upload_chunks','SELECT received_chunks,received_changes FROM cloud_uploads');
+ for(let n=0;n<3;n++){
+  const refused=await call('/v1/uploads/chunk',{sequence:'1',index:1,changes:[{id:second,body:null}]});
+  assert.ok(refused.status>=400&&refused.status<500,JSON.stringify(refused));
+  assert.equal((await control.prepare('SELECT COUNT(*) n FROM cloud_fence_tickets').first()).n,0,'Known invalid chunk must not become permanent uncertainty');
+  const b=await control.prepare('SELECT state,held_reads,held_writes,held_growth FROM cloud_budget').first();
+  assert.deepEqual(b,{state:'ACTIVE',held_reads:0,held_writes:0,held_growth:0});
+ }
+ assert.deepEqual(await sql('SELECT * FROM cloud_upload_changes','SELECT * FROM cloud_upload_chunks','SELECT received_chunks,received_changes FROM cloud_uploads').then(r=>r.map(x=>x.results)),before.map(x=>x.results));
+ assert.deepEqual((await status()).head,initial.head);
+ const held=await closeFence(control,'test-resource','61111111-1111-4111-8111-111111111111','62222222-2222-4222-8222-222222222222');
+ assert.equal(held.state,'HELD');assert.equal(held.pending,0);
+ // Only this disposable local fixture is reset for subsequent tests.
+ await control.prepare("UPDATE cloud_fence SET state='OPEN',maintenance_id=NULL,next_generation=NULL WHERE resource_id='test-resource'").run();
 });

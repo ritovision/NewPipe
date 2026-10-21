@@ -63,6 +63,67 @@ class CloudSyncControllerTest {
         assertEquals(code, assertThrows(IllegalStateException::class.java, action).message)
     }
 
+    @Test fun aDefiniteHeadRaceRetiresItsExactUploadAndReachesConflictWithoutRetryingForever() {
+        val before = f.seed()
+        enable()
+        f.media("local-race")
+        peer.beforeRequest = { path ->
+            if (path == "/v1/uploads/start") {
+                peer.beforeRequest = null
+                peer.external(f.target(before))
+            }
+        }
+        reject("CLOUD_CONFLICT_REVIEW_REQUIRED") { controller.syncNow() }
+        assertFalse(controller.hasPending())
+        assertEquals(1, peer.requests.count { it == "/v1/uploads/retire" })
+        val starts = peer.requests.count { it == "/v1/uploads/start" }
+        f.reopen()
+        reject("CLOUD_CONFLICT_REVIEW_REQUIRED") { newController().syncNow() }
+        assertEquals(starts, peer.requests.count { it == "/v1/uploads/start" })
+        assertTrue(connection.read()!!.enabled)
+    }
+
+    @Test fun expiredPendingUploadIsRetiredThenReplannedWithAFreshSequence() {
+        f.seed()
+        enable()
+        f.media("expired-local")
+        peer.fault = "beforeStart"
+        assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+        assertTrue(controller.hasPending())
+        val oldSequence = peer.sequence()
+        peer.expireNextStart = true
+        controller.syncNow()
+        assertFalse(controller.hasPending())
+        assertTrue(same())
+        assertEquals(oldSequence + 2, peer.sequence()) // Retired identity, then fresh committed upload.
+        assertEquals(1, peer.requests.count { it == "/v1/uploads/retire" })
+    }
+
+    @Test fun receiptFromRacingCommitWinsOverDefinitiveRefusalAndNeverDiscardsCommittedContent() {
+        f.seed()
+        enable()
+        f.media("racing-commit")
+        peer.fault = "definiteAfterPublish"
+        controller.syncNow()
+        assertFalse(controller.hasPending())
+        assertTrue(same())
+        assertEquals(peer.head, CloudApplyStore.baseline(f.repo.store.readableDatabase)!!.acknowledgedHead)
+        assertEquals(1, peer.requests.count { it == "/v1/uploads/retire" })
+    }
+
+    @Test fun uncertainSendStillPreservesIdentityInsteadOfAutoRetiring() {
+        f.seed()
+        enable()
+        f.media("unknown-send")
+        peer.fault = "afterPublish"
+        assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+        assertTrue(controller.hasPending())
+        assertEquals(0, peer.requests.count { it == "/v1/uploads/retire" })
+        controller.syncNow()
+        assertFalse(controller.hasPending())
+        assertTrue(same())
+    }
+
     @Test fun connectRetainsLocalContentAndStartsDisabledWithEncryptedCredential() {
         val before = f.seed()
         val s = connect()

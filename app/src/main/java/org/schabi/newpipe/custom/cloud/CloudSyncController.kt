@@ -246,7 +246,7 @@ internal class CloudSyncController(
         val current = native(s)
         sameLocal(preview.before, current)
         when (preview.direction) {
-            Direction.INITIALIZE_CLOUD -> publish(s, api, preview.before, remote, emptyList(), "initialize")
+            Direction.INITIALIZE_CLOUD -> check(publish(s, api, preview.before, remote, emptyList(), "initialize")) { "CLOUD_PREVIEW_CHANGED" }
 
             Direction.TO_DEVICE -> {
                 localRecovery(preview.before)
@@ -286,42 +286,51 @@ internal class CloudSyncController(
         val s = checkNotNull(connection.read()) { "CLOUD_NOT_CONNECTED" }
         check(s.enabled) { "ENABLE_SYNC_OR_USE_ONE_TIME_RESTORE" }
         val api = api(s, automatic = true)
-        settle(s, api, resume = true)
-        val remote = verifiedStatus(s, api)
-        val before = native(s)
-        check(remote.replacement == null) { "CLOUD_REPLACEMENT_PENDING" }
-        check(remote.upload == null) { "CLOUD_TOKEN_HAS_UNRESOLVED_UPLOAD" }
-        val baseline = TagRuntime.lock.withLock { CloudApplyStore.baseline(repository().store.readableDatabase) }
-        check(baseline == null || baseline.incarnation == s.incarnation) { "CLOUD_BASELINE_IDENTITY_CHANGED" }
-        val decision = CloudSyncPolicy.decide(CloudSyncInput(true, true, false, before.fingerprint, baseline?.acknowledgedHead, remote.head, connection.read()?.highest))
-        when (decision) {
-            CloudDecision.NOOP -> Unit
+        // A definitive refusal is resolved by its exact receipt before making one
+        // fresh decision. Never loop indefinitely or discard an ambiguous upload.
+        for (attempt in 0..1) {
+            settle(s, api, resume = true)
+            val remote = verifiedStatus(s, api)
+            val before = native(s)
+            check(remote.replacement == null) { "CLOUD_REPLACEMENT_PENDING" }
+            check(remote.upload == null) { "CLOUD_TOKEN_HAS_UNRESOLVED_UPLOAD" }
+            val baseline = TagRuntime.lock.withLock { CloudApplyStore.baseline(repository().store.readableDatabase) }
+            check(baseline == null || baseline.incarnation == s.incarnation) { "CLOUD_BASELINE_IDENTITY_CHANGED" }
+            val decision = CloudSyncPolicy.decide(CloudSyncInput(true, true, false, before.fingerprint, baseline?.acknowledgedHead, remote.head, connection.read()?.highest))
+            when (decision) {
+                CloudDecision.NOOP -> Unit
 
-            CloudDecision.ADOPT_BASELINE -> acknowledge(s, remote.head, "equal-content", null)
+                CloudDecision.ADOPT_BASELINE -> acknowledge(s, remote.head, "equal-content", null)
 
-            CloudDecision.PUSH -> {
-                check(remote.initialized) { "CLOUD_PREVIEW_REQUIRED" }
-                val cloud = download(api, remote)
-                publish(s, api, before, remote, cloud.pages, "sync")
-            }
-
-            CloudDecision.PULL -> {
-                val incoming = download(api, remote)
-                // Automatic apply cannot discard divergent orphan metadata; only explicit reviewed confirmation can.
-                localRecovery(before, replacePrevious = false)
-                check(verifiedStatus(s, api).head == remote.head) { "CLOUD_CHANGED" }
-                CloudNativeApply(repository()).apply(before, remote.head, incoming.decoded.catalog, incoming.decoded.hints) {
-                    connection.requireCurrent(s.generation, true)
+                CloudDecision.PUSH -> {
+                    check(remote.initialized) { "CLOUD_PREVIEW_REQUIRED" }
+                    val cloud = download(api, remote)
+                    if (!publish(s, api, before, remote, cloud.pages, "sync")) {
+                        if (attempt == 0) continue
+                        error("CLOUD_CONFLICT_REVIEW_REQUIRED")
+                    }
                 }
+
+                CloudDecision.PULL -> {
+                    val incoming = download(api, remote)
+                    // Automatic apply cannot discard divergent orphan metadata; only explicit reviewed confirmation can.
+                    localRecovery(before, replacePrevious = false)
+                    check(verifiedStatus(s, api).head == remote.head) { "CLOUD_CHANGED" }
+                    CloudNativeApply(repository()).apply(before, remote.head, incoming.decoded.catalog, incoming.decoded.hints) {
+                        connection.requireCurrent(s.generation, true)
+                    }
+                }
+
+                CloudDecision.CONFLICT -> error("CLOUD_CONFLICT_REVIEW_REQUIRED")
+
+                else -> error("CLOUD_PREVIEW_REQUIRED")
             }
-
-            CloudDecision.CONFLICT -> error("CLOUD_CONFLICT_REVIEW_REQUIRED")
-
-            else -> error("CLOUD_PREVIEW_REQUIRED")
+            connection.update(s.generation) { it.copy(message = "Synchronized.", lastSuccess = System.currentTimeMillis()) }
+            return@operation "Synchronized"
         }
-        connection.update(s.generation) { it.copy(message = "Synchronized.", lastSuccess = System.currentTimeMillis()) }
-        "Synchronized"
+        error("CLOUD_CONFLICT_REVIEW_REQUIRED")
     }
+
     fun resolvePending(): String = operation {
         val s = checkNotNull(connection.read()) { "CLOUD_NOT_CONNECTED" }
         settle(s, api(s), resume = false)
@@ -332,14 +341,14 @@ internal class CloudSyncController(
         transfers.cached(status)?.let { return it }
         return CloudRemoteCatalog.download(api, status).also { transfers.cache(it) }
     }
-    private fun publish(s: CloudConnectionStore.State, api: CloudApi, before: CloudNativeSnapshot, remote: CloudRemoteStatus, previous: List<CloudPages.Page>, mode: String) {
+    private fun publish(s: CloudConnectionStore.State, api: CloudApi, before: CloudNativeSnapshot, remote: CloudRemoteStatus, previous: List<CloudPages.Page>, mode: String): Boolean {
         check("catalog.sync" in remote.capabilities || mode == "initialize" && "catalog.initialize" in remote.capabilities) { "CLOUD_TOKEN_READ_ONLY" }
         val pages = CloudPages.encode(before.catalog, previous, before.hints.values)
         check(pages.size <= remote.maxPages && pages.sumOf { CloudWireJson.bytes(it.body).toLong() } <= remote.maxBytes) { "CLOUD_SERVER_LIBRARY_LIMIT" }
         val changes = CloudPages.changes(previous, pages)
         if (changes.isEmpty()) {
             acknowledge(s, remote.head, "same-pages", null)
-            return
+            return true
         }
         val sequence = Math.addExact(CloudCounter.parse(remote.sequence), 1).toString()
         val upload = CloudPages.upload(mode, sequence, remote.head, before.fingerprint, changes)
@@ -350,9 +359,9 @@ internal class CloudSyncController(
             sameLocal(before, native(s))
             transfers.save(pending)
         }
-        val receipt = send(api, upload)
+        val receipt = sendOrRetire(api, upload)
         finishReceipt(s, pending, receipt)
-        check(receipt.getString("outcome") == "COMMITTED") { "CLOUD_UPLOAD_WAS_RETIRED" }
+        if (receipt.getString("outcome") != "COMMITTED") return false
         val head = CloudWireJson.head(receipt["head"])
         transfers.cache(
             CloudDownload(
@@ -369,6 +378,25 @@ internal class CloudSyncController(
                 CloudPages.decode(pages)
             )
         )
+        return true
+    }
+    private fun sendOrRetire(api: CloudApi, upload: CloudPages.Upload): JsonObject {
+        try {
+            return send(api, upload)
+        } catch (error: CloudRemoteException) {
+            val definite = error.httpStatus in setOf(409, 410) && error.code in setOf(
+                "CLOUD_CHANGED",
+                "INITIALIZATION_STATE_CHANGED",
+                "PRECONDITION_FAILED",
+                "UPLOAD_EXPIRED",
+                "UPLOAD_NOT_SEALED_OR_EXPIRED"
+            )
+            if (!definite) throw error
+            // Retirement is transactional and may instead reveal a racing COMMITTED
+            // receipt. No receipt, timeout or failed retire is permission to clear.
+            return api.post("/v1/uploads/retire", upload.reference)["receipt"] as? JsonObject
+                ?: error("INVALID_RETIREMENT_RECEIPT")
+        }
     }
     private fun send(api: CloudApi, upload: CloudPages.Upload): JsonObject {
         val started = api.post("/v1/uploads/start", upload.header)
@@ -391,7 +419,7 @@ internal class CloudSyncController(
             JsonObject() // Journal can be durable before the very first upload request.
         }
         val receipt = status["receipt"] as? JsonObject ?: if (resume && pending.generation == s.generation && pending.incarnation == s.incarnation) {
-            send(api, pending.upload)
+            sendOrRetire(api, pending.upload)
         } else {
             api.post("/v1/uploads/retire", pending.upload.reference)["receipt"] as? JsonObject ?: error("INVALID_RETIREMENT_RECEIPT")
         }

@@ -12,6 +12,8 @@ internal class CloudFakePeer(val scope: CloudIdentityStore.Scope) {
     val tokenA = "device-a." + "a".repeat(64)
     val tokenB = "device-b." + "b".repeat(64)
     var calls = 0
+    val requests = ArrayList<String>()
+    var expireNextStart = false
     var fault: String? = null
     var beforeRequest: ((String) -> Unit)? = null
     var maxBytes = CloudPages.MAX_BYTES
@@ -34,11 +36,20 @@ internal class CloudFakePeer(val scope: CloudIdentityStore.Scope) {
                 beforeRequest?.invoke(path)
                 admit()
                 calls++
+                requests.add(path)
+                if (path == "/v1/uploads/start" && expireNextStart) {
+                    expireNextStart = false
+                    throw CloudRemoteException("UPLOAD_EXPIRED", 410)
+                }
                 if (fault == "offline" || fault == "beforeStart" && path == "/v1/uploads/start") {
                     if (fault == "beforeStart") fault = null
                     throw CloudRemoteException("CLOUD_NETWORK_UNAVAILABLE")
                 }
                 val result = handle(id, device, path, body)
+                if (fault == "definiteAfterPublish" && path == "/v1/uploads/publish") {
+                    fault = null
+                    throw CloudRemoteException("PRECONDITION_FAILED", 409)
+                }
                 if (fault == "afterPublish" && path == "/v1/uploads/publish") {
                     fault = null
                     throw CloudRemoteException("CLOUD_NETWORK_UNAVAILABLE")
@@ -97,12 +108,12 @@ internal class CloudFakePeer(val scope: CloudIdentityStore.Scope) {
         if (path == "/v1/uploads/start") {
             val digest = body["digest"] as String
             receipt(d, sequence, digest)?.let { return mapOf("receipt" to it) }
+            if (CloudWireJson.head(body["before"]) != head) throw CloudRemoteException("CLOUD_CHANGED", 409)
+            if ((body["mode"] == "initialize") == initialized) throw CloudRemoteException("INITIALIZATION_STATE_CHANGED", 409)
             if (d.stage != null) {
                 check(d.stage!!.header == body) { "FAKE_REPLAY_MISMATCH" }
                 return stageStatus(d.stage!!)
             }
-            if (CloudWireJson.head(body["before"]) != head) throw CloudRemoteException("CLOUD_CHANGED", 409)
-            if ((body["mode"] == "initialize") == initialized) throw CloudRemoteException("INITIALIZATION_STATE_CHANGED", 409)
             check(sequence.toLong() == d.resolved + 1)
             d.stage = Stage(body.toMap())
             return stageStatus(d.stage!!)

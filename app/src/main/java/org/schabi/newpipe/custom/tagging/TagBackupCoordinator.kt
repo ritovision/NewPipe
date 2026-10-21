@@ -27,6 +27,7 @@ import java.util.zip.ZipOutputStream
 import kotlin.concurrent.withLock
 import org.schabi.newpipe.NewPipeDatabase
 import org.schabi.newpipe.custom.aicontrol.AiControlRuntime
+import org.schabi.newpipe.custom.aicontrol.AiRestoreSession
 import org.schabi.newpipe.custom.aicontrol.RitoVisionDatabaseVersion
 import org.schabi.newpipe.custom.library.LibraryBindingStore
 import org.schabi.newpipe.custom.library.LibraryRepository
@@ -198,15 +199,25 @@ object TagBackupCoordinator {
     }
 
     @JvmStatic
-    fun install(context: Context, prepared: Prepared) = installWithShutdown(context, prepared) { AiControlRuntime.get(context.applicationContext).beforeRestore() }
+    fun install(context: Context, prepared: Prepared) = installReviewed(context, prepared) {}
 
     /** The callback seam permits native tests to verify ordering without touching actual pairing. */
     internal fun installWithShutdown(context: Context, prepared: Prepared, shutdown: () -> Unit) = installReviewedWithShutdown(context, prepared, {}, shutdown)
 
     /** Cloud previews recheck exact local contents under the final native writer barrier. */
-    internal fun installReviewed(context: Context, prepared: Prepared, admit: () -> Unit) = installReviewedWithShutdown(context, prepared, admit) { AiControlRuntime.get(context.applicationContext).beforeRestore() }
+    internal fun installReviewed(context: Context, prepared: Prepared, admit: () -> Unit) = installReviewedWithQuiescence(context, prepared, admit) {
+        AiControlRuntime.get(context.applicationContext).quiesceForRestore()
+    }
 
-    internal fun installReviewedWithShutdown(context: Context, prepared: Prepared, admit: () -> Unit, shutdown: () -> Unit) {
+    internal fun installReviewedWithShutdown(context: Context, prepared: Prepared, admit: () -> Unit, shutdown: () -> Unit) = installReviewedWithQuiescence(context, prepared, admit) {
+        shutdown() // Test-only quiescence injection; production always uses a reversible lease.
+        object : AiRestoreSession {
+            override fun commit(beginNativeRestore: () -> Unit) = beginNativeRestore()
+            override fun close() = Unit
+        }
+    }
+
+    internal fun installReviewedWithQuiescence(context: Context, prepared: Prepared, admit: () -> Unit, quiesce: () -> AiRestoreSession) {
         requireIo()
         check(inProgress.compareAndSet(false, true)) { "Another catalog import/export is running" }
         try {
@@ -217,56 +228,59 @@ object TagBackupCoordinator {
             prepared.verify()
             prepared.consume()
             // No TagRuntime lock while waiting for the authorization writer/command drain.
-            shutdown()
-            TagRuntime.lock.withLock {
-                TagRuntime.assertAvailable()
-                check(prepared.generation == TagRuntime.generation) { "The Library was already replaced" }
-                val repository = TagRuntime.get(context)
-                // Complete same-catalog recovery before retaining missing tag metadata.
-                // If identity itself needs repair, only receipt-backed AI cleanup is safe.
-                prepared.verify()
-                val originalTags = prepared.expected(TagStore.FILE_NAME)
-                val tags = prepared.directory.resolve(if (originalTags) TagStore.FILE_NAME else "retained-tags.db")
-                try {
-                    repository.beforeLibraryMutation()
-                } catch (blocked: TagRepository.NativeBulkRecoveryBlockedException) {
-                    // A verified complete backup replaces BOTH stores. No old
-                    // intent is executed or discarded in the live database here.
-                    // Stock backups retaining current tags may not bypass recovery.
-                    if (!originalTags) throw blocked
-                } catch (blocked: org.schabi.newpipe.custom.cloud.CloudRecoveryBlockedException) {
-                    // A user-selected complete validated backup is the recovery escape
-                    // hatch for a damaged cloud journal. Never retain its live tag store.
-                    if (!originalTags) throw blocked
+            quiesce().use { lease ->
+                TagRuntime.lock.withLock {
+                    TagRuntime.assertAvailable()
+                    check(prepared.generation == TagRuntime.generation) { "The Library was already replaced" }
+                    val repository = TagRuntime.get(context)
+                    // Complete same-catalog recovery before retaining missing tag metadata.
+                    // If identity itself needs repair, only receipt-backed AI cleanup is safe.
+                    prepared.verify()
+                    val originalTags = prepared.expected(TagStore.FILE_NAME)
+                    val tags = prepared.directory.resolve(if (originalTags) TagStore.FILE_NAME else "retained-tags.db")
+                    try {
+                        repository.beforeLibraryMutation()
+                    } catch (blocked: TagRepository.NativeBulkRecoveryBlockedException) {
+                        // A verified complete backup replaces BOTH stores. No old
+                        // intent is executed or discarded in the live database here.
+                        // Stock backups retaining current tags may not bypass recovery.
+                        if (!originalTags) throw blocked
+                    } catch (blocked: org.schabi.newpipe.custom.cloud.CloudRecoveryBlockedException) {
+                        // A user-selected complete validated backup is the recovery escape
+                        // hatch for a damaged cloud journal. Never retain its live tag store.
+                        if (!originalTags) throw blocked
+                    }
+                    if (!originalTags) {
+                        // A stock backup does not authorize deleting recoverable unmatched tags.
+                        // Snapshot them now, after draining writers, then discard obsolete runtime intents.
+                        snapshotTag(repository.store, tags)
+                        sanitizeTagCopy(context, tags)
+                    }
+                    val directory = context.getDatabasePath(DB).toPath().parent
+                    Files.createDirectories(directory)
+                    admit()
+                    prepared.verify()
+                    lease.commit {
+                        org.schabi.newpipe.custom.cloud.CloudScheduler.beforeImport(context)
+                        TagRuntime.freezeForRestore()
+                    }
+                    CatalogOpenHelperFactory.drain(repository.library.openHelper)
+                    // The new-open fence is active, but already-admitted Room transactions
+                    // may still finish on their owning thread. Drain BEFORE closing their DB.
+                    awaitClosedCheckpoint(context.getDatabasePath(DB).toPath())
+                    NewPipeDatabase.close()
+                    awaitClosedCheckpoint(context.getDatabasePath(DB).toPath())
+                    LibraryRepository.suspendForRestore()
+                    val files = linkedMapOf<String, Path?>(DB to prepared.directory.resolve(DB), TagStore.FILE_NAME to tags, BINDING to prepared.directory.resolve(BINDING).takeIf { prepared.expected(BINDING) })
+                    for (name in listOf(DB, TagStore.FILE_NAME)) {
+                        for (suffix in listOf("-wal", "-shm", "-journal")) files[name + suffix] = null
+                    }
+                    files["$BINDING.new"] = null
+                    files["$BINDING.bak"] = null
+                    CatalogFileSwap.replace(directory, files)
+                    // Remain fenced until process restart even on failure after freeze. Old Room
+                    // helpers, retained editors and queued UI/AI mutations cannot reopen replacement files.
                 }
-                if (!originalTags) {
-                    // A stock backup does not authorize deleting recoverable unmatched tags.
-                    // Snapshot them now, after draining writers, then discard obsolete runtime intents.
-                    snapshotTag(repository.store, tags)
-                    sanitizeTagCopy(context, tags)
-                }
-                val directory = context.getDatabasePath(DB).toPath().parent
-                Files.createDirectories(directory)
-                admit()
-                prepared.verify()
-                org.schabi.newpipe.custom.cloud.CloudScheduler.beforeImport(context)
-                TagRuntime.freezeForRestore()
-                CatalogOpenHelperFactory.drain(repository.library.openHelper)
-                // The new-open fence is active, but already-admitted Room transactions
-                // may still finish on their owning thread. Drain BEFORE closing their DB.
-                awaitClosedCheckpoint(context.getDatabasePath(DB).toPath())
-                NewPipeDatabase.close()
-                awaitClosedCheckpoint(context.getDatabasePath(DB).toPath())
-                LibraryRepository.suspendForRestore()
-                val files = linkedMapOf<String, Path?>(DB to prepared.directory.resolve(DB), TagStore.FILE_NAME to tags, BINDING to prepared.directory.resolve(BINDING).takeIf { prepared.expected(BINDING) })
-                for (name in listOf(DB, TagStore.FILE_NAME)) {
-                    for (suffix in listOf("-wal", "-shm", "-journal")) files[name + suffix] = null
-                }
-                files["$BINDING.new"] = null
-                files["$BINDING.bak"] = null
-                CatalogFileSwap.replace(directory, files)
-                // Remain fenced until process restart even on failure after freeze. Old Room
-                // helpers, retained editors and queued UI/AI mutations cannot reopen replacement files.
             }
         } finally {
             inProgress.set(false)
