@@ -33,29 +33,29 @@ function parameters(c: AdmissionContext): string[] {
 function operationSequence(seq: string): void {
   if (counter(seq) === 0n) fail("INVALID_SEQUENCE");
 }
-async function authenticate(db: D1Database, c: AdmissionContext): Promise<string> {
-  const row = await db.prepare(`SELECT CAST(d.resolved_sequence AS TEXT) AS sequence FROM cloud_devices d WHERE ${AUTH}`)
-    .bind(...parameters(c)).first<{ sequence: string }>();
-  if (!row) fail("AUTH_REJECTED");
-  counter(row.sequence); return row.sequence;
-}
 function receipt(c: AdmissionContext, row: RawReceipt): Receipt {
   return Object.freeze({ sequence: row.sequence, digest: row.digest, outcome: row.outcome,
     head: checkedHead({ serviceGeneration: c.serviceGeneration, library: c.library, epoch: row.epoch,
       revision: row.revision, headCounter: row.head_counter, fingerprint: row.fingerprint }) });
 }
-async function findReceipt(db: D1Database, c: AdmissionContext, seq: string): Promise<Receipt | null> {
-  // Authentication predicates are repeated IN this query, not assumed from an earlier SELECT.
-  const row = await db.prepare(SELECT_RECEIPT).bind(...parameters(c), seq).first<RawReceipt>();
-  return row ? receipt(c, row) : null;
+async function authorizedReceipt(db: D1Database, c: AdmissionContext, seq: string): Promise<{ resolved: string; receipt: Receipt | null }> {
+  // One indexed query obtains authority and the receipt from the same snapshot.
+  // LEFT JOIN preserves the authenticated high-water when no receipt exists.
+  const row = await db.prepare(`SELECT CAST(d.resolved_sequence AS TEXT) AS resolved,
+    CAST(r.sequence AS TEXT) AS sequence,r.digest,r.outcome,r.epoch,CAST(r.revision AS TEXT) AS revision,
+    CAST(r.head_counter AS TEXT) AS head_counter,r.fingerprint FROM cloud_devices d
+    LEFT JOIN cloud_receipts r ON r.library_id=d.library_id AND r.device_id=d.device_id AND r.sequence=CAST(? AS INTEGER)
+    WHERE ${AUTH}`).bind(seq, ...parameters(c)).first<RawReceipt & { resolved: string }>();
+  if (!row) fail("AUTH_REJECTED");
+  counter(row.resolved);
+  return { resolved: row.resolved, receipt: row.sequence === null ? null : receipt(c, row) };
 }
 function requireDigest(r: Receipt, digest: string): Receipt {
   if (r.digest !== digest) fail("REPLAY_MISMATCH"); return r;
 }
 async function beforeAttempt(db: D1Database, c: AdmissionContext, seq: string, digest: string): Promise<Receipt | null> {
   operationSequence(seq); if (!hash.test(digest)) fail("INVALID_DIGEST");
-  const resolved = await authenticate(db, c);
-  const existing = await findReceipt(db, c, seq);
+  const { resolved, receipt: existing } = await authorizedReceipt(db, c, seq);
   if (existing) return requireDigest(existing, digest);
   if (counter(seq) <= counter(resolved)) fail("RESULT_EXPIRED");
   if (counter(seq) !== counter(resolved) + 1n) fail("SEQUENCE_GAP");
@@ -63,8 +63,7 @@ async function beforeAttempt(db: D1Database, c: AdmissionContext, seq: string, d
 }
 async function afterFailure(db: D1Database, c: AdmissionContext, seq: string, digest: string, error: unknown): Promise<Receipt> {
   try {
-    await authenticate(db, c);
-    const r = await findReceipt(db, c, seq);
+    const { receipt: r } = await authorizedReceipt(db, c, seq);
     if (r) return requireDigest(r, digest);
   } catch (lookupError) {
     if (lookupError instanceof AdmissionError) throw new AdmissionError(lookupError.message, true);

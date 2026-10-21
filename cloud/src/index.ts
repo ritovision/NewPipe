@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+import { BudgetError, requestEstimate } from "./budget.ts";
+import { scheduledHousekeeping } from "./housekeeping-schedule.ts";
 import { AdmissionError } from "./admission.ts";
 import { admit, FenceError, type RequestFence } from "./fence.ts";
 import { counter } from "./protocol.ts";
@@ -16,6 +18,7 @@ export interface CloudEnvironment {
   LIBRARY_ID: string;
   SERVICE_GENERATION: string;
   ENABLE_CATALOG_API?: string;
+  ENABLE_HOUSEKEEPING?: string;
   MAX_CATALOG_BYTES?: string;
   MAX_CATALOG_PAGES?: string;
   ENABLE_RECOVERY_API?: string;
@@ -85,11 +88,12 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
     if (!env.REQUEST_LIMITER || !await env.REQUEST_LIMITER.limit({ key: "newpipe-cloud-sync-v1:" + (request.headers.get("cf-connecting-ip") ?? "unknown") }).then(r => r.success)) fail("REQUEST_LIMIT", 429);
     const authorization = request.headers.get("authorization") ?? "";
     if (!authorization.startsWith("Bearer ") || authorization.length > 204) fail("INVALID_CREDENTIAL", 401);
-    const context = await authenticateToken(env.DB, authorization.slice(7), env.LIBRARY_ID, env.SERVICE_GENERATION);
-    fence = await admit(env.CONTROL, { resource: env.FENCE_RESOURCE ?? "", library: env.LIBRARY_ID, generation: env.SERVICE_GENERATION });
-    env = { ...env, DB: fence.database(env.DB), RECOVERY: env.RECOVERY ? fence.bucket(env.RECOVERY) : undefined };
     const limits = serviceLimits(environmentNumber(env.MAX_CATALOG_BYTES, DEFAULT_SERVICE_LIMITS.maxCatalogBytes),
       environmentNumber(env.MAX_CATALOG_PAGES, DEFAULT_SERVICE_LIMITS.maxPages));
+    fence = await admit(env.CONTROL, { resource: env.FENCE_RESOURCE ?? "", library: env.LIBRARY_ID, generation: env.SERVICE_GENERATION },
+      requestEstimate(url.pathname, limits.maxPages, limits.maxCatalogBytes));
+    env = { ...env, DB: fence.database(env.DB), RECOVERY: env.RECOVERY ? fence.bucket(env.RECOVERY) : undefined };
+    const context = await authenticateToken(env.DB, authorization.slice(7), env.LIBRARY_ID, env.SERVICE_GENERATION);
     const recoveryEnabled = env.ENABLE_RECOVERY_API === "true" && env.RECOVERY !== undefined;
     const replacementEnabled = recoveryEnabled && env.ENABLE_REPLACEMENT_API === "true";
     if (url.pathname.startsWith("/v1/replacement/")) {
@@ -170,7 +174,7 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
       }
     }
   } catch (error) {
-    if (error instanceof FenceError) return response({ error: error.code }, 503);
+    if (error instanceof FenceError || error instanceof BudgetError) return response({ error: error.code }, 503);
     if (error instanceof RecoveryError) return response({ error: error.code, ...(error.status >= 500 ? { outcome: "unknown" } : {}) }, error.status);
     if (error instanceof CatalogError) return response({ error: error.code }, error.status);
     if (error instanceof AdmissionError) {
@@ -182,4 +186,6 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
     return response({ error: "STORAGE_OR_SERVICE_UNAVAILABLE", outcome: "unknown" }, 503);
   } finally { await fence?.finish(); }
 }
-export default { fetch: handleRequest } satisfies ExportedHandler<CloudEnvironment>;
+export default { fetch: handleRequest,
+  scheduled(_event, env, ctx) { ctx.waitUntil(scheduledHousekeeping(env)); }
+} satisfies ExportedHandler<CloudEnvironment>;

@@ -40,13 +40,18 @@ try{
  if(data.name!==names.data||control.name!==names.control||bucket.name!==names.bucket)fail('CREATION_SCOPE_MISMATCH');
  const scope=validateScope({account:v.account,worker:names.worker,database:data.uuid,bucket:names.bucket,
   library:'newpipe-fence-qa-'+randomUUID(),generation:randomUUID(),fence:{control:control.uuid,resource:randomUUID(),operator:names.operator}});
+ const usage={reads:0,writes:0,dataSize:0};
  const sql=async(id,statement,params=[])=>{
   const r=await call('/d1/database/'+id+'/query',{sql:statement,params});
-  if(!Array.isArray(r)||r.length!==1||!r[0].success)fail('PROVISION_SCHEMA_FAILED');return r[0].results;
+  if(!Array.isArray(r)||r.length!==1||!r[0].success||!r[0].meta)fail('PROVISION_SCHEMA_FAILED');
+  const m=r[0].meta;
+  if(![m.rows_read,m.rows_written,m.size_after].every(n=>Number.isSafeInteger(n)&&n>=0))fail('PROVISION_METER_UNAVAILABLE');
+  usage.reads+=m.rows_read;usage.writes+=m.rows_written;if(id===data.uuid)usage.dataSize=m.size_after;
+  return r[0].results;
  };
  const root=dirname(dirname(fileURLToPath(import.meta.url)));
  for(const [id,files] of [[data.uuid,['migrations/0001_catalog_service.sql','migrations/0002_recovery.sql','migrations/0003_replacement.sql','migrations/0004_operator_receipts.sql','migrations/0005_reopen_receipts.sql','migrations/0006_housekeeping.sql']],
-  [control.uuid,['control-migrations/0001_fence.sql','control-migrations/0002_reopen.sql']]]){
+  [control.uuid,['control-migrations/0001_fence.sql','control-migrations/0002_reopen.sql','control-migrations/0003_budgets.sql']]]){
   for(const file of files){
    const statements=(await readFile(resolve(root,file),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
    for(const statement of statements)await sql(id,statement);
@@ -55,6 +60,8 @@ try{
  }
  await sql(control.uuid,"INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,created_at) VALUES(?,?,?,?,?,'fresh-resources-v1','OPEN',?)",
   [scope.fence.resource,scope.database,scope.bucket,scope.library,record.activeGeneration,Date.now()]);
+ await sql(control.uuid,"INSERT INTO cloud_budget(resource_id,policy_version,state,read_limit,write_limit,size_limit,statement_limit,day,spent_reads,spent_writes,data_size) VALUES(?,1,'ACTIVE',2000000,50000,250000000,32,CAST(unixepoch()/86400 AS INTEGER),?,?,?)",
+  [scope.fence.resource,usage.reads+128,usage.writes+32,usage.dataSize]);
  record.scope=scope;record.origin='https://'+names.worker+'.'+sub+'.workers.dev';
  record.operatorOrigin='https://'+names.operator+'.'+sub+'.workers.dev';
  const common={account_id:scope.account,compatibility_date:'2026-10-19',workers_dev:true,preview_urls:false,
@@ -63,7 +70,7 @@ try{
   r2_buckets:[{binding:'RECOVERY',bucket_name:scope.bucket}],observability:{enabled:false}};
  const application={...common,name:names.worker,main:resolve(root,'src/index.ts'),
   vars:{PUBLIC_ORIGIN:record.origin,LIBRARY_ID:scope.library,SERVICE_GENERATION:record.activeGeneration,FENCE_RESOURCE:scope.fence.resource,
-   ENABLE_CATALOG_API:'false',ENABLE_RECOVERY_API:'false',ENABLE_REPLACEMENT_API:'false',MAX_RECOVERY_BYTES:'1048576',MAX_CATALOG_BYTES:'65536',MAX_CATALOG_PAGES:'8'},
+   ENABLE_CATALOG_API:'false',ENABLE_HOUSEKEEPING:'false',ENABLE_RECOVERY_API:'false',ENABLE_REPLACEMENT_API:'false',MAX_RECOVERY_BYTES:'1048576',MAX_CATALOG_BYTES:'65536',MAX_CATALOG_PAGES:'8'},
   ratelimits:[{name:'REQUEST_LIMITER',namespace_id:'2026102002',simple:{limit:120,period:60}}]};
  const operator={...common,name:names.operator,main:resolve(root,'operator/worker.mjs'),compatibility_flags:['nodejs_compat'],alias:operatorAliases,
   vars:{PUBLIC_ORIGIN:record.operatorOrigin,FENCE_RESOURCE:scope.fence.resource,SCOPE:JSON.stringify(scope)}};

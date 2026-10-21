@@ -8,7 +8,7 @@ const statements=async file=>(await readFile(new URL('../control-migrations/'+fi
 const upgrade=async()=>db.batch((await statements('0002_reopen.sql')).map(s=>db.prepare(s)));
 const seed=()=>db.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,maintenance_id,next_generation,created_at) VALUES('resource','data','bucket','library','old','fresh-resources-v1','HELD','maintenance','new',0)").run();
 const legacy=async()=>{
- for(const t of ['cloud_fence_actions_v2','cloud_fence_actions','cloud_fence_tickets','cloud_fence','cloud_fence_assertion'])await db.prepare('DROP TABLE IF EXISTS '+t).run();
+ for(const t of ['cloud_budget_maintenance','cloud_budget','cloud_fence_actions_v2','cloud_fence_actions','cloud_fence_tickets','cloud_fence','cloud_fence_assertion'])await db.prepare('DROP TABLE IF EXISTS '+t).run();
  await db.batch((await statements('0001_fence.sql')).map(s=>db.prepare(s)));
 };
 before(async()=>{
@@ -39,5 +39,26 @@ test('control upgrade rolls back for an open gate, pending request, unknown acti
   assert.deepEqual((await db.prepare('SELECT rowid,* FROM cloud_fence_actions').all()).results,before);
   assert.equal((await db.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='cloud_fence_actions_v2'").first()).n,0);
   assert.equal((await db.prepare("SELECT COUNT(*) n FROM pragma_table_info('cloud_fence_actions') WHERE name='resource_id'").first()).n,0);
+ }
+});
+
+const upgradeBudget=async()=>db.batch((await statements('0003_budgets.sql')).map(s=>db.prepare(s)));
+test('budget upgrade preserves closed authority and creates no implicit policy',async()=>{
+ await seed();await upgrade();await upgradeBudget();
+ assert.equal((await db.prepare("SELECT state FROM cloud_fence WHERE resource_id='resource'").first()).state,'HELD');
+ assert.equal((await db.prepare('SELECT COUNT(*) n FROM cloud_budget').first()).n,0);
+ assert.equal((await db.prepare("SELECT COUNT(*) n FROM pragma_table_info('cloud_fence_tickets') WHERE name LIKE 'budget_%'").first()).n,3);
+});
+test('budget upgrade rolls back all schema changes for open, draining, pending or unknown authority',async()=>{
+ for(const mutation of [
+  "UPDATE cloud_fence SET state='OPEN',maintenance_id=NULL,next_generation=NULL",
+  "UPDATE cloud_fence SET state='DRAINING'",
+  "INSERT INTO cloud_fence_tickets VALUES('request','resource',0)",
+  "INSERT INTO cloud_fence_actions VALUES('resource','maintenance','unknown','apply','RUNNING',NULL)"
+ ]){
+  await legacy();await seed();await upgrade();await db.prepare(mutation).run();
+  await assert.rejects(upgradeBudget(),/CHECK constraint failed/);
+  assert.equal((await db.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='cloud_budget'").first()).n,0);
+  assert.equal((await db.prepare("SELECT COUNT(*) n FROM pragma_table_info('cloud_fence_tickets') WHERE name LIKE 'budget_%'").first()).n,0);
  }
 });

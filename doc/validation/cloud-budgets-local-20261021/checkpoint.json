@@ -1,0 +1,18 @@
+{
+  "typecheck": "PASS",
+  "backend": {
+    "passed": 358,
+    "failed": 0,
+    "skipped": 0
+  },
+  "final_growth_allowance_review": {
+    "passed": 20,
+    "failed": 0,
+    "skipped": 0
+  },
+  "deployed": false,
+  "logs": {
+    "backend.log": "b604dc58ae43031fd5c83cc9617fd2bd269b62e53bfe1781dcc12ec30526fc6d",
+    "growth-review.log": "0a742ca61287a2c6c60e7c7f9552543ddd91e630f215c5497b3f8e360477d372"
+  }
+}

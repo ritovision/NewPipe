@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {before,after,beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
+import {seedBudget} from './budget-fixture.mjs';
 import {readFile,readdir,mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
@@ -58,7 +59,7 @@ before(async()=>{
  }
  mf=await runtime();await mf.ready;
  const controlDb=await mf.getD1Database('CONTROL');
- const fenceSchema=(await Promise.all(['0001_fence.sql','0002_reopen.sql'].map(f=>readFile(new URL('../control-migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ const fenceSchema=(await Promise.all(['0001_fence.sql','0002_reopen.sql','0003_budgets.sql'].map(f=>readFile(new URL('../control-migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
  await controlDb.batch(fenceSchema.map(s=>controlDb.prepare(s)));
  await controlDb.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,created_at) VALUES('test-resource','test-db','test-bucket','library-a','service-a','fresh-resources-v1','OPEN',0)").run();
 
@@ -67,6 +68,7 @@ before(async()=>{
 });
 after(async()=>{if(mf)await mf.dispose();if(persistence)await rm(persistence,{recursive:true,force:true});});
 beforeEach(async()=>{
+ await seedBudget(await mf.getD1Database('CONTROL'),'test-resource');
  await controls({options:{},fault:null,resetStats:true});
  await sql('DELETE FROM cloud_replace_attempts','DELETE FROM cloud_replace_approvals','DELETE FROM cloud_replace_grants','DELETE FROM cloud_backup_control','DELETE FROM cloud_upload_changes','DELETE FROM cloud_upload_chunks','DELETE FROM cloud_uploads','DELETE FROM cloud_catalog_pages',
   'DELETE FROM cloud_receipts','DELETE FROM cloud_catalog_info','DELETE FROM cloud_devices','DELETE FROM cloud_head','DELETE FROM cloud_commit_assertion');
@@ -185,7 +187,7 @@ test('read-only token downloads but cannot upload, retire or claim write capabil
 for(const [label,token]of [['missing',''],['invalid','not-a-token'],['wrong secret','device-a.'+'0'.repeat(64)],['wrong device','other.'+'1'.repeat(64)]])
  test(`reject ${label} credential without returning private data`,async()=>{const r=await call('/v1/connect',{},token);assert.equal(r.status,401);assert.equal(r.data.head,undefined);assert.equal(r.headers.get('cache-control'),'no-store, private');});
 test('service generation reset invalidates all old device credentials',async()=>{
- await controls({options:{SERVICE_GENERATION:'service-new'}});assert.equal((await call('/v1/connect')).status,401);assert.equal(await rows('cloud_receipts'),0);
+ await controls({options:{SERVICE_GENERATION:'service-new'}});assert.equal((await call('/v1/connect')).status,503);assert.equal(await rows('cloud_receipts'),0);
 });
 test('disabled service, origins, methods, SQL routes and browser cross-origin requests fail closed',async()=>{
  await controls({options:{ENABLE_CATALOG_API:'false'}});failure(await call('/v1/connect'),'CLOUD_API_DISABLED');await controls({options:{}});
@@ -218,6 +220,7 @@ test('paging is fenced to one exact head and detects mid-download changes',async
  assert.equal((await download(tokens.b)).catalog.library.length,1299);
 });
 test('one video deletion updates a few packed rows, not every playlist occurrence row',async()=>{
+ await controls({options:{MAX_CATALOG_BYTES:String(32*1024*1024),MAX_CATALOG_PAGES:'2048'}});
  const keys=Array.from({length:1000},(_,i)=>({service:0,url:'https://example.test/'+i}));
  const base={...catalog('empty'),library:keys,playlists:Array.from({length:5},(_,i)=>({id:`30000000-0000-0000-0000-${String(i+1).padStart(12,'0')}`,name:'P'+i,artwork:null,items:keys}))};
  const u=await stage(base);await publish(u);await controls({resetStats:true});
@@ -251,6 +254,7 @@ test('publication constraint failure rolls back payload, metadata and receipt to
  await publish(u);
 });
 test('large catalog initializes then globally removes all saved items without row-per-membership writes',async()=>{
+ await controls({options:{MAX_CATALOG_BYTES:String(32*1024*1024),MAX_CATALOG_PAGES:'2048'}});
  const started=performance.now(),keys=Array.from({length:20000},(_,i)=>({service:0,url:'https://example.test/scale/'+i}));
  const tag={id:'20000000-0000-0000-0000-000000000001',name:'Scale',nameKey:'scale',category:null};
  const c={...catalog('empty'),library:keys,tags:[tag],assignments:keys.map(key=>({key,tags:[tag.id]})),
@@ -344,4 +348,14 @@ test('revocation during post-batch resolution does not claim the request failed 
  const u=await stage(catalog('base'));await controls({fault:'revokeBeforeCommit'});
  const r=await call('/v1/uploads/publish',u.ref);assert.equal(r.status,503);assert.equal(r.data.error,'AUTH_REJECTED');assert.equal(r.data.outcome,'unknown');
  assert.equal(await rows('cloud_catalog_pages'),0);
+});
+
+test('oversized legacy sealed stages refuse publication and retirement before deleting child rows',async()=>{
+ const u=await stage(catalog('base'));
+ await sql("WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<257) INSERT INTO cloud_upload_chunks(library_id,device_id,sequence,chunk_index,digest) SELECT 'library-a','device-a',1,10000+x,'legacy' FROM n");
+ const count=await rows('cloud_upload_chunks'),before=(await status()).head;
+ failure(await call('/v1/uploads/publish',u.ref));
+ failure(await call('/v1/uploads/retire',u.ref));
+ assert.equal(await rows('cloud_upload_chunks'),count);assert.equal(await rows('cloud_receipts'),0);
+ assert.deepEqual((await status()).head,before);
 });

@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {before,after,beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
+import {seedBudget} from './budget-fixture.mjs';
 import {readFile} from 'node:fs/promises';
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
+import {scheduledHousekeeping} from '../src/housekeeping-schedule.ts';
 import {housekeep,HOUSEKEEPING} from '../src/housekeeping.ts';
 import {admit} from '../src/fence.ts';
 import {closeFence,fenceState} from '../src/maintenance.ts';
@@ -19,12 +21,13 @@ before(async()=>{
  mf=new Miniflare(convertV4MiniflareOptions({cf:false,modules:true,script:'export default {fetch(){return new Response("housekeeping")}}',compatibilityDate:'2026-08-25',d1Databases:{DB:'housekeeping',CONTROL:'housekeeping-control'}}));
  await mf.ready;db=await mf.getD1Database('DB');control=await mf.getD1Database('CONTROL');
  for(const file of ['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql','0004_operator_receipts.sql','0005_reopen_receipts.sql','0006_housekeeping.sql'])await db.batch((await ddl('../migrations/'+file)).map(s=>db.prepare(s)));
- for(const file of ['0001_fence.sql','0002_reopen.sql'])await control.batch((await ddl('../control-migrations/'+file)).map(s=>control.prepare(s)));
+ for(const file of ['0001_fence.sql','0002_reopen.sql','0003_budgets.sql'])await control.batch((await ddl('../control-migrations/'+file)).map(s=>control.prepare(s)));
 });
 after(async()=>{await mf?.dispose();});
 beforeEach(async()=>{
- for(const t of ['cloud_fence_actions','cloud_fence_tickets','cloud_fence','cloud_fence_assertion'])await control.prepare('DELETE FROM '+t).run();
+ for(const t of ['cloud_fence_actions','cloud_fence_tickets','cloud_budget_maintenance','cloud_budget','cloud_fence','cloud_fence_assertion'])await control.prepare('DELETE FROM '+t).run();
  await control.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,created_at) VALUES('resource','db','bucket','library','service','fresh-resources-v1','OPEN',0)").run();
+ await seedBudget(control,'resource');
  for(const t of ['cloud_receipt_retention','cloud_housekeeping_cursor','cloud_replace_attempts','cloud_replace_approvals','cloud_replace_grants','cloud_backup_slots','cloud_backup_operations','cloud_backup_approvals','cloud_backup_control','cloud_upload_changes','cloud_upload_chunks','cloud_uploads','cloud_receipts','cloud_catalog_pages','cloud_catalog_info','cloud_devices','cloud_head','cloud_commit_assertion'])await db.prepare('DELETE FROM '+t).run();
  await db.batch([
   db.prepare("INSERT INTO cloud_head VALUES('library','epoch',0,0,?)").bind(fp),
@@ -151,4 +154,11 @@ test('large receipt history remains bounded by indexed prefix and deletion limit
  assert.equal((await run(measured)).receiptsRemoved,64);
  assert.ok(stats.rowsRead>0&&stats.rowsRead<2048,JSON.stringify(stats));assert.ok(stats.rowsWritten<512,JSON.stringify(stats));
  t.diagnostic(JSON.stringify(stats));
+});
+
+test('enabled scheduler uses bounded ordinary admission, leaves archives alone and settles its daily reservation',async()=>{
+ await staged();
+ const result=await scheduledHousekeeping({ENABLE_HOUSEKEEPING:'true',DB:db,CONTROL:control,FENCE_RESOURCE:'resource',LIBRARY_ID:'library',SERVICE_GENERATION:'service'});
+ assert.equal(result.retired,1);assert.ok(result.inspected<=2);
+ const budget=await control.prepare('SELECT * FROM cloud_budget').first();assert.equal(budget.held_reads,0);assert.ok(budget.spent_writes>32);
 });

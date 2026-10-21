@@ -5,7 +5,8 @@ import {canonical,seal,fail,OperatorError,validateScope,authorityBlockers,fenceB
 import {recoveryStore} from './adapters.mjs';
 import {executeReopen,finishReopen} from './reopen.mjs';
 import {cloudflareClient} from './cloudflare.mjs';
-import {admit,FenceError} from '../src/fence.ts';
+import {BudgetError,requestEstimate} from '../src/budget.ts';
+import {admit,admitMaintenanceBudget,admitControlBudget,FenceError} from '../src/fence.ts';
 import {housekeep} from '../src/housekeeping.ts';
 import {fenceState,closeFence,requireHeld,claimAction,finishAction} from '../src/maintenance.ts';
 import {RecoveryError} from '../src/recovery-format.ts';
@@ -52,7 +53,7 @@ export async function applyPlan(env,plan,actualAuthority,store){
   await verifyPlan({store,db:query(env.DB),authority:async()=>actualAuthority,
    fence:()=>fenceState(env.CONTROL,scope.fence.resource)},plan);
  } catch(e) {
-  if(e instanceof OperatorError||e instanceof RecoveryError||e instanceof FenceError)throw e;
+  if(e instanceof OperatorError||e instanceof RecoveryError||e instanceof FenceError||e instanceof BudgetError)throw e;
   // Only runtime frame locations, never exception text, plan data or credentials.
   console.error(JSON.stringify({phase:'reinspect',type:['TypeError','ReferenceError','TimeoutError','AccessDenied','SignatureDoesNotMatch'].includes(e?.name)?e.name:'StorageError',
    frames:typeof e?.stack==='string'?e.stack.split('\n').slice(1,4).filter(line=>/^\s+at /.test(line)):[]}));
@@ -70,7 +71,7 @@ export async function applyPlan(env,plan,actualAuthority,store){
  return {state:'DONE',result};
 }
 export default {async fetch(request,env){
- let phase='authenticate';
+ let phase='authenticate',budget;
  try{
   const url=new URL(request.url),auth=request.headers.get('authorization')??'',expected='Bearer '+(env.OPERATOR_TOKEN??'');
   if(!env.OPERATOR_TOKEN||auth.length!==expected.length||!timingSafeEqual(Buffer.from(auth),Buffer.from(expected)))return response({error:'AUTH_REJECTED'},403);
@@ -78,18 +79,24 @@ export default {async fetch(request,env){
     request.headers.get('content-type')!=='application/json')fail('OPERATOR_REQUEST_REJECTED');
   const input=await body(request),scope=validateScope(input.scope??input.plan?.body?.scope),configured=validateScope(JSON.parse(env.SCOPE));
   if(!scope.fence||canonical(scope)!==canonical(configured)||env.FENCE_RESOURCE!==scope.fence.resource)fail('OPERATOR_SCOPE_MISMATCH');
-  if(url.pathname==='/maintenance/state')return response(await fenceState(env.CONTROL,scope.fence.resource));
-  if(url.pathname==='/maintenance/close')return response(await closeFence(env.CONTROL,scope.fence.resource,input.maintenance,scope.generation));
+  if(url.pathname==='/maintenance/state'||url.pathname==='/maintenance/close'){
+   budget=await admitControlBudget(env.CONTROL,{resource:scope.fence.resource,library:scope.library,generation:scope.generation});
+   const control=budget.database(env.CONTROL,false);
+   return response(url.pathname==='/maintenance/state'?await fenceState(control,scope.fence.resource):
+    await closeFence(control,scope.fence.resource,input.maintenance,scope.generation));
+  }
   phase='authority';
   const client=cloudflareClient(scope,input.cloudflareToken);
   const authority=await client.authority();
   if(authorityBlockers(authority,scope,url.pathname!=='/maintenance/housekeep').length)fail('LIVE_AUTHORITY_BLOCKED');
   if(url.pathname==='/maintenance/housekeep'){
    phase='housekeeping';
-   const ticket=await admit(env.CONTROL,{resource:scope.fence.resource,library:scope.library,generation:scope.generation});
-   try{return response(await housekeep(ticket.database(env.DB),scope.library,scope.generation,input.limits??{}));}
+   const ticket=await admit(env.CONTROL,{resource:scope.fence.resource,library:scope.library,generation:scope.generation},requestEstimate(url.pathname));
+   try{return response(await housekeep(ticket.database(env.DB),scope.library,scope.generation,{...input.limits,devices:Math.min(input.limits?.devices??2,2)}));}
    finally{await ticket.finish();}
   }
+  budget=await admitMaintenanceBudget(env.CONTROL,{resource:scope.fence.resource,library:scope.library,generation:scope.generation});
+  env={...env,DB:budget.database(env.DB),CONTROL:budget.database(env.CONTROL,false),RECOVERY:budget.bucket(env.RECOVERY)};
   if(url.pathname==='/recovery/apply'){
    phase='s3-client';const store=recoveryStore(scope,input.r2Credentials);
    phase='apply';return response(await applyPlan(env,input.plan,authority,store));
@@ -112,7 +119,7 @@ export default {async fetch(request,env){
    const prior=await existing(env,scope,f.maintenance_id,id,'restore');if(prior)return response({...prior,action:id});
    if(input.maintenance!==f.maintenance_id||input.revision!==f.revision)fail('STALE_MAINTENANCE_INTENT');
    requireHeld(f);await claimAction(env.CONTROL,f,id,'restore');
-   const result=await client.restore(input.bookmark);
+   const result=await budget.effect(()=>client.restore(input.bookmark));
    if(!bookmarkPattern.test(result.bookmark)||!bookmarkPattern.test(result.previous_bookmark))fail('RESTORE_OUTCOME_UNKNOWN');
    await finishAction(env.CONTROL,f.maintenance_id,id,result);return response({state:'DONE',action:id,result});
   }
@@ -130,9 +137,9 @@ export default {async fetch(request,env){
   }
   fail('NOT_FOUND');
  }catch(e){
-  if(!(e instanceof OperatorError||e instanceof RecoveryError||e instanceof FenceError))console.error(JSON.stringify({phase,
+  if(!(e instanceof OperatorError||e instanceof RecoveryError||e instanceof FenceError||e instanceof BudgetError))console.error(JSON.stringify({phase,
    type:['TypeError','ReferenceError','TimeoutError'].includes(e?.name)?e.name:'StorageError',
    frames:typeof e?.stack==='string'?e.stack.split('\n').slice(1,4).filter(line=>/^\s+at /.test(line)):[]}));
-  return response({error:e instanceof OperatorError||e instanceof RecoveryError||e instanceof FenceError?e.code:'OPERATOR_OUTCOME_UNKNOWN'},503);
- }
+  return response({error:e instanceof OperatorError||e instanceof RecoveryError||e instanceof FenceError||e instanceof BudgetError?e.code:'OPERATOR_OUTCOME_UNKNOWN'},503);
+ }finally{await budget?.finish();}
 }};

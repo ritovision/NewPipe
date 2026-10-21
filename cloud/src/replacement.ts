@@ -36,8 +36,10 @@ export class ReplacementService {
   }
   private async attempt(raw: unknown) {
     const id = uuid(raw);
-    await this.catalog.status();
-    const a = await this.own();
+    // Authenticate the attempt in one indexed snapshot; the final publication
+    // transaction independently rechecks the grant, head, expiry and archive.
+    const a = await this.db.prepare("SELECT r.*,CAST(r.recovery_sequence AS TEXT) AS recovery_sequence FROM cloud_replace_attempts r JOIN cloud_devices d ON d.library_id=r.library_id AND d.device_id=r.device_id JOIN cloud_head h ON h.library_id=d.library_id WHERE " + AUTH)
+      .bind(...args(this.context)).first<ReplacementAttempt>();
     if (!a || a.attempt_id !== id) fail("REPLACEMENT_RESULT_EXPIRED", 410);
     return a;
   }

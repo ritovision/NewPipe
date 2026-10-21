@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {before,after,beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
+import {seedBudget} from './budget-fixture.mjs';
 import {readFile,mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -62,7 +63,7 @@ before(async()=>{
     const parts=(await readFile(new URL('../migrations/'+file,import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(x=>x.trim()).filter(Boolean);
     await db.batch(parts.map(s=>db.prepare(s)));
   }
- const schema=(await Promise.all(['0001_fence.sql','0002_reopen.sql'].map(f=>readFile(new URL('../control-migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ const schema=(await Promise.all(['0001_fence.sql','0002_reopen.sql','0003_budgets.sql'].map(f=>readFile(new URL('../control-migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
  await control.batch(schema.map(s=>control.prepare(s)));
 
 });
@@ -70,7 +71,7 @@ after(async()=>{await mf?.dispose();if(persistence)await rm(persistence,{recursi
 beforeEach(async()=>{
  await db.prepare('DELETE FROM cloud_receipt_retention').run();
  await db.prepare('DELETE FROM cloud_housekeeping_cursor').run();
- for(const t of ['cloud_fence_actions','cloud_fence_tickets','cloud_fence','cloud_fence_assertion'])await control.prepare('DELETE FROM '+t).run();
+ for(const t of ['cloud_fence_actions','cloud_fence_tickets','cloud_budget_maintenance','cloud_budget','cloud_fence','cloud_fence_assertion'])await control.prepare('DELETE FROM '+t).run();
  await db.prepare('DELETE FROM cloud_reopen_receipts').run();
  await db.prepare('DELETE FROM cloud_operator_receipts').run();
   for(const o of (await r2.list()).objects)await r2.delete(o.key);
@@ -235,6 +236,7 @@ const fencedAuthority=()=>({...authority(),control:fencedScope.fence.control,
 async function fencedPlan(){
  await control.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,maintenance_id,next_generation,created_at,revision) VALUES(?,?,?,?,?,'fresh-resources-v1','HELD',?,?,0,2)")
   .bind(fencedScope.fence.resource,scope.database,scope.bucket,scope.library,'old-service',maintenance,scope.generation).run();
+ await seedBudget(control,fencedScope.fence.resource);
  return makePlan({...adapters(),authority:async()=>fencedAuthority(),fence:()=>fenceState(control,fencedScope.fence.resource)},fencedScope);
 }
 const apply=(p,database=db)=>applyPlan({DB:database,CONTROL:control,RECOVERY:r2},p,fencedAuthority(),store);
@@ -450,10 +452,10 @@ test('reopen refuses corrupt catalog, active old credentials, incorrect index an
 test('authenticated housekeeping uses ordinary admission and cannot mutate a HELD generation',async()=>{
  const {plan}=await recoveredFixture();
  const before=await snapshot(adapters().db,scope.library);
- const closed=await operatorHttp('/maintenance/housekeep',{});assert.equal(closed.status,503);assert.equal((await closed.json()).error,'MAINTENANCE_REQUIRED');
+ const closed=await operatorHttp('/maintenance/housekeep',{});assert.equal(closed.status,503);assert.equal((await closed.json()).error,'BUDGET_OR_MAINTENANCE_UNAVAILABLE');
  assert.deepEqual(await snapshot(adapters().db,scope.library),before);
  await reopen(plan);
- const result=await operatorHttp('/maintenance/housekeep',{});assert.equal(result.status,200);assert.equal((await result.json()).inspected,4);
+ const result=await operatorHttp('/maintenance/housekeep',{});assert.equal(result.status,200);assert.equal((await result.json()).inspected,2);
  const fence=await fenceState(control,fencedScope.fence.resource);assert.equal(fence.state,'OPEN');assert.equal(fence.pending,0);
 });
 test('only housekeeping may inspect enabled application authority',()=>{
@@ -474,4 +476,22 @@ test('competing reopen plans have one winner and later maintenance cannot reuse 
  assert.equal((await closeFence(control,fencedScope.fence.resource,next,nextGeneration)).state,'HELD');
  const winner=results[0].status==='fulfilled'?plan:other;
  assert.equal((await reopen(winner)).state,'SUPERSEDED');
+});
+
+test('bounded snapshots and rebuild estimates reject oversized retained operator state before a write claim',async()=>{
+ await db.prepare("WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<2049) INSERT INTO cloud_receipts(library_id,device_id,sequence,digest,outcome,epoch,revision,head_counter,fingerprint) SELECT 'library-a','device-a',x,'digest','RETIRED','epoch',0,0,'fingerprint' FROM n").run();
+ await assert.rejects(snapshot(adapters().db,scope.library),/SNAPSHOT_ROW_LIMIT/);
+ await db.prepare('DELETE FROM cloud_receipts').run();
+ const plan=await makePlan(adapters(),scope),copy=structuredClone(plan);
+ const devices=copy.body.snapshot.find(s=>s.table==='cloud_devices');
+ devices.state=JSON.stringify(Array.from({length:1000},()=>JSON.parse(devices.state)[0]));copy.digest=seal(copy.body);
+ assert.throws(()=>rebuildBatch(copy),/OPERATOR_WRITE_BOUND_EXCEEDED/);
+ assert.equal((await control.prepare("SELECT COUNT(*) n FROM cloud_fence_actions WHERE state='RUNNING'").first()).n,0);
+});
+
+test('a DATA rewind missing housekeeping bounds cannot prepare fenced recovery or reopening',async()=>{
+ await db.prepare('ALTER TABLE cloud_housekeeping_cursor RENAME TO hidden_cursor').run();
+ try{await assert.rejects(fencedPlan(),/RECOVERY_SCHEMA_MISSING/);}
+ finally{await db.prepare('ALTER TABLE hidden_cursor RENAME TO cloud_housekeeping_cursor').run();}
+ assert.equal((await control.prepare("SELECT COUNT(*) n FROM cloud_fence_actions WHERE state='RUNNING'").first()).n,0);
 });

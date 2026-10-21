@@ -4,29 +4,34 @@
  * effect has a definite response. No timeout, lease expiry, or restarted process
  * may remove a ticket: an unknown write can still arrive at its storage service.
  */
+import { BudgetReservation, reserveBudget, requestEstimate, type BudgetEstimate } from "./budget.ts";
 export class FenceError extends Error {
   readonly code: string;
   constructor(code: string) { super(code); this.code = code; }
 }
 type Scope = { resource: string; library: string; generation: string };
 const rejected = (): never => { throw new FenceError("MAINTENANCE_REQUIRED"); };
-export async function admit(control: D1Database | undefined, scope: Scope): Promise<RequestFence> {
+export async function admit(control: D1Database | undefined, scope: Scope, estimate: BudgetEstimate = requestEstimate("/v1/uploads/publish")): Promise<RequestFence> {
   if (!control || !scope.resource) return rejected();
-  const id = crypto.randomUUID();
-  const r = await control.prepare("INSERT INTO cloud_fence_tickets(ticket_id,resource_id,created_at) SELECT ?,resource_id,CAST(unixepoch('subsec')*1000 AS INTEGER) FROM cloud_fence WHERE resource_id=? AND library_id=? AND service_generation=? AND state='OPEN' AND provenance='fresh-resources-v1' RETURNING ticket_id")
-    .bind(id, scope.resource, scope.library, scope.generation).all<{ ticket_id: string }>();
-  if (r.results.length !== 1 || r.results[0]?.ticket_id !== id) return rejected();
-  return new RequestFence(control, id);
+  return new RequestFence(await reserveBudget(control, scope, estimate));
+}
+/** Authenticated operator budget only; does not claim or relax maintenance authority. */
+export async function admitMaintenanceBudget(control: D1Database, scope: Scope): Promise<RequestFence> {
+  return new RequestFence(await reserveBudget(control, scope, { reads: 200000, writes: 5000, growth: 2 * 1024 * 1024 }, "operator"));
+}
+/** Limited to operator status/close; policy is required even for emergency control. */
+export async function admitControlBudget(control: D1Database, scope: Scope): Promise<RequestFence> {
+  return new RequestFence(await reserveBudget(control, scope, { reads: 200000, writes: 128, growth: 0 }, "control"));
 }
 export class RequestFence {
   private closed = false;
   private uncertain = false;
   private pending = 0;
-  private readonly control: D1Database;
-  private readonly id: string;
-  constructor(control: D1Database, id: string) { this.control = control; this.id = id; }
+  private readonly budget: BudgetReservation;
+  constructor(budget: BudgetReservation) { this.budget = budget; }
   private async call<T>(run: () => Promise<T>, mutation: boolean, transactional = false): Promise<T> {
     if (this.closed) return rejected();
+    this.budget.ready();
     this.pending++;
     try { return await run(); }
     catch (e) {
@@ -38,14 +43,31 @@ export class RequestFence {
       throw e;
     } finally { this.pending--; }
   }
-  database(db: D1Database): D1Database {
+  private async sql<T>(run: () => Promise<T>, count: number, mutation: boolean, data: boolean): Promise<T> {
+    if (this.closed) return rejected();
+    this.budget.before(count);
+    return this.call(async () => {
+      let result: T;
+      try { result = await run(); }
+      catch (e) { this.budget.unmetered(); throw e; }
+      try { this.budget.observe(Array.isArray(result) ? result : [result], data); }
+      catch (e) { await this.budget.trip(); throw e; }
+      return result;
+    }, mutation, true);
+  }
+
+  database(db: D1Database, data = true): D1Database {
     const raw = new WeakMap<D1PreparedStatement, { statement: D1PreparedStatement; read: boolean }>();
     const wrap = (statement: D1PreparedStatement, read: boolean): D1PreparedStatement => {
       const result = new Proxy(statement, { get: (target, name) => {
         if (name === "bind") return (...args: unknown[]) => wrap(target.bind(...args), read);
-        if (["all", "first", "raw", "run"].includes(String(name))) return (...args: unknown[]) =>
-          this.call(() => (target[name as keyof D1PreparedStatement] as Function).apply(target, args), !read, true);
-        // Do not expose unwrapped capabilities when D1 grows a new method.
+        if (name === "first") return async (column?: string) => {
+          const r = await this.sql(() => target.all(), 1, !read, data), row = r.results[0] ?? null;
+          if (row && column !== undefined && !Object.hasOwn(row, column)) throw new Error("D1_ERROR: column not found");
+          return column === undefined ? row : row?.[column] ?? null;
+        };
+        if (name === "all" || name === "run") return () => this.sql(() => target[name](), 1, !read, data);
+        // raw/exec/session and future methods cannot bypass metadata or admission.
         return undefined;
       }});
       raw.set(result, { statement, read }); return result;
@@ -54,7 +76,7 @@ export class RequestFence {
       if (name === "prepare") return (sql: string) => wrap(target.prepare(sql), /^\s*SELECT\s/i.test(sql));
       if (name === "batch") return (statements: D1PreparedStatement[]) => {
         const parts = statements.map(s => { const p = raw.get(s); if (!p) return rejected(); return p; });
-        return this.call(() => target.batch(parts.map(p => p.statement)), parts.some(p => !p.read), true);
+        return this.sql(() => target.batch(parts.map(p => p.statement)), parts.length, parts.some(p => !p.read), data);
       };
       return undefined;
     }});
@@ -81,12 +103,16 @@ export class RequestFence {
     }});
   }
   async finish(): Promise<void> {
-    // Disable captured capabilities before checking pending calls. Detached work
-    // either remains covered by its ticket or cannot start another storage call.
+    // A finish call closes all captured capabilities before inspecting effects.
+    if (this.closed) return;
     this.closed = true;
     if (this.uncertain || this.pending !== 0) return;
-    try {
-      await this.control.prepare("DELETE FROM cloud_fence_tickets WHERE ticket_id=?").bind(this.id).run();
-    } catch { /* Safe leak: a missing acknowledgement never authorizes recovery. */ }
+    await this.budget.settle();
   }
+  /** Provider writes such as Time Travel have no D1 result metadata. */
+  async effect<T>(run: () => Promise<T>): Promise<T> {
+    this.budget.unmetered();
+    return this.call(run, true);
+  }
+  usage() { return this.budget.summary(); }
 }

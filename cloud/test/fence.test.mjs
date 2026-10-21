@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {before,after,beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
+import {seedBudget} from './budget-fixture.mjs';
 import {readFile} from 'node:fs/promises';
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
 import {admit} from '../src/fence.ts';
@@ -14,14 +15,15 @@ before(async()=>{
  mf=new Miniflare(convertV4MiniflareOptions({cf:false,modules:true,script:'export default {fetch(){return new Response("fence tests")}}',
   compatibilityDate:'2026-08-25',d1Databases:{DB:'data',CONTROL:'control'},r2Buckets:{RECOVERY:'fence-bucket'}}));
  await mf.ready;db=await mf.getD1Database('DB');control=await mf.getD1Database('CONTROL');r2=await mf.getR2Bucket('RECOVERY');
- const schema=(await Promise.all(['0001_fence.sql','0002_reopen.sql'].map(f=>readFile(new URL('../control-migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ const schema=(await Promise.all(['0001_fence.sql','0002_reopen.sql','0003_budgets.sql'].map(f=>readFile(new URL('../control-migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
  await control.batch(schema.map(s=>control.prepare(s)));
  await db.batch([db.prepare('CREATE TABLE sample(value INTEGER)'),db.prepare('CREATE TABLE cloud_commit_assertion(slot INTEGER PRIMARY KEY,ok INTEGER CHECK(ok = 1))')]);
 });
 after(async()=>{await mf?.dispose();});
 beforeEach(async()=>{
- for(const table of ['cloud_fence_actions','cloud_fence_tickets','cloud_fence','cloud_fence_assertion'])await control.prepare('DELETE FROM '+table).run();
+ for(const table of ['cloud_fence_actions','cloud_fence_tickets','cloud_budget_maintenance','cloud_budget','cloud_fence','cloud_fence_assertion'])await control.prepare('DELETE FROM '+table).run();
  await control.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,created_at) VALUES('resource-a','data','bucket','library-a','old-generation','fresh-resources-v1','OPEN',0)").run();
+ await seedBudget(control,'resource-a');
  await db.prepare('DELETE FROM sample').run();
  for(const o of (await r2.list()).objects)await r2.delete(o.key);
 });

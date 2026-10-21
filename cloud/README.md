@@ -2,7 +2,7 @@
 
 **Implemented:** typed Worker/D1 catalog publication, packed-page transfer, native Room/tag catalog capture, journaled native apply and recovery, stable identity mapping, exact diffs and sparse ordering. Android includes encrypted credentials, connection/settings controls, exact-candidate previews, verified local safety backups, durable upload recovery and foreground/WorkManager scheduling.
 
-**Not release-ready:** protected cloud replacement and operator disaster recovery have passed small synthetic live checkpoints. The [operator and recovery runbook](../doc/architecture/cloud-operator-recovery.md) uses a separate, non-expiring maintenance barrier, authenticated execution and transactional receipts. [Fenced recovery evidence](../doc/validation/cloud-fence-20261020/README.md) covers real index loss, D1 Time Travel and rebuilding all three archives on newly provisioned isolated resources. Legacy resource pairs remain inspection-only. [Guarded reopening](../doc/validation/cloud-reopen-20261021/README.md) now verifies recovery and issues fresh device credentials before opening the external fence; Android recovery reconnection is implemented; its native runtime validation remains a release gate. Explicit three-slot R2 backup, rotation and Android restore now exist; see [executed recovery evidence](../doc/validation/cloud-recovery-20261020/README.md). Integration, failure, UI and scale acceptance must be tied to the specific tested candidate. The checked-in Worker configuration is API-disabled and restricted to small synthetic deployment tests. Existing Music/AI infrastructure is not part of this service.
+**Not release-ready:** protected cloud replacement and operator disaster recovery have passed small synthetic live checkpoints. The [operator and recovery runbook](../doc/architecture/cloud-operator-recovery.md) uses a separate, non-expiring maintenance barrier, authenticated execution and transactional receipts. [Fenced recovery evidence](../doc/validation/cloud-fence-20261020/README.md) covers real index loss, D1 Time Travel and rebuilding all three archives on newly provisioned isolated resources. Legacy resource pairs remain inspection-only. [Guarded reopening](../doc/validation/cloud-reopen-20261021/README.md) now verifies recovery and issues fresh device credentials before opening the external fence; Android recovery reconnection has passed 34 executed controller tests and five real process-kill/restart checks; see [runtime evidence](../doc/validation/cloud-reconnect-process-death-20261021/README.md). Explicit three-slot R2 backup, rotation and Android restore now exist; see [executed recovery evidence](../doc/validation/cloud-recovery-20261020/README.md). Integration, failure, UI and scale acceptance must be tied to the specific tested candidate. The checked-in Worker configuration is API-disabled and restricted to small synthetic deployment tests. Existing Music/AI infrastructure is not part of this service.
 
 ## Backend
 
@@ -22,6 +22,12 @@ npm test
 ```
 
 The D1 tests execute real local workerd bindings via Miniflare, not a hand-written database mock. The 20k-stream / 100k-membership scale fixture is local-only; it is not deployed Free-tier CPU, quota or production latency acceptance. Fixtures use synthetic example.test metadata.
+
+## Daily budgets and housekeeping
+
+[Budget and cleanup design/runbook](../doc/architecture/cloud-budgets-v1.md) documents external CONTROL reservations, UTC rollover, indexed row metering, statement and size admission, operator accounting, and the bounded cleanup cursor. Public token lookup is admitted and metered. Unknown writes retain their request fences and reservations without expiry. Missing budget schema or policy refuses requests.
+
+The scheduled cleanup handler requires both an explicit cron trigger and `ENABLE_HOUSEKEEPING=true`; generated configurations keep it disabled. `node operator/cli.mjs housekeep --scope /private/current-scope.json` runs one authenticated, budgeted pass only while the ordinary fence is OPEN. It never receives R2 authority. Existing QA requires transactional DATA 0006 / CONTROL 0003 upgrades, followed by explicit policy initialization; do not run the complete migration directories against raw-provisioned resources.
 
 ## Native capture, apply and recovery
 
@@ -57,7 +63,7 @@ python3 cloud/test-support/run-identity-process-death.py \
   --output /path/to/new-evidence-directory
 ```
 
-Suites: `apply-before-room`, `apply-after-room`, `apply-before-tags`, plus prior `identity` and `enrollment`. The first three exercise the actual native apply coordinator. They are not proof of cloud transport recovery or sudden power-loss durability. Without the explicit host driver, the probe test methods skip rather than fabricate coverage.
+Suites: `apply-before-room`, `apply-after-room`, `apply-before-tags`, `identity`, `enrollment`, and `reconnect-journal`, `reconnect-archived-outbox`, `reconnect-witness`, `reconnect-metadata`, `reconnect-connection`. The reconnection suites terminate and resume the encrypted transition at each durable boundary. The first three exercise the actual native apply coordinator. They are not proof of cloud transport recovery or sudden power-loss durability. Without the explicit host driver, the probe test methods skip rather than fabricate coverage.
 
 ## Deployment and live synthetic test
 
@@ -110,7 +116,7 @@ archive-per-sync behavior.
 
 ## Remaining release gates
 
-Native runtime validation of Android reconnection after recovery; production housekeeping for revoked/abandoned stages and receipt retention; durable daily-account resource budgets; actual deployed large-catalog CPU/latency admission; broader scheduling/offline/write-origin acceptance; broader UI/theme/rotation acceptance; actual multi-device end-to-end acceptance; independent whole-feature review and release authorization. Historical validation checkpoints under `doc/validation/` apply only to their exact commits and stated device/page sizes.
+Isolated live validation of daily project budgets and bounded housekeeping; actual deployed large-catalog CPU/latency admission; broader scheduling/offline/write-origin acceptance; broader UI/theme/rotation acceptance; actual multi-device end-to-end acceptance; independent whole-feature review and release authorization. Historical validation checkpoints under `doc/validation/` apply only to their exact commits and stated device/page sizes.
 
 ## Explicit recovery acceptance
 

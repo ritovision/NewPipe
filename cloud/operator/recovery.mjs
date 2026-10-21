@@ -131,10 +131,11 @@ export const TABLES = [
   'cloud_replace_approvals','cloud_replace_attempts'
 ];
 const quote = s => '"' + s.replaceAll('"','""') + '"';
-export async function snapshot(db, library) {
+export async function snapshot(db, library, requireHousekeeping = false) {
   const result = [];
   // One schema query keeps the operator invocation within the Free D1 query cap.
-  const schemas = await db.query('SELECT j.value AS table_name,p.* FROM json_each(?) j,pragma_table_info(j.value) p ORDER BY j.key,p.cid',[JSON.stringify(TABLES)]);
+  const required = requireHousekeeping ? " WHERE (SELECT COUNT(*) FROM sqlite_master WHERE name IN('cloud_receipt_retention','cloud_housekeeping_cursor','cloud_upload_active'))=3" : '';
+  const schemas = await db.query('SELECT j.value AS table_name,p.* FROM json_each(?) j,pragma_table_info(j.value) p'+required+' ORDER BY j.key,p.cid',[JSON.stringify(TABLES)]);
   for (const table of TABLES) {
     const schema = schemas.filter(x=>x.table_name===table);
     if (!schema.length || !schema.some(x=>x.name==='library_id')) fail('RECOVERY_SCHEMA_MISSING');
@@ -144,10 +145,11 @@ export async function snapshot(db, library) {
     if (!order) fail('RECOVERY_SCHEMA_CHANGED');
     const sql = 'SELECT json_group_array(json_array(' +
       columns.map(c=>'CAST('+quote(c)+' AS TEXT)').join(',') +
-      ')) AS state FROM (SELECT * FROM '+quote(table)+' WHERE library_id=? ORDER BY '+order+')';
+      ')) AS state FROM (SELECT * FROM '+quote(table)+' WHERE library_id=? ORDER BY '+order+' LIMIT 2049)';
     const rows = await db.query(sql,[library]);
     const state = rows[0]?.state;
     if (typeof state !== 'string' || Buffer.byteLength(state)>512*1024) fail('SNAPSHOT_LIMIT');
+    if (JSON.parse(state).length>2048) fail('SNAPSHOT_ROW_LIMIT');
     result.push({table,columns,sql,state});
   }
   return result;
@@ -177,7 +179,7 @@ export async function inspect({store,db,authority,fence}, scope) {
   const before = await authority(), fenceBefore=scope.fence&&fence?await fence():null;
   const physical = await inventory(store,scope), archives=[];
   for (const o of physical.objects) archives.push(await verifyArchive(store,scope,o));
-  const state = await snapshot(db,scope.library);
+  const state = await snapshot(db,scope.library,!!scope.fence);
   if (canonical(await inventory(store,scope)) !== canonical(physical)) fail('INVENTORY_CHANGED');
   const after = await authority();
   if (canonical(after)!==canonical(before)) fail('DEPLOYMENT_CHANGED');
@@ -212,6 +214,10 @@ export async function verifyPlan(adapters,plan) {
  * Legacy blocked plans are compiled only by the exclusively owned local tests. */
 export function rebuildBatch(plan) {
   if (!plan?.body || plan.digest!==seal(plan.body)) fail('PLAN_SEAL_MISMATCH');
+  const mutated=new Set(['cloud_devices','cloud_replace_grants','cloud_backup_approvals','cloud_replace_approvals',
+    'cloud_uploads','cloud_upload_chunks','cloud_upload_changes','cloud_backup_operations','cloud_replace_attempts','cloud_backup_slots']);
+  const rows=plan.body.snapshot.filter(s=>mutated.has(s.table)).reduce((n,s)=>n+JSON.parse(s.state).length,0);
+  if(rows*5+128>5000)fail('OPERATOR_WRITE_BOUND_EXCEEDED');
   const p=plan.body, library=p.scope.library;
   if (p.blockers.some(x=>x!=='STALE_WORKER_FENCE_UNAVAILABLE')) fail('PLAN_BLOCKED');
   const statement = (sql,...params)=>({sql,params}), batch=[];

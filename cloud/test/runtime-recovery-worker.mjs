@@ -70,6 +70,6 @@ export default {async fetch(request,env){
  }
  return handleRequest(request,{...env,FENCE_RESOURCE:'test-resource',DB:database(env.DB),RECOVERY:bucket(env.RECOVERY),
   PUBLIC_ORIGIN:'https://recovery.test',LIBRARY_ID:'library-a',SERVICE_GENERATION:'service-a',
-  ENABLE_CATALOG_API:'true',ENABLE_RECOVERY_API:'true',MAX_CATALOG_BYTES:String(32*1024*1024),MAX_CATALOG_PAGES:'2048',
+  ENABLE_CATALOG_API:'true',ENABLE_RECOVERY_API:'true',MAX_CATALOG_BYTES:String(512*1024),MAX_CATALOG_PAGES:'128',
   REQUEST_LIMITER:{limit:async()=>({success:true})},...options});
 }};

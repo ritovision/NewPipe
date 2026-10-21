@@ -164,9 +164,15 @@ export class CatalogService {
     const r = await this.resolve(sequence, digest); if (r) return { receipt: r };
     return this.view(await this.requireUpload(sequence, digest));
   }
+  private boundedStage(alias: "d" | "u"): string {
+    const limit = Math.min(TRANSPORT_LIMITS.changes, this.limits.maxPages * 2);
+    return ["cloud_upload_changes", "cloud_upload_chunks"].map(table =>
+      `(SELECT COUNT(*) FROM (SELECT 1 FROM ${table} c WHERE c.library_id=${alias}.library_id AND c.device_id=${alias}.device_id LIMIT ${limit + 1}))<=${limit}`
+    ).join(" AND ");
+  }
   async start(value: unknown, now = Date.now()) {
     const header = readStageHeader(value), c = this.context;
-    if (header.payloadBytes > this.limits.maxCatalogBytes || header.changeCount > this.limits.maxPages * 2) fail("TRANSFER_STORAGE_LIMIT", 413);
+    if (header.payloadBytes > this.limits.maxCatalogBytes || header.changeCount > this.limits.maxPages * 2 || header.chunkCount > header.changeCount) fail("TRANSFER_STORAGE_LIMIT", 413);
     const receipt = await this.resolve(header.sequence, header.digest); if (receipt) return { receipt };
     const status = await this.status();
     if (!sameHead(status.head, header.before)) fail("CLOUD_CHANGED");
@@ -185,7 +191,7 @@ export class CatalogService {
       AND (SELECT COUNT(*) FROM cloud_uploads u WHERE u.library_id=d.library_id AND u.status IN('UPLOADING','SEALED'))<?
       AND COALESCE((SELECT SUM(u.expected_bytes) FROM cloud_uploads u WHERE u.library_id=d.library_id AND u.status IN('UPLOADING','SEALED')),0)+?<=?`;
     try {
-      await this.writeBatch(condition + replacementCheck, [header.sequence, header.before.epoch, header.before.revision, header.before.headCounter,
+      await this.writeBatch(condition + replacementCheck + " AND " + this.boundedStage("d"), [header.sequence, header.before.epoch, header.before.revision, header.before.headCounter,
       header.before.fingerprint, Number(header.mode !== "initialize"), TRANSPORT_LIMITS.pendingDevices,
       header.payloadBytes, this.limits.maxCatalogBytes * TRANSPORT_LIMITS.pendingDevices, ...(header.mode === "replace" ? [encoded, now] : [])], [
       this.db.prepare("DELETE FROM cloud_uploads WHERE library_id=? AND device_id=?").bind(c.library, c.device),
@@ -245,7 +251,7 @@ export class CatalogService {
       this.db.prepare(STATUS).bind(...args(c)),
       this.db.prepare("SELECT page_id AS id,body FROM cloud_catalog_pages WHERE library_id=? ORDER BY page_id LIMIT ?").bind(c.library, this.limits.maxPages + 1),
       this.db.prepare("SELECT page_id AS id,body FROM cloud_upload_changes WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER) ORDER BY page_id LIMIT ?")
-        .bind(c.library, c.device, sequence, TRANSPORT_LIMITS.changes + 1)]);
+        .bind(c.library, c.device, sequence, Math.min(TRANSPORT_LIMITS.changes, this.limits.maxPages * 2) + 1)]);
     const statusRaw = result[0]!.results[0] as CatalogRow | undefined;
     if (!statusRaw) fail("AUTH_OR_LIBRARY_UNAVAILABLE", 401);
     const status = this.statusRow(statusRaw);
@@ -305,7 +311,7 @@ export class CatalogService {
     const predicate = `EXISTS(SELECT 1 FROM cloud_uploads u JOIN cloud_catalog_info i ON i.library_id=u.library_id
       WHERE u.library_id=? AND u.device_id=? AND u.sequence=CAST(? AS INTEGER) AND u.digest=? AND u.status='SEALED'
       AND u.expires_at>? AND u.verified_pages IS NOT NULL AND u.verified_bytes IS NOT NULL AND u.verified_manifest IS NOT NULL
-      AND i.initialized=?)`;
+      AND i.initialized=? AND ${this.boundedStage("u")})`;
     const guard = this.db.prepare(`UPDATE cloud_commit_assertion SET ok=(SELECT CASE WHEN ${predicate} THEN 1 ELSE 0 END) WHERE slot=1`)
       .bind(c.library, c.device, sequence, digest, now, Number(h.mode !== "initialize"));
     const mutations = [guard,
@@ -358,7 +364,8 @@ export class CatalogService {
       SELECT 1 FROM cloud_uploads WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER) AND digest!=?
       ) OR EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=? AND device_id=? AND state='ACTIVE'
         AND json_extract(header,'$.sequence')=? AND json_extract(header,'$.digest')!=?)
-      THEN 0 ELSE 1 END WHERE slot=1`).bind(c.library, c.device, sequence, digest, c.library, c.device, sequence, digest);
+      OR EXISTS(SELECT 1 FROM cloud_uploads u WHERE u.library_id=? AND u.device_id=? AND NOT (${this.boundedStage("u")}))
+      THEN 0 ELSE 1 END WHERE slot=1`).bind(c.library, c.device, sequence, digest, c.library, c.device, sequence, digest, c.library, c.device);
     const mutations = [stagedIdentity,
       this.db.prepare("UPDATE cloud_uploads SET status='RETIRED' WHERE library_id=? AND device_id=? AND sequence=CAST(? AS INTEGER) AND digest=?")
         .bind(c.library, c.device, sequence, digest),

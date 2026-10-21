@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {before,after,beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
+import {seedBudget} from './budget-fixture.mjs';
 import {readFile,readdir,mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
@@ -83,7 +84,7 @@ before(async()=>{
  }
  mf=new Miniflare(convertV4MiniflareOptions({cf:false,modules,compatibilityDate:'2026-08-25',d1Databases:{DB:'recovery-local',CONTROL:'recovery-control'},r2Buckets:{RECOVERY:'recovery-local'},resourcePersistencePath:persistence}));await mf.ready;
  const controlDb=await mf.getD1Database('CONTROL');
- const fenceSchema=(await Promise.all(['0001_fence.sql','0002_reopen.sql'].map(f=>readFile(new URL('../control-migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ const fenceSchema=(await Promise.all(['0001_fence.sql','0002_reopen.sql','0003_budgets.sql'].map(f=>readFile(new URL('../control-migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
  await controlDb.batch(fenceSchema.map(s=>controlDb.prepare(s)));
  await controlDb.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,created_at) VALUES('test-resource','test-db','test-bucket','library-a','service-a','fresh-resources-v1','OPEN',0)").run();
 
@@ -93,6 +94,7 @@ before(async()=>{
 });
 after(async()=>{if(mf)await mf.dispose();if(persistence)await rm(persistence,{recursive:true,force:true});});
 beforeEach(async()=>{
+ await seedBudget(await mf.getD1Database('CONTROL'),'test-resource');
  ok(await call('/__test/reset'));
  await sql(...['cloud_replace_attempts','cloud_replace_approvals','cloud_replace_grants','cloud_backup_slots','cloud_backup_operations','cloud_backup_approvals','cloud_backup_control','cloud_upload_changes','cloud_upload_chunks','cloud_uploads','cloud_catalog_pages','cloud_receipts','cloud_catalog_info','cloud_devices','cloud_head','cloud_commit_assertion'].map(t=>'DELETE FROM '+t));
  await sql({sql:'INSERT INTO cloud_head VALUES(?,?,0,0,?)',args:['library-a','epoch-a',EMPTY_FP]},
@@ -208,7 +210,7 @@ test('read-only device may pin/download but cannot reserve or resume writes',asy
 });
 test('revoked token and rotated service generation reject recovery access',async()=>{
  await backup();await sql("UPDATE cloud_devices SET revoked=1 WHERE device_id='device-a'");assert.equal((await recovery('status')).status,401);
- await control({options:{SERVICE_GENERATION:'service-new'}});assert.equal((await recovery('status',{},tokens.b)).status,401);
+ await control({options:{SERVICE_GENERATION:'service-new'}});assert.equal((await recovery('status',{},tokens.b)).status,503);
 });
 test('missing or wrong-generation index is never automatically initialized',async()=>{
  await sql('DELETE FROM cloud_backup_control');failure(await recovery('status'),'RECOVERY_INDEX_RECONCILIATION_REQUIRED');assert.equal((await rows('cloud_backup_control')).length,0);

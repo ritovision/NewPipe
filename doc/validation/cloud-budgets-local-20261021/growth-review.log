@@ -1,0 +1,29 @@
+✔ missing policy, missing schema and malformed estimates fail before DATA (1299.014836ms)
+✔ concurrent requests reserve atomically and a full budget starts no extra request (413.255532ms)
+✔ all, first, run and batch meter DATA plus indexed writes and CONTROL overhead (398.027148ms)
+ℹ {"control":{"statements":4,"reads":23,"writes":6},"data":{"statements":5,"reads":6,"writes":4},"charged":{"statements":9,"rowsRead":134,"rowsWritten":36,"dataSize":20480}}
+✔ UTC rollover carries unresolved reservations and rejects competition until safe settlement (492.90444ms)
+✔ settlement itself can roll midnight before the next admission (328.663925ms)
+✔ lost DATA write keeps fence, reservation and size hold across multiple days and DATA rewind (477.764454ms)
+✔ lost CONTROL admission reserves atomically without dispatching DATA (263.106099ms)
+✔ lost settlement reply is never retried and cannot refund twice (349.682099ms)
+✔ statement ceiling rejects an entire oversized batch before any write (749.064339ms)
+✔ known rollback releases its fence but charges the full estimate including unreported work (328.58182ms)
+✔ an underestimated result blocks future admissions and retains its reservation (302.97885ms)
+✔ missing metadata fails closed and cannot release capacity (273.953383ms)
+✔ concurrent growth reservation and measured database size both enforce storage admission (397.985338ms)
+✔ public token lookup occurs only after reservation and its failures are metered (412.310421ms)
+✔ future ledger date refuses instead of manufacturing a reset, and no unmetered methods escape (375.192876ms)
+✔ all published route estimates validate and unknown routes refuse (166.259009ms)
+✔ operator budget remains outside DATA, meters CONTROL without confusing its size and preserves unknown provider writes (347.73721ms)
+✔ disabled scheduled housekeeping makes no storage calls and enabled housekeeping still refuses missing policy (214.423583ms)
+✔ denied accounting is bounded and is charged even when the daily threshold is already exhausted (278.127747ms)
+✔ authenticated CONTROL-only close remains metered when ordinary admission is blocked or exhausted (429.879862ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9114.449693
