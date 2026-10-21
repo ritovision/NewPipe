@@ -20,6 +20,7 @@ const cf=cloudflareClient(s,process.env.NEWPIPE_CLOUDFLARE_API_TOKEN),authority=
 assert.equal(authority.vars.ENABLE_CATALOG_API,'true');assert.equal(authority.vars.ENABLE_RECOVERY_API,'false');assert.equal(authority.vars.ENABLE_REPLACEMENT_API,'false');
 const op=operatorClient(authority.operator.origin,process.env.NEWPIPE_OPERATOR_TOKEN);
 const evidence={start:new Date().toISOString(),scope:s,authority,requests:[],cleanup:[],status:'RUNNING'};
+await writeFile(outputPath,JSON.stringify(evidence)+'\n',{flag:'wx',mode:0o600});
 async function save(){await writeFile(outputPath,JSON.stringify(evidence,null,2)+'\n',{mode:0o600});}
 async function sql(text){
  const {stdout}=await run(wrangler,['application-budget-open.jsonc','d1','execute','CONTROL','--remote','--command',text,'--json'],{timeout:60000,maxBuffer:1048576});
@@ -29,7 +30,7 @@ async function sql(text){
 const ledger=async()=>(await sql(`SELECT state,read_limit,write_limit,spent_reads,spent_writes,held_reads,held_writes,held_growth,data_size,(SELECT COUNT(*) FROM cloud_fence_tickets) pending,(SELECT COUNT(*) FROM cloud_budget_maintenance) operator_holds FROM cloud_budget WHERE resource_id='${s.fence.resource}'`)).results[0];
 async function request(path,data={},token=device.token){
  const start=performance.now(),r=await fetch(origin+path,{method:'POST',redirect:'manual',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(30000)});
- const value=await r.json();evidence.requests.push({path,status:r.status,milliseconds:Math.round(performance.now()-start),...(value.error?{error:value.error}:{})});await save();return {status:r.status,value};
+ const value=await r.json();evidence.requests.push({at:new Date().toISOString(),path,status:r.status,milliseconds:Math.round(performance.now()-start),...(value.error?{error:value.error}:{})});await save();return {status:r.status,value};
 }
 const accepted=r=>{assert.equal(r.status,200,JSON.stringify(r.value));return r.value;};
 const cleanup=async()=>{const r=await op('/maintenance/housekeep',{scope:s,cloudflareToken:process.env.NEWPIPE_CLOUDFLARE_API_TOKEN});evidence.cleanup.push(r);await save();return r;};
@@ -40,24 +41,24 @@ try{
  assert.equal(evidence.before.read_limit,2000000);
  const head=accepted(await request('/v1/connect'));assert.equal(head.scope.service,s.generation);
  const invalid=await request('/v1/head',{},'device-missing.'+'0'.repeat(64));assert.equal(invalid.status,401);
- const snapshot=plan.body.snapshot.find(x=>x.table==='cloud_catalog_pages');
- const pages=JSON.parse(snapshot.state).map(row=>Object.fromEntries(snapshot.columns.map((c,i)=>[c,row[i]]))).map(p=>({id:p.page_id,body:p.body}));
- const upload=await makeUpload('sync','1',head.head,head.head.fingerprint,changedPages([],pages));
+ const pages=(await cf.db.query('SELECT page_id AS id,body FROM cloud_catalog_pages WHERE library_id=? ORDER BY page_id LIMIT 9',[s.library]));assert.ok(pages.length>0&&pages.length<=8);
+ assert.equal(head.deviceState.upload,null);const sequence=String(BigInt(head.deviceState.resolvedSequence)+1n);
+ const upload=await makeUpload('sync',sequence,head.head,head.head.fingerprint,changedPages([],pages));
  accepted(await request('/v1/uploads/start',upload.header));
  // Active work must survive cleanup; no arbitrary expiration or DATA admin writes.
  for(let i=0;i<3;i++)await cleanup();
  assert.equal((await cf.db.query('SELECT COUNT(*) n FROM cloud_uploads WHERE library_id=? AND device_id=? AND status=\'UPLOADING\'',[s.library,device.device]))[0].n,1);
- const retired=accepted(await request('/v1/uploads/retire',{sequence:'1',digest:upload.header.digest}));assert.equal(retired.receipt.outcome,'RETIRED');
+ const retired=accepted(await request('/v1/uploads/retire',{sequence,digest:upload.header.digest}));assert.equal(retired.receipt.outcome,'RETIRED');
  for(let i=0;i<3;i++)await cleanup();
  assert.ok(evidence.cleanup.some(r=>r.terminalRemoved===1));
  assert.equal((await cf.db.query('SELECT COUNT(*) n FROM cloud_uploads WHERE library_id=? AND device_id=?',[s.library,device.device]))[0].n,0);
- assert.equal((await cf.db.query('SELECT CAST(resolved_sequence AS TEXT) n FROM cloud_devices WHERE library_id=? AND device_id=?',[s.library,device.device]))[0].n,'1');
+ assert.equal((await cf.db.query('SELECT CAST(resolved_sequence AS TEXT) n FROM cloud_devices WHERE library_id=? AND device_id=?',[s.library,device.device]))[0].n,sequence);
  for(let i=0;i<24;i++){assert.deepEqual(accepted(await request('/v1/head')).head,head.head);}
  const beforeLimit=await ledger();assert.equal(beforeLimit.held_reads,0);assert.equal(beforeLimit.operator_holds,0);assert.equal(beforeLimit.state,'ACTIVE');
  restoreLimit=beforeLimit.spent_reads;
  const lowered=await sql(`UPDATE cloud_budget SET read_limit=${restoreLimit} WHERE resource_id='${s.fence.resource}' AND state='ACTIVE' AND read_limit=2000000 AND held_reads=0 AND held_writes=0 RETURNING read_limit`);
  assert.equal(lowered.results.length,1);
- const next=await makeUpload('sync','2',head.head,head.head.fingerprint,changedPages([],pages));
+ const next=await makeUpload('sync',String(BigInt(sequence)+1n),head.head,head.head.fingerprint,changedPages([],pages));
  const denied=await request('/v1/uploads/start',next.header);assert.equal(denied.status,503);assert.equal(denied.value.error,'BUDGET_OR_MAINTENANCE_UNAVAILABLE');
  evidence.exhaustion=await ledger();assert.equal(evidence.exhaustion.pending,0);assert.equal(evidence.exhaustion.held_reads,0);
  assert.ok(evidence.exhaustion.spent_reads>=beforeLimit.spent_reads+16);

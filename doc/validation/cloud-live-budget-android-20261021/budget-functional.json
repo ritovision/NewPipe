@@ -1,0 +1,306 @@
+{
+  "start": "2026-10-21T08:17:15.131Z",
+  "scope": {
+    "account": "b35814b119cba4448e3e0ac59442cc25",
+    "worker": "newpipe-fence-qa-20261020",
+    "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+    "bucket": "newpipe-fence-qa-20261020",
+    "library": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+    "generation": "424c2b81-be62-4062-a407-04c86c49ec71",
+    "fence": {
+      "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+      "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "operator": "newpipe-fence-qa-20261020-op"
+    }
+  },
+  "authority": {
+    "deployment": "7d02ad97-57da-4169-a44b-f45611b1136c",
+    "version": "4168f0da-fd49-48b0-9a79-8d1f8d1ba31c",
+    "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+    "bucket": "newpipe-fence-qa-20261020",
+    "vars": {
+      "ENABLE_CATALOG_API": "true",
+      "ENABLE_RECOVERY_API": "false",
+      "ENABLE_REPLACEMENT_API": "false",
+      "LIBRARY_ID": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+      "SERVICE_GENERATION": "424c2b81-be62-4062-a407-04c86c49ec71",
+      "FENCE_RESOURCE": "5886b5e0-750c-4cff-a93a-f8117a25e6ff"
+    },
+    "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+    "operator": {
+      "deployment": "b3fe8b69-d806-4bee-ae6e-d57b2bfbfbe5",
+      "version": "b14ec1e6-ca51-48f1-b8ee-d2220b335290",
+      "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+      "bucket": "newpipe-fence-qa-20261020",
+      "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+      "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "origin": "https://newpipe-fence-qa-20261020-op.ritorhymes.workers.dev"
+    }
+  },
+  "requests": [
+    {
+      "path": "/v1/connect",
+      "status": 200,
+      "milliseconds": 1763
+    },
+    {
+      "path": "/v1/head",
+      "status": 401,
+      "milliseconds": 156,
+      "error": "INVALID_CREDENTIAL"
+    },
+    {
+      "path": "/v1/uploads/start",
+      "status": 200,
+      "milliseconds": 263
+    },
+    {
+      "path": "/v1/uploads/retire",
+      "status": 200,
+      "milliseconds": 341
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 337
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 197
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 208
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 203
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 200
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 195
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 205
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 264
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 178
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 178
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 182
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 510
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 210
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 191
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 177
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 178
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 235
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 185
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 186
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 184
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 183
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 173
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 178
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 205
+    },
+    {
+      "path": "/v1/uploads/start",
+      "status": 503,
+      "milliseconds": 163,
+      "error": "BUDGET_OR_MAINTENANCE_UNAVAILABLE"
+    },
+    {
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 276
+    }
+  ],
+  "cleanup": [
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 0,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 0,
+      "wrapped": false
+    },
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 0,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 1,
+      "wrapped": false
+    },
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 0,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 0,
+      "wrapped": true
+    },
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 0,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 0,
+      "wrapped": false
+    },
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 1,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 0,
+      "wrapped": false
+    },
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 0,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 0,
+      "wrapped": true
+    }
+  ],
+  "status": "PASS",
+  "before": {
+    "state": "ACTIVE",
+    "read_limit": 2000000,
+    "write_limit": 50000,
+    "spent_reads": 100530,
+    "spent_writes": 5061,
+    "held_reads": 0,
+    "held_writes": 0,
+    "held_growth": 0,
+    "data_size": 245760,
+    "pending": 0,
+    "operator_holds": 0
+  },
+  "exhaustion": {
+    "state": "ACTIVE",
+    "read_limit": 105154,
+    "write_limit": 50000,
+    "spent_reads": 105170,
+    "spent_writes": 6176,
+    "held_reads": 0,
+    "held_writes": 0,
+    "held_growth": 0,
+    "data_size": 245760,
+    "pending": 0,
+    "operator_holds": 0
+  },
+  "archivesPreserved": 3,
+  "after": {
+    "state": "ACTIVE",
+    "read_limit": 2000000,
+    "write_limit": 50000,
+    "spent_reads": 105304,
+    "spent_writes": 6208,
+    "held_reads": 0,
+    "held_writes": 0,
+    "held_growth": 0,
+    "data_size": 245760,
+    "pending": 0,
+    "operator_holds": 0
+  },
+  "fence": {
+    "resource_id": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+    "database_id": "7fdf0708-4d39-4efb-946c-567109a6422b",
+    "bucket_name": "newpipe-fence-qa-20261020",
+    "library_id": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+    "service_generation": "424c2b81-be62-4062-a407-04c86c49ec71",
+    "provenance": "fresh-resources-v1",
+    "state": "OPEN",
+    "maintenance_id": null,
+    "next_generation": null,
+    "revision": "12",
+    "pending": 0,
+    "running": 0
+  },
+  "end": "2026-10-21T08:17:53.052Z"
+}

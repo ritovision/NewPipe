@@ -1,0 +1,190 @@
+{
+  "status": "PASS",
+  "source_commit": "702f99f9f184261eb9540928597490ffcc14a1bc",
+  "serial": "emulator-5576",
+  "avd": "Pixel_9_API_35",
+  "android_user": 0,
+  "twoIndependentPackages": true,
+  "twoPhysicalDevices": false,
+  "actualEmulatorNetworkOutage": true,
+  "syntheticOnly": true,
+  "steps": [
+    {
+      "step": "continuationJoin",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+      "videos": 2,
+      "playlists": 1,
+      "tags": 2,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "122f92918f1f8c5f53fc122fab877f9428994c2cf3e31b2841c25def0aa5bee4"
+    },
+    {
+      "step": "continuationJoin",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337",
+      "videos": 2,
+      "playlists": 1,
+      "tags": 2,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "f94a9c1ab9e41020d8587a4ad3bf1baba50b4bcea335a63460dc789cf05fed0c"
+    },
+    {
+      "step": "continuationSeed",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "fingerprint": "a8f7566f15f76891d3eceebb967c7f3b0ac354d186cd243a6464e32a5c28b6d6",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "a2cb9a1a26d357f01d1f20c042b1e9740881968b3bbb47c2b9033e67379898b7"
+    },
+    {
+      "step": "continuationPull",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "fingerprint": "a8f7566f15f76891d3eceebb967c7f3b0ac354d186cd243a6464e32a5c28b6d6",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "a75f62b9df4a836247d75f09f7e5d9ed16236eca945429fe7532e49ad0a22d96"
+    },
+    {
+      "step": "continuationOfflineEdit",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "fingerprint": "b787003d9dfbdec43ffd863f9589eda9334131daf8236b02def1ef1daeee6cbd",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "91439c471cb2d3e68ae18aec7a2c1f2332f4e228201e0d2f406871ef2ea04225"
+    },
+    {
+      "step": "continuationOfflineRestart",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "fingerprint": "b787003d9dfbdec43ffd863f9589eda9334131daf8236b02def1ef1daeee6cbd",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "38ce78134fe36ae77686b3f04611a7b1b0f35fb5129aa56bb7f677cacde18dcd"
+    },
+    {
+      "step": "continuationResume",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "fingerprint": "b787003d9dfbdec43ffd863f9589eda9334131daf8236b02def1ef1daeee6cbd",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "426849c381d3069a6f9ab291bf0362316e11fc8da274d5cb274ad11c6bdbf106"
+    },
+    {
+      "step": "continuationPull",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "fingerprint": "b787003d9dfbdec43ffd863f9589eda9334131daf8236b02def1ef1daeee6cbd",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "27f98200356fe0a15ce4528f9984d793d1194d09120f03128f4a8c46819dd6bd"
+    },
+    {
+      "step": "continuationConflictEdit",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "fingerprint": "a7dd175aa6f1faca4a317af4b15e2e8a4087e83195e1efadde07afe2f45f2d4e",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "9dd6e2e5477c6cdc6c83788adbc85d359d578e0d3dadb7e6c0afc60d1f63a86e"
+    },
+    {
+      "step": "continuationRemoteEdit",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "fingerprint": "d7cbc43f15b57211557016fd45ee3b675c508283355e6ead43db06a50fcccd73",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "9abd488e985730d7e832ad39076ffd38e56bd533e8791ab434fd48a7500bed6b"
+    },
+    {
+      "step": "continuationConflict",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "fingerprint": "a7dd175aa6f1faca4a317af4b15e2e8a4087e83195e1efadde07afe2f45f2d4e",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "f2f8de6347c7da63193701f47802df04eaabc7a7a9efa712626af99cc3c457fd"
+    },
+    {
+      "step": "continuationReconcile",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "fingerprint": "d7cbc43f15b57211557016fd45ee3b675c508283355e6ead43db06a50fcccd73",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": true,
+      "syntheticOnly": true,
+      "logSha256": "aff4a6e28de1c28dd4c541545a51065579eeaa0a579a3bb8510286d8a7d8bec7"
+    },
+    {
+      "step": "continuationDisable",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "fingerprint": "4a3180dda80d74359cb28723794882c0ac866cdbd141a1bdfe03dcf3c0f87e73",
+      "videos": 5,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": false,
+      "syntheticOnly": true,
+      "logSha256": "3b25781508e3269ea764447cd11bfb4a6a00dd3c656c3167092d8ec79b82b373"
+    },
+    {
+      "step": "continuationOneTime",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "fingerprint": "d7cbc43f15b57211557016fd45ee3b675c508283355e6ead43db06a50fcccd73",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": false,
+      "syntheticOnly": true,
+      "logSha256": "b683bdf506bbbd3f5bb53407b36ceda9764327266a8b4ac58f580121180bf780"
+    },
+    {
+      "step": "stop",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+      "fingerprint": "d7cbc43f15b57211557016fd45ee3b675c508283355e6ead43db06a50fcccd73",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": false,
+      "syntheticOnly": true,
+      "logSha256": "c70c12709777718fec04f363a3183d6c5db859b8015f90f046cd969489d14bca"
+    },
+    {
+      "step": "stop",
+      "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+      "fingerprint": "d7cbc43f15b57211557016fd45ee3b675c508283355e6ead43db06a50fcccd73",
+      "videos": 4,
+      "playlists": 2,
+      "tags": 3,
+      "enabled": false,
+      "syntheticOnly": true,
+      "logSha256": "042361e7196e84a87ac0e080a8c05d61ac6e63059450e734141cecb1a4837b42"
+    }
+  ],
+  "releaseAcceptance": false
+}

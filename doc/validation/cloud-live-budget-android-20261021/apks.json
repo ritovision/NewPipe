@@ -1,0 +1,20 @@
+[
+  {
+    "package": "primary",
+    "file": "debug/app-debug.apk",
+    "sha256": "04eaf0cadf927e2ee3e7d46a6caa79ce223c45d69056aff24e455e0c2cdcda5c"
+  },
+  {
+    "package": "primary",
+    "file": "androidTest/debug/app-debug-androidTest.apk",
+    "sha256": "bc2f1c5968c75d710fffc13d982d4ecc34dd8fcd164b1904fbd175dc62b46b71"
+  },
+  {
+    "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb",
+    "sha256": "deb682b1f43666fd7fae8179952f52264f133657c2ee64010b5a69850616f2c2"
+  },
+  {
+    "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb.test",
+    "sha256": "1ec93978cb30858c30a220f914118da0ea5aedfa3887c397c05307d8c4cc86f8"
+  }
+]
