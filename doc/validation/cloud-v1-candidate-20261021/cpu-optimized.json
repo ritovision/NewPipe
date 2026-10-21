@@ -1,0 +1,20 @@
+{
+  "start": "2026-10-21T08:32:47.375Z",
+  "end": "2026-10-21T08:33:24.046Z",
+  "units": "microseconds",
+  "metrics": {
+    "quantiles": {
+      "cpuTimeP50": 2967,
+      "cpuTimeP95": 8692,
+      "cpuTimeP99": 9347
+    },
+    "sum": {
+      "errors": 0,
+      "requests": 30,
+      "subrequests": 0
+    }
+  },
+  "p95_target_ms": 8,
+  "p95_ms": 8.692,
+  "accepted": false
+}

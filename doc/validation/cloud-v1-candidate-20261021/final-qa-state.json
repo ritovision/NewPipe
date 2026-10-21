@@ -1,0 +1,68 @@
+{
+  "scope": {
+    "account": "b35814b119cba4448e3e0ac59442cc25",
+    "worker": "newpipe-fence-qa-20261020",
+    "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+    "bucket": "newpipe-fence-qa-20261020",
+    "library": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+    "generation": "86d99758-90af-45e8-a9de-f4a2e97613b2",
+    "fence": {
+      "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+      "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "operator": "newpipe-fence-qa-20261020-op"
+    }
+  },
+  "fenceAndBudget": {
+    "fence_state": "HELD",
+    "revision": "15",
+    "service_generation": "424c2b81-be62-4062-a407-04c86c49ec71",
+    "next_generation": "86d99758-90af-45e8-a9de-f4a2e97613b2",
+    "maintenance_id": "29ecbbcd-da2c-49a6-9c60-3927ce326d3f",
+    "budget_state": "ACTIVE",
+    "read_limit": 2000000,
+    "write_limit": 50000,
+    "size_limit": 250000000,
+    "statement_limit": 32,
+    "spent_reads": 123134,
+    "spent_writes": 10487,
+    "held_reads": 0,
+    "held_writes": 0,
+    "held_growth": 0,
+    "data_size": 245760,
+    "pending": 0,
+    "running": 0,
+    "operator_holds": 0
+  },
+  "deployedAuthority": {
+    "deployment": "e461ac5b-b202-4058-8137-f84c400933ec",
+    "version": "f58d0531-a5aa-4710-90d7-b99a2cc46e58",
+    "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+    "bucket": "newpipe-fence-qa-20261020",
+    "vars": {
+      "ENABLE_CATALOG_API": "false",
+      "ENABLE_RECOVERY_API": "false",
+      "ENABLE_REPLACEMENT_API": "false",
+      "LIBRARY_ID": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+      "SERVICE_GENERATION": "86d99758-90af-45e8-a9de-f4a2e97613b2",
+      "FENCE_RESOURCE": "5886b5e0-750c-4cff-a93a-f8117a25e6ff"
+    },
+    "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+    "operator": {
+      "deployment": "31b473dd-c7e3-44c0-954e-27fbfa6abde3",
+      "version": "dcc57b66-137e-41fc-9cdf-dde6cc9d1549",
+      "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+      "bucket": "newpipe-fence-qa-20261020",
+      "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+      "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "origin": "https://newpipe-fence-qa-20261020-op.ritorhymes.workers.dev"
+    }
+  },
+  "revokedDevices": 6,
+  "readyArchives": 3,
+  "archiveBytes": 4995,
+  "archivesPreserved": true,
+  "catalogFingerprint": "d7cbc43f15b57211557016fd45ee3b675c508283355e6ead43db06a50fcccd73",
+  "postRecoveryInspectionBlockers": [
+    "FRESH_EXTERNAL_GENERATION_REQUIRED"
+  ]
+}

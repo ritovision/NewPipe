@@ -2,6 +2,10 @@
 
 Status: implemented for the fenced DATA/CONTROL pair. Execution evidence belongs to the exact checkpoints under `doc/validation/`; this design does not grant production activation or large-catalog admission.
 
+## Executed checkpoint
+
+The [2026-10-21 candidate evidence](../validation/cloud-v1-candidate-20261021/README.md) records the live transactional upgrade, explicit nonzero policy seed, missing-policy/HELD refusals, authenticated cleanup, temporary ceiling exhaustion without spending reset, unchanged archives and zero unresolved holds. The final minified 30-request public sample measured p95 CPU 6.950 ms; this is a small-profile measurement, not an absolute cap or large-enrollment approval. QA was closed again with all public/housekeeping flags false and all six credentials revoked. No cron was activated.
+
 ## Safety targets and scope
 
 The project policy admits at most 2,000,000 estimated D1 rows read and 50,000 estimated rows written per UTC day, with a 250,000,000-byte DATA ceiling. Public requests, including operator and scheduled housekeeping, have a 32-SQL-statement ceiling. A deployed small public sample must separately demonstrate p95 Worker CPU at or below 8 ms. SQL limits count individual statements inside batches.

@@ -4,6 +4,10 @@
 
 **Not release-ready:** protected cloud replacement and operator disaster recovery have passed small synthetic live checkpoints. The [operator and recovery runbook](../doc/architecture/cloud-operator-recovery.md) uses a separate, non-expiring maintenance barrier, authenticated execution and transactional receipts. [Fenced recovery evidence](../doc/validation/cloud-fence-20261020/README.md) covers real index loss, D1 Time Travel and rebuilding all three archives on newly provisioned isolated resources. Legacy resource pairs remain inspection-only. [Guarded reopening](../doc/validation/cloud-reopen-20261021/README.md) now verifies recovery and issues fresh device credentials before opening the external fence; Android recovery reconnection has passed 34 executed controller tests and five real process-kill/restart checks; see [runtime evidence](../doc/validation/cloud-reconnect-process-death-20261021/README.md). Explicit three-slot R2 backup, rotation and Android restore now exist; see [executed recovery evidence](../doc/validation/cloud-recovery-20261020/README.md). Integration, failure, UI and scale acceptance must be tied to the specific tested candidate. The checked-in Worker configuration is API-disabled and restricted to small synthetic deployment tests. Existing Music/AI infrastructure is not part of this service.
 
+## Tested candidate checkpoint
+
+[2026-10-21 candidate evidence](../doc/validation/cloud-v1-candidate-20261021/README.md) records 359 backend tests, 351 JVM tests, 157 executed native Android tests, three real theme/rotation/credential UI scenarios, the 16-step two-installation HTTPS/offline/conflict matrix, and live budget/cleanup acceptance. The minified small public sample measured p95 CPU 6.950 ms across 30 requests with zero Worker errors; earlier failed CPU samples are preserved. This admits neither larger catalogs nor production rollout. Final isolated QA is HELD revision 15 with all APIs off, six revoked credentials, zero holds, and three unchanged archives totaling 4,995 bytes.
+
 ## Backend
 
 `src/index.ts` is the typed Worker entry point. Authenticated device tokens derive authority from the configured library and service generation; request bodies cannot select another database/account or submit SQL. `src/service.ts` stages immutable chunks, validates/seals the actual complete target, and publishes pages, catalog metadata, head revision and operation receipt atomically. Retirement fences both sequence and staged digest before deleting payloads. `src/pages.ts` packs ordered semantic records without one D1 write for every occurrence.
@@ -69,7 +73,7 @@ Suites: `apply-before-room`, `apply-after-room`, `apply-before-tags`, `identity`
 
 `cloud/scripts/wrangler.sh` selects the named `newpipe-cloud` OAuth profile and pins the dedicated Ritorhymes account, clearing conflicting credential environment overrides. A named profile is necessary on hosts where legacy `~/.wrangler` takes precedence over `XDG_CONFIG_HOME`; the wrapper does not use or replace another project's default login. `wrangler.jsonc` has no secrets and targets only `newpipe-cloud-sync-v1` / D1 `bde936ac-caa7-42bb-a931-208118a8cd6a`. Set up that profile through Wrangler's supported authentication flow and verify the account before remote writes; do not copy credentials into this repository.
 
-The default API gate is off; bounds are64KiB/eight pages with a per-location120/minute limiter. After review, a small synthetic live activation can verify the actual Worker/D1 path. `scripts/live-smoke.mjs` requires a private600-mode QA credential file, refuses an already initialized catalog, and uses two separately authenticated HTTP clients. It does not represent two Android devices or a complete end-user sync test. The coordinator must subsequently revoke those credentials, remove verified test-only state, and leave the default API gate disabled unless a later release explicitly enables it.
+The checked-in legacy pair and its archives are inspection-only: do not enable that configuration or use `scripts/live-smoke.mjs` to mutate it. Current validation uses an explicit private configuration for `newpipe-fence-qa-20261020`, its separate CONTROL database and authenticated operator. Follow the [operator runbook](../doc/architecture/cloud-operator-recovery.md), [budget upgrade runbook](../doc/architecture/cloud-budgets-v1.md), and exact [closed candidate state](../doc/validation/cloud-v1-candidate-20261021/README.md). The tested public profile remains 64 KiB/eight pages. Never clear an initialized catalog or native app data merely to rerun an initial-enrollment fixture.
 
 ### Two isolated Android installations
 
@@ -110,13 +114,15 @@ state and disable the Worker. The coordinator must do the same server cleanup
 after success. Never run the initial scenario against retained acceptance data
 by clearing it merely to make the test pass.
 
+The newer `test-support/run-live-continuation.py` joins a retained accepted catalog and drives two independent installations through actual emulator network loss, restart, automatic convergence, conflict resolution and one-time restore. It requires the exact emulator/AVD/source commit, private scoped credentials and `--allow-emulator-network-outage`. It restores original networking and removes transient credentials, but the operator still must close/revoke QA afterward. The [16-step evidence](../doc/validation/cloud-live-budget-android-20261021/README.md) is not a two-hardware-device or Doze proof. The original initial scenario still requires pristine, unconnected QA installations and must not be forced by clearing data.
+
 Everyday synchronization performs no R2 operations. Explicit recovery uses the
 private `RECOVERY` binding with a separate default-off API gate. Do not add
 archive-per-sync behavior.
 
 ## Remaining release gates
 
-Isolated live validation of daily project budgets and bounded housekeeping; actual deployed large-catalog CPU/latency admission; broader scheduling/offline/write-origin acceptance; broader UI/theme/rotation acceptance; actual multi-device end-to-end acceptance; independent whole-feature review and release authorization. Historical validation checkpoints under `doc/validation/` apply only to their exact commits and stated device/page sizes.
+Independent whole-feature review; actual separate-device and longer background/Doze/OEM acceptance; measured admission beyond the eight-page / 64 KiB deployed catalog; applicable full live backup/restore/replacement checks on the selected integrated rollout candidate; and explicit release authorization. Daily budgets/cleanup, real reconnect restarts, the current two-installation offline/conflict matrix, and the three-theme rotation/credential scenarios have executed and are not still compile-only gates. Historical validation checkpoints under `doc/validation/` apply only to their exact commits and stated device/page sizes.
 
 ## Explicit recovery acceptance
 
@@ -124,4 +130,4 @@ Isolated live validation of daily project budgets and bounded housekeeping; actu
 
 The native controller exports/validates device ZIPs or the exact downloaded D1 catalog, records the approved payload before reservation, and resolves the same operation after interruption. Restores stay local and leave sync off. See [protocol](protocol/recovery-v1.md) for verification and cleanup rules.
 
-The explicit `test-support/run-live-recovery.py` driver uses two known isolated QA packages and a private synthetic credential file. It requires `--allow-phone` for a physical device. Provision/enable and subsequent revoke/disable/known-data cleanup remain explicit operator steps; the driver never clears app data or deploys by itself.
+The historical `test-support/run-live-recovery.py` driver must have its origin/scope checked before reuse; legacy resource pairs remain inspection-only. It uses two known isolated QA packages and a private synthetic credential file. It requires `--allow-phone` for a physical device. Provision/enable and subsequent revoke/disable/known-data cleanup remain explicit operator steps; the driver never clears app data or deploys by itself.

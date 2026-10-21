@@ -1,0 +1,173 @@
+{
+  "at": "2026-10-21T09:15:47.578675+00:00",
+  "scope": {
+    "account": "b35814b119cba4448e3e0ac59442cc25",
+    "worker": "newpipe-fence-qa-20261020",
+    "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+    "bucket": "newpipe-fence-qa-20261020",
+    "library": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+    "generation": "86d99758-90af-45e8-a9de-f4a2e97613b2",
+    "fence": {
+      "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+      "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "operator": "newpipe-fence-qa-20261020-op"
+    }
+  },
+  "fence": {
+    "rows": [
+      {
+        "resource_id": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+        "state": "HELD",
+        "revision": 15,
+        "service_generation": "424c2b81-be62-4062-a407-04c86c49ec71",
+        "next_generation": "86d99758-90af-45e8-a9de-f4a2e97613b2",
+        "maintenance_id": "29ecbbcd-da2c-49a6-9c60-3927ce326d3f",
+        "pending": 0,
+        "running": 0
+      }
+    ],
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "ENAM",
+      "served_by_colo": "ORD",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.3131
+      },
+      "duration": 0.3131,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 114688,
+      "rows_read": 2,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  "data": {
+    "rows": [
+      {
+        "devices": 6,
+        "active_devices": 0,
+        "ready_archives": 3,
+        "ready_bytes": 4995
+      }
+    ],
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "ENAM",
+      "served_by_colo": "ORD",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.4739
+      },
+      "duration": 0.4739,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 245760,
+      "rows_read": 18,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  "data_schema": {
+    "rows": [
+      {
+        "name": "cloud_housekeeping_cursor"
+      },
+      {
+        "name": "cloud_receipt_retention"
+      }
+    ],
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "ENAM",
+      "served_by_colo": "ORD",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2378
+      },
+      "duration": 0.2378,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 245760,
+      "rows_read": 56,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  "control_schema": {
+    "rows": [
+      {
+        "name": "cloud_budget"
+      },
+      {
+        "name": "cloud_budget_maintenance"
+      }
+    ],
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "ENAM",
+      "served_by_colo": "ORD",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 124.8877
+      },
+      "duration": 124.8877,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 114688,
+      "rows_read": 26,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  "newpipe-fence-qa-20261020": {
+    "vars": {
+      "ENABLE_CATALOG_API": "false",
+      "ENABLE_HOUSEKEEPING": "false",
+      "ENABLE_RECOVERY_API": "false",
+      "ENABLE_REPLACEMENT_API": "false",
+      "FENCE_RESOURCE": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "LIBRARY_ID": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+      "MAX_CATALOG_BYTES": "65536",
+      "MAX_CATALOG_PAGES": "8",
+      "MAX_RECOVERY_BYTES": "1048576",
+      "PUBLIC_ORIGIN": "https://newpipe-fence-qa-20261020.ritorhymes.workers.dev",
+      "SERVICE_GENERATION": "86d99758-90af-45e8-a9de-f4a2e97613b2"
+    },
+    "d1": [
+      {
+        "name": "CONTROL",
+        "id": "9e60001d-359c-481e-8b1d-eaf2058f2f42"
+      },
+      {
+        "name": "DB",
+        "id": "7fdf0708-4d39-4efb-946c-567109a6422b"
+      }
+    ]
+  },
+  "newpipe-fence-qa-20261020-op": {
+    "vars": {
+      "FENCE_RESOURCE": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "PUBLIC_ORIGIN": "https://newpipe-fence-qa-20261020-op.ritorhymes.workers.dev"
+    },
+    "d1": [
+      {
+        "name": "CONTROL",
+        "id": "9e60001d-359c-481e-8b1d-eaf2058f2f42"
+      },
+      {
+        "name": "DB",
+        "id": "7fdf0708-4d39-4efb-946c-567109a6422b"
+      }
+    ]
+  },
+  "inspection_cost": {
+    "reads": 102,
+    "writes": 0
+  }
+}

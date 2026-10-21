@@ -1,0 +1,336 @@
+{
+  "start": "2026-10-21T08:41:29.100Z",
+  "scope": {
+    "account": "b35814b119cba4448e3e0ac59442cc25",
+    "worker": "newpipe-fence-qa-20261020",
+    "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+    "bucket": "newpipe-fence-qa-20261020",
+    "library": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+    "generation": "424c2b81-be62-4062-a407-04c86c49ec71",
+    "fence": {
+      "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+      "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "operator": "newpipe-fence-qa-20261020-op"
+    }
+  },
+  "authority": {
+    "deployment": "a2668228-606e-4d76-8a18-46c42a04cdbc",
+    "version": "d63525f3-2df8-4eaa-b860-ec7f7a405174",
+    "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+    "bucket": "newpipe-fence-qa-20261020",
+    "vars": {
+      "ENABLE_CATALOG_API": "true",
+      "ENABLE_RECOVERY_API": "false",
+      "ENABLE_REPLACEMENT_API": "false",
+      "LIBRARY_ID": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+      "SERVICE_GENERATION": "424c2b81-be62-4062-a407-04c86c49ec71",
+      "FENCE_RESOURCE": "5886b5e0-750c-4cff-a93a-f8117a25e6ff"
+    },
+    "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+    "operator": {
+      "deployment": "b3fe8b69-d806-4bee-ae6e-d57b2bfbfbe5",
+      "version": "b14ec1e6-ca51-48f1-b8ee-d2220b335290",
+      "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+      "bucket": "newpipe-fence-qa-20261020",
+      "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+      "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "origin": "https://newpipe-fence-qa-20261020-op.ritorhymes.workers.dev"
+    }
+  },
+  "requests": [
+    {
+      "at": "2026-10-21T08:41:32.045Z",
+      "path": "/v1/connect",
+      "status": 200,
+      "milliseconds": 434
+    },
+    {
+      "at": "2026-10-21T08:41:32.297Z",
+      "path": "/v1/head",
+      "status": 401,
+      "milliseconds": 250,
+      "error": "INVALID_CREDENTIAL"
+    },
+    {
+      "at": "2026-10-21T08:41:32.844Z",
+      "path": "/v1/uploads/start",
+      "status": 200,
+      "milliseconds": 275
+    },
+    {
+      "at": "2026-10-21T08:41:39.628Z",
+      "path": "/v1/uploads/retire",
+      "status": 200,
+      "milliseconds": 291
+    },
+    {
+      "at": "2026-10-21T08:41:48.007Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 259
+    },
+    {
+      "at": "2026-10-21T08:41:48.328Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 317
+    },
+    {
+      "at": "2026-10-21T08:41:48.489Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 155
+    },
+    {
+      "at": "2026-10-21T08:41:48.700Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 206
+    },
+    {
+      "at": "2026-10-21T08:41:48.889Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 187
+    },
+    {
+      "at": "2026-10-21T08:41:49.037Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 147
+    },
+    {
+      "at": "2026-10-21T08:41:49.214Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 176
+    },
+    {
+      "at": "2026-10-21T08:41:49.370Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 155
+    },
+    {
+      "at": "2026-10-21T08:41:49.536Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 166
+    },
+    {
+      "at": "2026-10-21T08:41:49.706Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 169
+    },
+    {
+      "at": "2026-10-21T08:41:49.892Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 185
+    },
+    {
+      "at": "2026-10-21T08:41:50.049Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 157
+    },
+    {
+      "at": "2026-10-21T08:41:50.225Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 175
+    },
+    {
+      "at": "2026-10-21T08:41:50.377Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 150
+    },
+    {
+      "at": "2026-10-21T08:41:50.533Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 156
+    },
+    {
+      "at": "2026-10-21T08:41:50.679Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 145
+    },
+    {
+      "at": "2026-10-21T08:41:50.827Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 148
+    },
+    {
+      "at": "2026-10-21T08:41:50.973Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 145
+    },
+    {
+      "at": "2026-10-21T08:41:51.126Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 151
+    },
+    {
+      "at": "2026-10-21T08:41:51.276Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 148
+    },
+    {
+      "at": "2026-10-21T08:41:51.424Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 148
+    },
+    {
+      "at": "2026-10-21T08:41:51.574Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 149
+    },
+    {
+      "at": "2026-10-21T08:41:51.718Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 143
+    },
+    {
+      "at": "2026-10-21T08:41:51.865Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 147
+    },
+    {
+      "at": "2026-10-21T08:42:00.913Z",
+      "path": "/v1/uploads/start",
+      "status": 503,
+      "milliseconds": 227,
+      "error": "BUDGET_OR_MAINTENANCE_UNAVAILABLE"
+    },
+    {
+      "at": "2026-10-21T08:42:14.365Z",
+      "path": "/v1/head",
+      "status": 200,
+      "milliseconds": 248
+    }
+  ],
+  "cleanup": [
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 0,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 0,
+      "wrapped": false
+    },
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 0,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 1,
+      "wrapped": false
+    },
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 0,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 0,
+      "wrapped": true
+    },
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 0,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 0,
+      "wrapped": false
+    },
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 1,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 0,
+      "wrapped": false
+    },
+    {
+      "inspected": 2,
+      "retired": 0,
+      "terminalRemoved": 0,
+      "receiptsRemoved": 0,
+      "raced": 0,
+      "retainedStages": 0,
+      "wrapped": true
+    }
+  ],
+  "status": "PASS",
+  "before": {
+    "state": "ACTIVE",
+    "read_limit": 2000000,
+    "write_limit": 50000,
+    "spent_reads": 116956,
+    "spent_writes": 9048,
+    "held_reads": 0,
+    "held_writes": 0,
+    "held_growth": 0,
+    "data_size": 245760,
+    "pending": 0,
+    "operator_holds": 0
+  },
+  "exhaustion": {
+    "state": "ACTIVE",
+    "read_limit": 121532,
+    "write_limit": 50000,
+    "spent_reads": 121548,
+    "spent_writes": 10162,
+    "held_reads": 0,
+    "held_writes": 0,
+    "held_growth": 0,
+    "data_size": 245760,
+    "pending": 0,
+    "operator_holds": 0
+  },
+  "archivesPreserved": 3,
+  "after": {
+    "state": "ACTIVE",
+    "read_limit": 2000000,
+    "write_limit": 50000,
+    "spent_reads": 121680,
+    "spent_writes": 10194,
+    "held_reads": 0,
+    "held_writes": 0,
+    "held_growth": 0,
+    "data_size": 245760,
+    "pending": 0,
+    "operator_holds": 0
+  },
+  "fence": {
+    "resource_id": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+    "database_id": "7fdf0708-4d39-4efb-946c-567109a6422b",
+    "bucket_name": "newpipe-fence-qa-20261020",
+    "library_id": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+    "service_generation": "424c2b81-be62-4062-a407-04c86c49ec71",
+    "provenance": "fresh-resources-v1",
+    "state": "OPEN",
+    "maintenance_id": null,
+    "next_generation": null,
+    "revision": "12",
+    "pending": 0,
+    "running": 0
+  },
+  "end": "2026-10-21T08:42:20.763Z"
+}

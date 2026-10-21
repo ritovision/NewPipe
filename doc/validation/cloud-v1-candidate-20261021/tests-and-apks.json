@@ -1,0 +1,36 @@
+{
+  "backend": {
+    "passed": 359,
+    "failed": 0,
+    "skipped": 0
+  },
+  "jvm": {
+    "tests": 351,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "native": {
+    "passed": 157,
+    "failed": 0,
+    "skipped": 0
+  },
+  "ui": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0
+  },
+  "nativeRuntimeSeconds": "266.813",
+  "artifacts": [
+    {
+      "file": "debug/app-debug.apk",
+      "bytes": 35176192,
+      "sha256": "78c41acd01ef1ca5ee30b0b9746e5a340e7ed1e67ab8802095da7b2101e9825e"
+    },
+    {
+      "file": "androidTest/debug/app-debug-androidTest.apk",
+      "bytes": 2867567,
+      "sha256": "41515d76e19599f59f461917ef357ecdd156017c5ff84530c7bb58aa76c169c1"
+    }
+  ]
+}

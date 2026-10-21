@@ -3,6 +3,10 @@
 **Status:** Amended after independent review; required architecture, not a completion claim. See [adjudication](../reviews/cloud-sync-design-adjudication-2026-10-19.md). See [product contract](../specs/cloud-sync-v1.md) and [execution gates](cloud-sync-implementation-plan.md).
 **Date:** 2026-10-19. Baseline `f76d89a378e71625616bba160a42de24498ccfa1`.
 
+## Implementation checkpoint — 2026-10-21
+
+The [tested candidate](../validation/cloud-v1-candidate-20261021/README.md) records executed backend/JVM/native/UI suites, isolated live budget and cleanup acceptance, real reconnection restarts and a two-installation live network-outage/conflict matrix. Minified public CPU measured p95 6.950 ms for the small eight-page / 64 KiB deployment profile. The original failed CPU measurements remain retained. Final QA is closed with six revoked credentials and all three archives preserved. Independent review, larger-profile admission and real-device/background rollout coverage remain distinct gates; no production activation or merge is implied.
+
 ## 1. Components and isolation
 
 - **Android:** isolated `custom/cloud/` model, native settings screen, authenticated transport, durable sync coordinator, catalog adapter and preview model. Reuse Android networking/WorkManager dependencies already present; no generic replication framework.
