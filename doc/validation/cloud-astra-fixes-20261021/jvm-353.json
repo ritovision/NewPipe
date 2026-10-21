@@ -1,0 +1,461 @@
+{
+  "source": "c8d852b89e1d9736dd4afb4a4e48445ba54bc9d7",
+  "summary": {
+    "tests": 353,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "suites": [
+    {
+      "name": "org.schabi.newpipe.custom.library.PlaylistSaveQueueTest",
+      "tests": "23",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:39.882Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.078"
+    },
+    {
+      "name": "org.schabi.newpipe.settings.tabs.TabTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.938Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.018"
+    },
+    {
+      "name": "org.schabi.newpipe.util.QuadraticSliderStrategyTest",
+      "tests": "9",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:42.136Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.002"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudHttpRouteTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:30.385Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.377"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudBindingMarkerTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:30.261Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.045"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.aicontrol.AiIntegrationPolicyTest",
+      "tests": "16",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:29.506Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.241"
+    },
+    {
+      "name": "org.schabi.newpipe.NewVersionManagerTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:29.251Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.068"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.aicontrol.AiAccessControllerTest",
+      "tests": "15",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:29.338Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.149"
+    },
+    {
+      "name": "org.schabi.newpipe.ktx.ThrowableExtensionsTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:40.802Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.004"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.aicontrol.AiReviewHardeningTest",
+      "tests": "18",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:29.994Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.251"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.aicontrol.AiProtocolTest",
+      "tests": "28",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:29.881Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.106"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.aicontrol.AiPlaybackExecutorTest",
+      "tests": "9",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:29.815Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.056"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.aicontrol.AiPlaybackAuditTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:29.761Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.045"
+    },
+    {
+      "name": "org.schabi.newpipe.settings.ImportExportManagerTest",
+      "tests": "9",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.686Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.06"
+    },
+    {
+      "name": "org.schabi.newpipe.util.urlfinder.UrlFinderTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.774Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.019"
+    },
+    {
+      "name": "org.schabi.newpipe.local.playlist.ExportPlaylistTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:40.807Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.402"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.tagging.TagPolicyTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:40.736Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.049"
+    },
+    {
+      "name": "org.schabi.newpipe.util.ListHelperTest",
+      "tests": "12",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:42.104Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.029"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudUserMessagesTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:32.472Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.003"
+    },
+    {
+      "name": "org.schabi.newpipe.util.image.ImageStrategyTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:42.178Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.019"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudProtocolTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:30.766Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "1.527"
+    },
+    {
+      "name": "org.schabi.newpipe.player.playqueue.PlayQueueTest$GetItemTests",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.825Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.002"
+    },
+    {
+      "name": "org.schabi.newpipe.error.ReCaptchaActivityTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:40.796Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.004"
+    },
+    {
+      "name": "org.schabi.newpipe.util.LocalizationTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.748Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.024"
+    },
+    {
+      "name": "org.schabi.newpipe.player.playqueue.PlayQueueTest$SetIndexTests",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.828Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.108"
+    },
+    {
+      "name": "org.schabi.newpipe.player.playqueue.PlayQueueTest$EqualsTests",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.820Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.002"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.tagging.CatalogFileSwapTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:39.964Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.77"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudRecoveryFormatTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:32.318Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.152"
+    },
+    {
+      "name": "org.schabi.newpipe.util.external_communication.TimestampExtractorTest",
+      "tests": "37",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:42.161Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.014"
+    },
+    {
+      "name": "org.schabi.newpipe.local.subscription.workers.SubscriptionImportInputTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.223Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.019"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.library.LibraryIdentityPolicyTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:39.870Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.003"
+    },
+    {
+      "name": "org.schabi.newpipe.settings.ImportAllCombinationsTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.351Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.331"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudChangeExplorerTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:30.314Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.066"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.library.LibraryBackupRestoreTest",
+      "tests": "14",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:37.711Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "2.133"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudWireTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:32.483Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "5.218"
+    },
+    {
+      "name": "org.schabi.newpipe.local.subscription.services.ImportExportJsonHelperTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.795Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.017"
+    },
+    {
+      "name": "org.schabi.newpipe.local.subscription.FeedGroupIconTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.211Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.009"
+    },
+    {
+      "name": "org.schabi.newpipe.streams.SrtFromTtmlWriterTest",
+      "tests": "12",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.970Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.129"
+    },
+    {
+      "name": "org.schabi.newpipe.database.playlist.PlaylistLocalItemTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:40.787Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.007"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.cloud.CloudApplyBoundsTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:30.254Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.004"
+    },
+    {
+      "name": "org.schabi.newpipe.settings.tabs.TabsJsonHelperTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.958Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.006"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.library.LibraryEditPolicyTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:39.853Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.012"
+    },
+    {
+      "name": "org.schabi.newpipe.player.playqueue.PlayQueueItemTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.813Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.006"
+    },
+    {
+      "name": "org.schabi.newpipe.local.subscription.workers.SubscriptionImportWorkerTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:41.254Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.091"
+    },
+    {
+      "name": "org.schabi.newpipe.custom.aicontrol.RitoVisionDatabaseVersionTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-21T11:44:30.249Z",
+      "hostname": "DESKTOP-7KSO456",
+      "time": "0.002"
+    }
+  ]
+}

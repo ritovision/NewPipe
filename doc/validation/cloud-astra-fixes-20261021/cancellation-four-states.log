@@ -1,0 +1,14 @@
+(node:76786) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Astra 005: bounded replacement cancellation progresses truthfully from RESERVED (2334.19351ms)
+✔ Astra 005: bounded replacement cancellation progresses truthfully from UPLOADING (1167.068999ms)
+✔ Astra 005: bounded replacement cancellation progresses truthfully from READY (1133.296898ms)
+✔ Astra 005: bounded replacement cancellation progresses truthfully from ROTATING (2518.197739ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7870.998227
