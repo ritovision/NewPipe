@@ -26,7 +26,7 @@ import org.schabi.newpipe.settings.SettingsActivity
 class CloudRecoveryFilterUiTest {
     @Test fun recoveryFilterTextAndRowsStayInAgreementAcrossRotationAndCancellation() {
         val app = ApplicationProvider.getApplicationContext<Context>()
-        check(app.packageName == "org.schabi.newpipe.debug.featurecloudsyncv120261019")
+        check(app.packageName == "org.schabi.newpipe.debug.qacloudaccept20261021")
         val root = Files.createTempDirectory(app.noBackupFilesDir.toPath(), "recovery-filter-qa-")
         val f = CloudApplyFixture(app, root)
         try {

@@ -23,12 +23,12 @@ secret = Path(args.credentials)
 if secret.stat().st_mode & 0o077:
     p.error("Use a private credential file.")
 config = json.loads(secret.read_text())
-if config.get("syntheticOnly") is not True or config.get("origin") != "https://newpipe-cloud-sync-v1.ritorhymes.workers.dev":
+if config.get("syntheticOnly") is not True or config.get("origin") != "https://newpipe-accept-20261021a.ritorhymes.workers.dev":
     p.error("Dedicated synthetic endpoint required.")
 out = Path(args.output)
 out.mkdir(parents=True, exist_ok=False)
-packages = {"a": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
-            "b": "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb"}
+packages = {"a": "org.schabi.newpipe.debug.qacloudaccept20261021",
+            "b": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb"}
 def adb(*parts, data=None, timeout=180):
     r = subprocess.run([args.adb, "-s", args.serial, *parts], input=data, capture_output=True, timeout=timeout)
     if r.returncode:

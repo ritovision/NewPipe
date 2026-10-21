@@ -48,7 +48,7 @@ class CloudSettingsUiAcceptanceTest {
         val arguments = InstrumentationRegistry.getArguments()
         assumeTrue("Explicit live QA UI only", arguments.getString("cloudUiAcceptance") == "true")
         val app = ApplicationProvider.getApplicationContext<Context>()
-        check(app.packageName == "org.schabi.newpipe.debug.featurecloudsyncv120261019")
+        check(app.packageName == "org.schabi.newpipe.debug.qacloudaccept20261021")
         val probe = checkNotNull(arguments.getString("cloudUiProbe"))
         require(probe.matches(Regex("[a-z0-9-]{1,48}")))
         val output = File(app.noBackupFilesDir, "cloud-ui-$probe").also { it.mkdirs() }

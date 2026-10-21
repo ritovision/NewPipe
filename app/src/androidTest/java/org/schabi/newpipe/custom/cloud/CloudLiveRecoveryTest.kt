@@ -25,10 +25,10 @@ class CloudLiveRecoveryTest {
         val action = args.getString("recoveryStep")
         assumeTrue("Live recovery acceptance is opt-in", action != null)
         val app = ApplicationProvider.getApplicationContext<Context>()
-        check(app.packageName in setOf("org.schabi.newpipe.debug.featurecloudsyncv120261019", "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb"))
+        check(app.packageName in setOf("org.schabi.newpipe.debug.qacloudaccept20261021", "org.schabi.newpipe.debug.qacloudaccept20261021.peerb"))
         val secretFile = File(app.noBackupFilesDir, "live-qa.json")
         val config = CloudWireJson.obj(secretFile.readText())
-        check(config.getBoolean("syntheticOnly") && config.getString("origin") == "https://newpipe-cloud-sync-v1.ritorhymes.workers.dev")
+        check(config.getBoolean("syntheticOnly") && config.getString("origin") == "https://newpipe-accept-20261021a.ritorhymes.workers.dev")
         val sync = CloudSyncController(app)
         val recovery = CloudRecoveryController(app, sync)
         val replacement = CloudReplacementController(app, sync)
@@ -82,195 +82,207 @@ class CloudLiveRecoveryTest {
             result["content"] = content()
             result["fingerprint"] = snapshot().fingerprint
         }
-        when (action) {
-            "connect" -> {
-                // Reuse the already synthetic installation without deleting its native data.
-                val current = sync.connection.read()
-                if (current != null) {
-                    sync.disable()
-                    check(!sync.hasPending() && !recovery.hasPending())
-                    sync.forget()
-                }
-                sync.connect(config.getString("origin"), config.getString("token"))
-                val s = snapshot()
-                check(s.catalog.library.size in 1..10 && s.catalog.library.all { it.url.startsWith("https://example.test/newpipe-live/") })
-                result["fingerprint"] = s.fingerprint
-            }
-
-            "initialize" -> {
-                check(!sync.inspect().initialized)
-                sync.confirm(sync.prepare(true))
-                result["fingerprint"] = snapshot().fingerprint
-            }
-
-            "resolve" -> {
-                val status = recovery.resume()
-                assertTrue(status.operation == null)
-                assertFalse(recovery.hasPending())
-                result["occupied"] = status.occupied
-            }
-
-            "deviceBackup" -> backup("device-zip")
-
-            "catalogBackup" -> backup("cloud-catalog")
-
-            "changeCloud" -> {
-                val old = sync.inspect().head
-                check(sync.connection.read()!!.enabled)
-                val tag = repo.definitions().tags.single()
-                repo.editTag(tag.id, "Live QA R2 new version", tag.categoryId)
-                sync.syncNow()
-                assertEquals(snapshot().fingerprint, sync.inspect().head.fingerprint)
-                assertTrue(old != sync.inspect().head)
-                sync.disable()
-                CloudScheduler.reconcile(app)
-                result["fingerprint"] = snapshot().fingerprint
-                result["content"] = content()
-            }
-
-            "join" -> {
-                sync.confirm(sync.prepare(false))
-                assertEquals(sync.inspect().head.fingerprint, snapshot().fingerprint)
-                result["fingerprint"] = snapshot().fingerprint
-            }
-
-            "enable" -> {
-                sync.confirm(sync.prepare(true))
-                assertTrue(sync.connection.read()!!.enabled)
-                result["fingerprint"] = snapshot().fingerprint
-            }
-
-            "holdDirtyReplacement" -> {
-                assertTrue(sync.connection.read()!!.enabled)
-                TagRuntime.lock.withLock {
-                    val before = snapshot().fingerprint
-                    val category = repo.definitions().categories.single()
-                    repo.renameCategory(category.id, "Live QA dirty replacement " + UUID.randomUUID().toString().take(8))
-                    val after = snapshot().fingerprint
-                    check(before != after)
-                    val ready = CloudWireJson.encode(
-                        mapOf(
-                            "package" to app.packageName,
-                            "syntheticOnly" to true,
-                            "before" to before,
-                            "after" to after,
-                            "enabled" to true
-                        )
-                    )
-                    File(app.noBackupFilesDir, "live-replacement-dirty.json").outputStream().use {
-                        it.write(ready.toByteArray(Charsets.UTF_8))
-                        it.fd.sync()
+        // Synthetic acceptance must enter the cloud writer gate before requesting
+        // any user-initiated recovery/backup action. Automatic WorkManager sync
+        // intentionally uses a nonblocking tryLock; don't classify a healthy
+        // concurrent worker as an end-to-end product failure. This changes only
+        // Android instrumentation harness coordination, not production behaviour.
+        CloudSyncController.operationLock(sync.connection.directory).withLock {
+            when (action) {
+                "connect" -> {
+                    // QA-only deterministic restart from an existing synthetic installation.
+                    // Wait for the prior WorkManager operation before disable/Forget/connect;
+                    // the underlying controller's nonblocking tryLock is intentional.
+                    CloudSyncController.operationLock(sync.connection.directory).withLock {
+                        val current = sync.connection.read()
+                        if (current != null) {
+                            sync.disable()
+                            CloudScheduler.reconcile(app)
+                            check(!sync.hasPending() && !recovery.hasPending())
+                            sync.forget()
+                        }
+                        sync.connect(config.getString("origin"), config.getString("token"))
+                        val snap = snapshot()
+                        check(snap.catalog.library.size in 1..10 && snap.catalog.library.all { it.url.startsWith("https://example.test/newpipe-live/") })
+                        result["fingerprint"] = snap.fingerprint
                     }
-                    // The host stops only this isolated QA process after reading the durable witness.
-                    SystemClock.sleep(120_000)
-                    error("LIVE_QA_HOST_DID_NOT_KILL_PROCESS")
                 }
-            }
 
-            "replaceCloud" -> {
-                CloudSyncController.operationLock(sync.connection.directory).withLock {
-                    sync.disable()
-                    CloudScheduler.reconcile(app)
-                    val outgoing = sync.inspect().head
-                    val retainedBefore = recovery.inspect().archives
+                "initialize" -> {
+                    check(!sync.inspect().initialized)
+                    sync.confirm(sync.prepare(true))
+                    result["fingerprint"] = snapshot().fingerprint
+                }
+
+                "resolve" -> {
+                    val status = recovery.resume()
+                    assertTrue(status.operation == null)
+                    assertFalse(recovery.hasPending())
+                    result["occupied"] = status.occupied
+                }
+
+                "deviceBackup" -> backup("device-zip")
+
+                "catalogBackup" -> backup("cloud-catalog")
+
+                "changeCloud" -> {
+                    val old = sync.inspect().head
+                    check(sync.connection.read()!!.enabled)
                     val tag = repo.definitions().tags.single()
-                    repo.editTag(tag.id, "Live QA replaced cloud " + UUID.randomUUID().toString().take(8), tag.categoryId)
-                    val incoming = snapshot().fingerprint
-                    val preview = replacement.prepare()
-                    assertEquals(outgoing, preview.outgoing.status.head)
-                    val done = replacement.confirm(preview)
-                    val head = sync.inspect().head
-                    assertEquals(preview.nextEpoch, head.epoch)
-                    assertEquals("1", head.revision)
-                    assertEquals(Math.addExact(CloudCounter.parse(outgoing.headCounter), 1).toString(), head.headCounter)
-                    assertEquals(incoming, head.fingerprint)
-                    assertEquals(incoming, snapshot().fingerprint)
-                    assertFalse(replacement.hasPending())
-                    assertFalse(sync.connection.read()!!.enabled)
-                    assertEquals("DONE", done.attempt!!.getString("state"))
-                    assertEquals(3, done.archives.size)
-                    assertTrue(done.archives.all { it.usable })
-                    assertEquals(retainedBefore.first().id, preview.evicted!!.id)
-                    assertFalse(done.archives.any { it.id == preview.evicted.id })
-                    result["archiveId"] = done.attempt.getString("archiveId")
-                    result["evicted"] = preview.evicted.id
-                    result["retained"] = done.archives.map { it.id }
-                    result["outgoingFingerprint"] = outgoing.fingerprint
-                    result["oldEpoch"] = outgoing.epoch
-                    result["epoch"] = head.epoch
-                    result["headCounter"] = head.headCounter
-                    result["fingerprint"] = incoming
-                }
-            }
-
-            "verifyDirtyEpoch" -> {
-                val expectedLocal = checkNotNull(args.getString("expectedLocalFingerprint"))
-                assertEquals(expectedLocal, snapshot().fingerprint)
-                val lock = CloudSyncController.operationLock(sync.connection.directory)
-                lock.withLock {
-                    val error = assertThrows(IllegalStateException::class.java) { sync.syncNow() }
-                    assertTrue(error.message in setOf("CLOUD_PREVIEW_REQUIRED", "CLOUD_CONFLICT_REVIEW_REQUIRED"))
-                    val head = sync.inspect().head
-                    assertEquals(args.getString("expectedFingerprint"), head.fingerprint)
-                    assertEquals(args.getString("expectedEpoch"), head.epoch)
-                    assertEquals(expectedLocal, snapshot().fingerprint)
-                    result["pauseReason"] = error.message
-                    result["localFingerprint"] = expectedLocal
-                    result["cloudFingerprint"] = head.fingerprint
-                    result["epoch"] = head.epoch
+                    repo.editTag(tag.id, "Live QA R2 new version", tag.categoryId)
+                    sync.syncNow()
+                    assertEquals(snapshot().fingerprint, sync.inspect().head.fingerprint)
+                    assertTrue(old != sync.inspect().head)
                     sync.disable()
                     CloudScheduler.reconcile(app)
+                    result["fingerprint"] = snapshot().fingerprint
+                    result["content"] = content()
                 }
-            }
 
-            "restoreCatalog" -> {
-                val before = sync.inspect().head
-                val id = checkNotNull(args.getString("archiveId"))
-                recovery.prepareRestore(id).use { p ->
-                    check(p.decoded != null)
-                    assertEquals(args.getString("expectedFingerprint"), p.manifest.source!!.head.fingerprint)
-                    recovery.confirmRestore(p)
+                "join" -> {
+                    sync.confirm(sync.prepare(false))
+                    assertEquals(sync.inspect().head.fingerprint, snapshot().fingerprint)
+                    result["fingerprint"] = snapshot().fingerprint
                 }
-                assertEquals(args.getString("expectedFingerprint"), snapshot().fingerprint)
-                assertEquals(before, sync.inspect().head)
-                assertFalse(sync.connection.read()!!.enabled)
-                result["fingerprint"] = snapshot().fingerprint
-                result["cloudFingerprint"] = before.fingerprint
-            }
 
-            "restoreNative" -> {
-                val id = checkNotNull(args.getString("archiveId"))
-                val expected = checkNotNull(args.getString("expectedContent"))
-                val marker = UUID.randomUUID().toString()
-                expectedFile.writeText(CloudWireJson.encode(mapOf("content" to expected, "marker" to marker)))
-                recovery.prepareRestore(id).use { p ->
-                    check(p.prepared != null)
-                    recovery.confirmRestore(p)
+                "enable" -> {
+                    sync.confirm(sync.prepare(true))
+                    assertTrue(sync.connection.read()!!.enabled)
+                    result["fingerprint"] = snapshot().fingerprint
                 }
-                assertTrue(TagRuntime.restoring)
-                result["restartRequired"] = true
-                result["marker"] = marker
-            }
 
-            "verifyNativeAfterRestart" -> {
-                assertFalse(TagRuntime.restoring)
-                assertFalse(sync.connection.read()!!.enabled)
-                val expected = CloudWireJson.obj(expectedFile.readText())
-                assertEquals(expected.getString("content"), content())
-                result["content"] = content()
-                result["marker"] = expected.getString("marker")
-                result["restartVerified"] = true
-                expectedFile.delete()
-            }
+                "holdDirtyReplacement" -> {
+                    assertTrue(sync.connection.read()!!.enabled)
+                    TagRuntime.lock.withLock {
+                        val before = snapshot().fingerprint
+                        val category = repo.definitions().categories.single()
+                        repo.renameCategory(category.id, "Live QA dirty replacement " + UUID.randomUUID().toString().take(8))
+                        val after = snapshot().fingerprint
+                        check(before != after)
+                        val ready = CloudWireJson.encode(
+                            mapOf(
+                                "package" to app.packageName,
+                                "syntheticOnly" to true,
+                                "before" to before,
+                                "after" to after,
+                                "enabled" to true
+                            )
+                        )
+                        File(app.noBackupFilesDir, "live-replacement-dirty.json").outputStream().use {
+                            it.write(ready.toByteArray(Charsets.UTF_8))
+                            it.fd.sync()
+                        }
+                        // The host stops only this isolated QA process after reading the durable witness.
+                        SystemClock.sleep(120_000)
+                        error("LIVE_QA_HOST_DID_NOT_KILL_PROCESS")
+                    }
+                }
 
-            "stop" -> {
-                sync.disable()
-                CloudScheduler.reconcile(app)
-                secretFile.delete()
-                result["enabled"] = false
-            }
+                "replaceCloud" -> {
+                    CloudSyncController.operationLock(sync.connection.directory).withLock {
+                        sync.disable()
+                        CloudScheduler.reconcile(app)
+                        val outgoing = sync.inspect().head
+                        val retainedBefore = recovery.inspect().archives
+                        val tag = repo.definitions().tags.single()
+                        repo.editTag(tag.id, "Live QA replaced cloud " + UUID.randomUUID().toString().take(8), tag.categoryId)
+                        val incoming = snapshot().fingerprint
+                        val preview = replacement.prepare()
+                        assertEquals(outgoing, preview.outgoing.status.head)
+                        val done = replacement.confirm(preview)
+                        val head = sync.inspect().head
+                        assertEquals(preview.nextEpoch, head.epoch)
+                        assertEquals("1", head.revision)
+                        assertEquals(Math.addExact(CloudCounter.parse(outgoing.headCounter), 1).toString(), head.headCounter)
+                        assertEquals(incoming, head.fingerprint)
+                        assertEquals(incoming, snapshot().fingerprint)
+                        assertFalse(replacement.hasPending())
+                        assertFalse(sync.connection.read()!!.enabled)
+                        assertEquals("DONE", done.attempt!!.getString("state"))
+                        assertEquals(3, done.archives.size)
+                        assertTrue(done.archives.all { it.usable })
+                        assertEquals(retainedBefore.first().id, preview.evicted!!.id)
+                        assertFalse(done.archives.any { it.id == preview.evicted.id })
+                        result["archiveId"] = done.attempt.getString("archiveId")
+                        result["evicted"] = preview.evicted.id
+                        result["retained"] = done.archives.map { it.id }
+                        result["outgoingFingerprint"] = outgoing.fingerprint
+                        result["oldEpoch"] = outgoing.epoch
+                        result["epoch"] = head.epoch
+                        result["headCounter"] = head.headCounter
+                        result["fingerprint"] = incoming
+                    }
+                }
 
-            else -> error("UNKNOWN_LIVE_RECOVERY_STEP")
+                "verifyDirtyEpoch" -> {
+                    val expectedLocal = checkNotNull(args.getString("expectedLocalFingerprint"))
+                    assertEquals(expectedLocal, snapshot().fingerprint)
+                    val lock = CloudSyncController.operationLock(sync.connection.directory)
+                    lock.withLock {
+                        val error = assertThrows(IllegalStateException::class.java) { sync.syncNow() }
+                        assertTrue(error.message in setOf("CLOUD_PREVIEW_REQUIRED", "CLOUD_CONFLICT_REVIEW_REQUIRED"))
+                        val head = sync.inspect().head
+                        assertEquals(args.getString("expectedFingerprint"), head.fingerprint)
+                        assertEquals(args.getString("expectedEpoch"), head.epoch)
+                        assertEquals(expectedLocal, snapshot().fingerprint)
+                        result["pauseReason"] = error.message
+                        result["localFingerprint"] = expectedLocal
+                        result["cloudFingerprint"] = head.fingerprint
+                        result["epoch"] = head.epoch
+                        sync.disable()
+                        CloudScheduler.reconcile(app)
+                    }
+                }
+
+                "restoreCatalog" -> {
+                    val before = sync.inspect().head
+                    val id = checkNotNull(args.getString("archiveId"))
+                    recovery.prepareRestore(id).use { p ->
+                        check(p.decoded != null)
+                        assertEquals(args.getString("expectedFingerprint"), p.manifest.source!!.head.fingerprint)
+                        recovery.confirmRestore(p)
+                    }
+                    assertEquals(args.getString("expectedFingerprint"), snapshot().fingerprint)
+                    assertEquals(before, sync.inspect().head)
+                    assertFalse(sync.connection.read()!!.enabled)
+                    result["fingerprint"] = snapshot().fingerprint
+                    result["cloudFingerprint"] = before.fingerprint
+                }
+
+                "restoreNative" -> {
+                    val id = checkNotNull(args.getString("archiveId"))
+                    val expected = checkNotNull(args.getString("expectedContent"))
+                    val marker = UUID.randomUUID().toString()
+                    expectedFile.writeText(CloudWireJson.encode(mapOf("content" to expected, "marker" to marker)))
+                    recovery.prepareRestore(id).use { p ->
+                        check(p.prepared != null)
+                        recovery.confirmRestore(p)
+                    }
+                    assertTrue(TagRuntime.restoring)
+                    result["restartRequired"] = true
+                    result["marker"] = marker
+                }
+
+                "verifyNativeAfterRestart" -> {
+                    assertFalse(TagRuntime.restoring)
+                    assertFalse(sync.connection.read()!!.enabled)
+                    val expected = CloudWireJson.obj(expectedFile.readText())
+                    assertEquals(expected.getString("content"), content())
+                    result["content"] = content()
+                    result["marker"] = expected.getString("marker")
+                    result["restartVerified"] = true
+                    expectedFile.delete()
+                }
+
+                "stop" -> {
+                    sync.disable()
+                    CloudScheduler.reconcile(app)
+                    secretFile.delete()
+                    result["enabled"] = false
+                }
+
+                else -> error("UNKNOWN_LIVE_RECOVERY_STEP")
+            }
         }
         if (!TagRuntime.restoring) result["enabled"] = sync.connection.read()!!.enabled
         val encoded = CloudWireJson.encode(result)

@@ -10,9 +10,9 @@ import subprocess
 import time
 from pathlib import Path
 
-ORIGIN = 'https://newpipe-fence-qa-20261020.ritorhymes.workers.dev'
-PACKAGES = {'a': 'org.schabi.newpipe.debug.featurecloudsyncv120261019',
-            'b': 'org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb'}
+ORIGIN = 'https://newpipe-accept-20261021a.ritorhymes.workers.dev'
+PACKAGES = {'a': 'org.schabi.newpipe.debug.qacloudaccept20261021',
+            'b': 'org.schabi.newpipe.debug.qacloudaccept20261021.peerb'}
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)

@@ -40,8 +40,8 @@ class CloudLiveSyncTest {
         val app = ApplicationProvider.getApplicationContext<Context>()
         check(
             app.packageName in setOf(
-                "org.schabi.newpipe.debug.featurecloudsyncv120261019",
-                "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb"
+                "org.schabi.newpipe.debug.qacloudaccept20261021",
+                "org.schabi.newpipe.debug.qacloudaccept20261021.peerb"
             )
         ) { "LIVE_QA_PACKAGE_REQUIRED" }
         val credentialFile = File(app.noBackupFilesDir, "live-qa.json")
@@ -49,7 +49,7 @@ class CloudLiveSyncTest {
         val config = CloudWireJson.obj(credentialFile.readText())
         check(config.getBoolean("syntheticOnly")) { "SYNTHETIC_ONLY" }
         val origin = config.getString("origin")
-        check(origin == "https://newpipe-fence-qa-20261020.ritorhymes.workers.dev") { "LIVE_QA_ORIGIN_REQUIRED" }
+        check(origin == "https://newpipe-accept-20261021a.ritorhymes.workers.dev") { "LIVE_QA_ORIGIN_REQUIRED" }
         val repo = TagRuntime.get(app)
         repo.definitions()
         val controller = CloudSyncController(app)

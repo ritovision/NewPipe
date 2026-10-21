@@ -72,7 +72,7 @@ configure<ApplicationExtension> {
             }
             // Two independent QA installations without replacing an owner's existing app.
             providers.gradleProperty("cloudQaPeer").orNull?.let { peer ->
-                require(workingBranch == "feature/cloud-sync-v1-20261019" && peer == "b") {
+                require(workingBranch in setOf("feature/cloud-sync-v1-20261019", "qa/cloudaccept20261021") && peer == "b") {
                     "cloudQaPeer=b is restricted to the Cloud & Sync QA branch"
                 }
                 applicationIdSuffix = ".debug.${normalizedWorkingBranch}.peerb"
