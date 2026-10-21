@@ -8,6 +8,10 @@
 
 [2026-10-21 candidate evidence](../doc/validation/cloud-v1-candidate-20261021/README.md) records 359 backend tests, 351 JVM tests, 157 executed native Android tests, three real theme/rotation/credential UI scenarios, the 16-step two-installation HTTPS/offline/conflict matrix, and live budget/cleanup acceptance. The minified small public sample measured p95 CPU 6.950 ms across 30 requests with zero Worker errors; earlier failed CPU samples are preserved. This admits neither larger catalogs nor production rollout. Final isolated QA is HELD revision 15 with all APIs off, six revoked credentials, zero holds, and three unchanged archives totaling 4,995 bytes.
 
+## Independent-review corrections
+
+All eight accepted Astra findings have implementations and source-linked verification in the [correction checkpoint](../doc/validation/cloud-astra-fixes-20261021/README.md): native Forget/staging integrity, cross-generation historical provenance, explicit one-time OFF, generation-conditional terminal-auth stopping, bounded truthful cancellation and exact preview/filter behavior. The local correction suites passed 363 backend, 353 JVM and 191 Android tests, plus six Forget and three historical actual process-kill scenarios. This is not a new live deployment or broad release approval. The independent whole-feature Claude review is recorded separately when complete; it is not a coding agent or a substitute for the remaining integrated live/background gates.
+
 ## Backend
 
 `src/index.ts` is the typed Worker entry point. Authenticated device tokens derive authority from the configured library and service generation; request bodies cannot select another database/account or submit SQL. `src/service.ts` stages immutable chunks, validates/seals the actual complete target, and publishes pages, catalog metadata, head revision and operation receipt atomically. Retirement fences both sequence and staged digest before deleting payloads. `src/pages.ts` packs ordered semantic records without one D1 write for every occurrence.

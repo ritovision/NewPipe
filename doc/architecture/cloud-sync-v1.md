@@ -7,6 +7,18 @@
 
 The [tested candidate](../validation/cloud-v1-candidate-20261021/README.md) records executed backend/JVM/native/UI suites, isolated live budget and cleanup acceptance, real reconnection restarts and a two-installation live network-outage/conflict matrix. Minified public CPU measured p95 6.950 ms for the small eight-page / 64 KiB deployment profile. The original failed CPU measurements remain retained. Final QA is closed with six revoked credentials and all three archives preserved. Independent review, larger-profile admission and real-device/background rollout coverage remain distinct gates; no production activation or merge is implied.
 
+## Corrected recovery and lifecycle contracts — 2026-10-21
+
+The [Astra correction checkpoint](../validation/cloud-astra-fixes-20261021/README.md) records the exact new code/test identities. It supersedes the eight defects in the initial candidate without broadening its deployment authorization or admitted profile.
+
+Historical catalog recovery now explicitly separates archive provenance from receiving authority. Normal apply journals remain version 1 with same-service/library target checks. Version-2 `historical-local` journals retain the original archived source head while keeping the current receiving context and native incarnation; only the explicit historical operation can cross service generations, never libraries. Its completed baseline records that provenance but exposes no acknowledged current-service head. Current credentials/highest-observed counters do not change. Subsequent automatic sync cannot treat the imported archive as a new cloud acknowledgement; explicit preview/enrollment is required. Existing version-1 journals remain readable. Older binaries that cannot decode version-2 local recovery state must not be used to resume it.
+
+Forget durably turns OFF before cleanup, commits removal of the Room apply witness before removing its independent baseline/context, and keeps interruption boundaries idempotent. One-time current-cloud restore turns OFF/new generation under the final native writer barrier; simply preparing/canceling the preview does not silently change an existing toggle. Terminal credential/authority failure pauses only the generation that failed, preserves unresolved identities, and cancels automatic work; transient network/429/503 failures keep backoff semantics.
+
+Full native restore retains the validated original file inventory and cryptographic identities of the migrated/sanitized candidate. Authoritative prepared imports live outside evictable cache. Missing/changed expected files are rejected before installation; originally absent stock-backup tags remain distinguishable from lost staged tags. The protected file-swap, native writer fence and restart requirements are unchanged.
+
+Replacement cancellation may explicitly return bounded pending cleanup and must be resumed by the same identity; see the [protocol contract](../../cloud/protocol/replacement-v1.md#bounded-cancellation-progress). No statement cap, unknown-write fence, current authorization check or native-journal corruption guard was removed.
+
 ## 1. Components and isolation
 
 - **Android:** isolated `custom/cloud/` model, native settings screen, authenticated transport, durable sync coordinator, catalog adapter and preview model. Reuse Android networking/WorkManager dependencies already present; no generic replication framework.
