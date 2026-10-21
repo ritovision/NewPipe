@@ -1,0 +1,10 @@
+{
+  "source_commit": "ed4886a0d5abf64935e4e48b4ee9bed66d67542d",
+  "phases": 5,
+  "actual_process_death": true,
+  "app_sha256": "04eaf0cadf927e2ee3e7d46a6caa79ce223c45d69056aff24e455e0c2cdcda5c",
+  "instrumentation_sha256": "341cd37f9fbe2e0c1ae3dc194610a3dbfdf144bf222b2e4c44abbe4e1fd0e285",
+  "serial": "emulator-5576",
+  "avd": "Pixel_9_API_35",
+  "api": 35
+}

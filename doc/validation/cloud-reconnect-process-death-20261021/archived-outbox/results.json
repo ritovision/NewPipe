@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "source_commit": "ed4886a0d5abf64935e4e48b4ee9bed66d67542d",
+  "suite": "reconnect-archived-outbox",
+  "serial": "emulator-5576",
+  "avd": "Pixel_9_API_35",
+  "android_user": 0,
+  "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+  "probe": "probe-a5ae139e14554364b9c3",
+  "killed_pid": "22192",
+  "actual_host_force_stop": true,
+  "verified_marker": "reconnect-preserved-local-content",
+  "scope": "archived-outbox",
+  "native_apply_recovery_tested": false,
+  "native_reconnection_recovery_tested": true,
+  "not_network_or_power_loss_recovery": true,
+  "logs": {
+    "verify.log": "afacda493f66b472e4afc25bfcbbe57dfdeebe912c640231e9ee198268e8e8cd",
+    "interrupted.log": "d6ecd63664d9206affad19fa2f4e3aedc66baedb53ee429643981e9960c0856f",
+    "prepare.log": "76c9332d0b2e3431482729e1d1b1667b89d50be98ddf2ae95b45f92bf7881391"
+  }
+}
