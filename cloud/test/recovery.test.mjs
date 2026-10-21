@@ -500,24 +500,25 @@ test('replacement Android review: retiring an unadmitted intent fences a delayed
  assert.equal((await state()).occupiedSlots,0);assert.equal(ok(await replace('status')).attempt,null);assert.equal((await control({})).calls.create??0,0);
 });
 
-for (const phase of ['RESERVED','UPLOADING','READY','ROTATING']) {
- test('Astra 005: bounded replacement cancellation progresses truthfully from '+phase,async()=>{
+for (const phase of ['RESERVED','UPLOADING','READY','ROTATING']) for(const route of ['abandon','settle']) {
+ test('Astra 005: bounded replacement '+route+' progresses truthfully from '+phase,async()=>{
   await enableReplacement();
   if(phase==='ROTATING')for(let i=0;i<3;i++)await backup(zip(30+i));
   const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
   if(phase==='UPLOADING')assert.equal(ok(await recovery('advance',ref(p.operation))).state,'UPLOADING');
   if(phase==='READY')await finish(p.operation);
   const protectedArchives=(await state()).archives.filter(a=>a.state==='READY'&&a.archiveId!==p.operation.archiveId);
+  const cancel=()=>route==='abandon'?replace('abandon',{approvalId:p.preview.approvalId,recoverySequence:p.attempt.recoverySequence}):replace('settle',{attemptId:p.attempt.attemptId,keepForRetry:false});
   let response,passes=0;
   do{
    await control({resetStatements:true});
-   response=ok(await replace('abandon',{approvalId:p.preview.approvalId,recoverySequence:p.attempt.recoverySequence}));
+   response=ok(await cancel());
    const count=(await control({})).statements;
    assert.ok(count+5<=32,JSON.stringify({phase,count}));
    if(response.cleanupPending){assert.equal(response.receipt.outcome,'RETIRED');assert.ok(++passes<4);}
   }while(response.cleanupPending);
   assert.equal(response.attempt.state,'CANCELED');
-  const again=ok(await replace('abandon',{approvalId:p.preview.approvalId,recoverySequence:p.attempt.recoverySequence}));
+  const again=ok(await cancel());
   assert.equal(again.attempt.state,'CANCELED');
   assert.deepEqual(ok(await call('/v1/head')).head,source.source.head);
   const after=(await state()).archives;

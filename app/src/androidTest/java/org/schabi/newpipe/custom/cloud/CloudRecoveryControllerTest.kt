@@ -148,8 +148,13 @@ class CloudRecoveryControllerTest {
         peer.copies.add(oldCopy) // Immutable A provenance retained by operator reconstruction.
         sync = CloudSyncController(f.context, store, { f.repo }, peer::client)
         val next = sync.reconnect(peer.catalog.tokenB)
+        // Establish real B contents and a B acknowledged baseline first. Restoring
+        // A must change native content, not merely accept its historical header.
+        sync.confirm(sync.prepare(true))
+        assertEquals(CloudCatalogCodec.fingerprint(current), CloudNativeCatalog(f.repo).capture(next.scope, next.incarnation).fingerprint)
+        assertNotEquals(CloudCatalogCodec.fingerprint(original), CloudCatalogCodec.fingerprint(current))
         recovery = controller()
-        val high = next.highest
+        val high = store.read()!!.highest
         val cloud = peer.catalog.head
         recovery.prepareRestore(archive).use { preview ->
             assertEquals(f.scope.service, preview.manifest.source!!.head.serviceGeneration)

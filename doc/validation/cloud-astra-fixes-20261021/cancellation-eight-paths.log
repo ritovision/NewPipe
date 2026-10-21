@@ -1,0 +1,18 @@
+(node:83629) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Astra 005: bounded replacement abandon progresses truthfully from RESERVED (2167.721545ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from RESERVED (837.971271ms)
+✔ Astra 005: bounded replacement abandon progresses truthfully from UPLOADING (898.984771ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from UPLOADING (921.154269ms)
+✔ Astra 005: bounded replacement abandon progresses truthfully from READY (1001.400669ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from READY (918.733458ms)
+✔ Astra 005: bounded replacement abandon progresses truthfully from ROTATING (2090.536516ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from ROTATING (2150.686595ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11859.523354
