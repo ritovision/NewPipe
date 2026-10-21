@@ -1,0 +1,6 @@
+{
+  "implementation": "582f0791d7ecf34291afd6009a4e09e92b7ddf19",
+  "test_file_sha256": "c23e23e2c928b201a6824a51dfb82699a7cb08fdf312a50fb5a031b0ad56043e",
+  "instrumentation_apk_sha256": "aac1ed769511340baf76317ff4aee00d3c9c6cb76b68c3fbc17a6690679efe1c",
+  "purpose": "Additional native export failure-boundary probe, not acceptance"
+}

@@ -50,8 +50,8 @@ object TagBackupCoordinator {
 
     private val recognizedEntries = setOf(DB, TagStore.FILE_NAME, BINDING, PREFS, LEGACY_PREFS)
     private data class PreparedIdentity(val bytes: Long, val digest: String)
-    private fun preparedIdentity(path: Path): PreparedIdentity {
-        check(Files.isRegularFile(path, NOFOLLOW_LINKS)) { "PREPARED_IMPORT_CHANGED" }
+    private fun preparedIdentity(path: Path, copyTo: java.io.OutputStream? = null, error: String = "PREPARED_IMPORT_CHANGED"): PreparedIdentity {
+        check(Files.isRegularFile(path, NOFOLLOW_LINKS)) { error }
         val digest = MessageDigest.getInstance("SHA-256")
         var size = 0L
         Files.newInputStream(path).use { input ->
@@ -60,8 +60,9 @@ object TagBackupCoordinator {
                 val n = input.read(buffer)
                 if (n < 0) break
                 size += n
-                check(size <= MAX_DB) { "PREPARED_IMPORT_CHANGED" }
+                check(size <= MAX_DB) { error }
                 digest.update(buffer, 0, n)
+                copyTo?.write(buffer, 0, n)
             }
         }
         return PreparedIdentity(size, digest.digest().joinToString("") { "%02x".format(it) })
@@ -278,9 +279,10 @@ object TagBackupCoordinator {
         check(inProgress.compareAndSet(false, true)) { "Another catalog import/export is running" }
         var directory: Path? = null
         try {
-            val stage = Files.createTempDirectory(context.cacheDir.toPath(), "tag-export-")
+            val stage = Files.createTempDirectory(context.noBackupFilesDir.toPath(), "tag-export-")
             directory = stage
             val prefValues = preferences.all.toMap()
+            val entries = linkedSetOf(DB, TagStore.FILE_NAME)
             TagRuntime.lock.withLock {
                 TagRuntime.assertAvailable()
                 val repository = TagRuntime.get(context)
@@ -296,20 +298,24 @@ object TagBackupCoordinator {
                 snapshotRoom(repository.library.openHelper.writableDatabase, stage.resolve(DB))
                 snapshotTag(repository.store, stage.resolve(TagStore.FILE_NAME))
                 val binding = LibraryBindingStore.pathForDatabase(context.getDatabasePath(DB).toPath())
-                if (Files.exists(binding)) Files.copy(binding, stage.resolve(BINDING))
+                if (Files.exists(binding)) {
+                    Files.copy(binding, stage.resolve(BINDING))
+                    entries.add(BINDING)
+                }
             }
             validateRoomCopy(context, stage.resolve(DB))
             validateBinding(stage.resolve(BINDING), stage.resolve(DB))
             LibraryBindingStore.stripCloudMarkerFromCopy(stage.resolve(BINDING))
             sanitizeTagCopy(context, stage.resolve(TagStore.FILE_NAME))
+            val inventory = entries.associateWith { preparedIdentity(stage.resolve(it), error = "EXPORT_SNAPSHOT_CHANGED") }
             ZipOutputStream(SharpOutputStream(file.openAndTruncateStream()).buffered()).use { zip ->
-                for (name in listOf(DB, TagStore.FILE_NAME, BINDING)) {
-                    val source = stage.resolve(name)
-                    if (Files.exists(source)) {
-                        zip.putNextEntry(ZipEntry(name))
-                        Files.copy(source, zip)
-                        zip.closeEntry()
-                    }
+                for ((name, expected) in inventory) {
+                    // Missing/changed staging is a failed export, never permission to
+                    // silently omit native data from a supposedly complete safety copy.
+                    zip.putNextEntry(ZipEntry(name))
+                    val copied = preparedIdentity(stage.resolve(name), copyTo = zip, error = "EXPORT_SNAPSHOT_CHANGED")
+                    check(copied == expected) { "EXPORT_SNAPSHOT_CHANGED" }
+                    zip.closeEntry()
                 }
                 zip.putNextEntry(ZipEntry(PREFS))
                 JsonWriter.indent("").on(zip).`object`(prefValues).done()

@@ -1,0 +1,44 @@
+Performing Streamed Install
+Success
+INSTRUMENTATION_STATUS: class=org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest:
+INSTRUMENTATION_STATUS: test=exportCannotSilentlyOmitAValidatedTagSnapshotLostBeforeOutput
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: Export must not report success for an incomplete validated native snapshot
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest.exportCannotSilentlyOmitAValidatedTagSnapshotLostBeforeOutput(TagBackupIntegrationTest.kt:189)
+
+INSTRUMENTATION_STATUS: stream=
+Error in exportCannotSilentlyOmitAValidatedTagSnapshotLostBeforeOutput(org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest):
+java.lang.AssertionError: Export must not report success for an incomplete validated native snapshot
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest.exportCannotSilentlyOmitAValidatedTagSnapshotLostBeforeOutput(TagBackupIntegrationTest.kt:189)
+
+INSTRUMENTATION_STATUS: test=exportCannotSilentlyOmitAValidatedTagSnapshotLostBeforeOutput
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 3.413
+There was 1 failure:
+1) exportCannotSilentlyOmitAValidatedTagSnapshotLostBeforeOutput(org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest)
+java.lang.AssertionError: Export must not report success for an incomplete validated native snapshot
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at org.schabi.newpipe.custom.tagging.TagBackupIntegrationTest.exportCannotSilentlyOmitAValidatedTagSnapshotLostBeforeOutput(TagBackupIntegrationTest.kt:189)
+
+FAILURES!!!
+Tests run: 1,  Failures: 1
+
+
+INSTRUMENTATION_CODE: -1
+

@@ -536,6 +536,7 @@ internal object CloudUserMessages {
         "CLOUD_RECONNECT_LOCAL_IDENTITY_CHANGED", "CLOUD_RECONNECT_RECORD_INVALID", "CLOUD_RECONNECT_ARCHIVE_CONFLICT" -> "The saved reconnection no longer matches this installation. Local content and pending files have been kept for recovery."
         "CLOUD_RECONNECT_STORAGE_UNAVAILABLE" -> "Reconnection could not preserve the old pending files. Free local storage and resume reconnecting."
         "REPLACEMENT_CLEANUP_PENDING" -> "Cleanup is still pending. Continue the same cancellation; its identity and local edits are retained."
+        "EXPORT_SNAPSHOT_CHANGED" -> "The local backup snapshot changed or is missing. No complete backup was produced; retry before applying cloud changes."
         "PREPARED_IMPORT_CHANGED" -> "The prepared backup changed or is missing. Prepare a fresh restore preview; installed data was not replaced."
         "CLOUD_REPLACEMENT_PENDING", "REPLACEMENT_PENDING_OR_NOT_AUTHORIZED" -> "Resolve the current cloud replacement before starting another catalog action."
         "REPLACEMENT_NOT_AUTHORIZED", "REPLACEMENT_API_DISABLED" -> "Cloud replacement is not enabled for this connection."

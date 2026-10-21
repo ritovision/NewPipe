@@ -157,6 +157,56 @@ class TagBackupIntegrationTest {
         assertTrue(repository.store.pendingAiRemovals().isEmpty())
     }
 
+    @Test fun exportCannotSilentlyOmitAValidatedTagSnapshotLostBeforeOutput() = exportSnapshotFailure(TagStore.FILE_NAME)
+
+    @Test fun exportCannotOmitRequiredRoomOrPreviouslyPresentBinding() {
+        exportSnapshotFailure("newpipe.db")
+        exportSnapshotFailure(LibraryBindingStore.FILE_NAME)
+    }
+
+    @Test fun exportRejectsChangedSnapshotBytesEvenWhenItsLengthStillMatches() = exportSnapshotFailure(TagStore.FILE_NAME, mutate = true)
+
+    private fun exportSnapshotFailure(entry: String, mutate: Boolean = false) {
+        val tag = repository.createTag("Must be archived $entry", null)
+        item("export-snapshot-loss-$entry", tag)
+        val target = directory.resolve("export-loss-probe-${UUID.randomUUID()}.zip")
+        Files.createFile(target)
+        var injected = false
+        val output = object : StoredFileHelper(context, null, Uri.fromFile(target.toFile()), "synthetic-export-fault") {
+            override fun openAndTruncateStream(): org.schabi.newpipe.streams.io.SharpStream {
+                val stages = sequenceOf(context.cacheDir.toPath(), context.noBackupFilesDir.toPath()).distinct().flatMap { parent ->
+                    Files.list(parent).use { it.iterator().asSequence().filter { p -> p.fileName.toString().startsWith("tag-export-") }.toList() }.asSequence()
+                }.toList()
+                check(stages.size == 1)
+                val source = stages.single().resolve(entry)
+                if (mutate) {
+                    val bytes = Files.readAllBytes(source)
+                    bytes[bytes.lastIndex] = (bytes.last().toInt() xor 1).toByte()
+                    Files.write(source, bytes)
+                } else {
+                    Files.delete(source)
+                }
+                injected = true
+                return super.openAndTruncateStream()
+            }
+        }
+        var refused = false
+        try {
+            TagBackupCoordinator.export(context, context.getSharedPreferences("synthetic-export-loss", Context.MODE_PRIVATE), output)
+        } catch (_: Exception) {
+            refused = true
+        }
+        assertTrue("The exact post-validation fault boundary must be exercised", injected)
+        if (!refused) {
+            java.util.zip.ZipFile(target.toFile()).use { archive ->
+                println("EXPORT_SNAPSHOT_LOSS_PROBE returnedSuccess=true tagEntryPresent=${archive.getEntry(TagStore.FILE_NAME) != null}")
+            }
+        }
+        assertTrue("Export must not report success for an incomplete validated native snapshot", refused)
+        assertFalse(TagRuntime.restoring)
+        assertTrue(repository.definitions().tags.any { it.id == tag && it.name == "Must be archived $entry" })
+    }
+
     @Test fun lostPreparedTagBindingRoomOrSettingsRefusesBeforeShutdownAndPreservesInstalledData() {
         val tag = repository.createTag("Archived", null)
         val media = item("archive", tag)
