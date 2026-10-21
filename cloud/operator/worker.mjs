@@ -5,7 +5,8 @@ import {canonical,seal,fail,OperatorError,validateScope,authorityBlockers,fenceB
 import {recoveryStore} from './adapters.mjs';
 import {executeReopen,finishReopen} from './reopen.mjs';
 import {cloudflareClient} from './cloudflare.mjs';
-import {FenceError} from '../src/fence.ts';
+import {admit,FenceError} from '../src/fence.ts';
+import {housekeep} from '../src/housekeeping.ts';
 import {fenceState,closeFence,requireHeld,claimAction,finishAction} from '../src/maintenance.ts';
 import {RecoveryError} from '../src/recovery-format.ts';
 const response=(value,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff'}});
@@ -82,7 +83,13 @@ export default {async fetch(request,env){
   phase='authority';
   const client=cloudflareClient(scope,input.cloudflareToken);
   const authority=await client.authority();
-  if(authorityBlockers(authority,scope).length)fail('LIVE_AUTHORITY_BLOCKED');
+  if(authorityBlockers(authority,scope,url.pathname!=='/maintenance/housekeep').length)fail('LIVE_AUTHORITY_BLOCKED');
+  if(url.pathname==='/maintenance/housekeep'){
+   phase='housekeeping';
+   const ticket=await admit(env.CONTROL,{resource:scope.fence.resource,library:scope.library,generation:scope.generation});
+   try{return response(await housekeep(ticket.database(env.DB),scope.library,scope.generation,input.limits??{}));}
+   finally{await ticket.finish();}
+  }
   if(url.pathname==='/recovery/apply'){
    phase='s3-client';const store=recoveryStore(scope,input.r2Credentials);
    phase='apply';return response(await applyPlan(env,input.plan,authority,store));

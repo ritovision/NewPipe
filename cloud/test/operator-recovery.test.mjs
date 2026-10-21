@@ -58,7 +58,7 @@ before(async()=>{
   mf=new Miniflare(convertV4MiniflareOptions({cf:false,modules:true,script:'export default {fetch(){return new Response("operator local tests")}}',
     compatibilityDate:'2026-08-25',d1Databases:{DB:'operator-local',CONTROL:'operator-control'},r2Buckets:{RECOVERY:'operator-local'},resourcePersistencePath:persistence}));
   await mf.ready;control=await mf.getD1Database('CONTROL');db=await mf.getD1Database('DB');r2=await mf.getR2Bucket('RECOVERY');
-  for(const file of ['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql','0004_operator_receipts.sql','0005_reopen_receipts.sql']){
+  for(const file of ['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql','0004_operator_receipts.sql','0005_reopen_receipts.sql','0006_housekeeping.sql']){
     const parts=(await readFile(new URL('../migrations/'+file,import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(x=>x.trim()).filter(Boolean);
     await db.batch(parts.map(s=>db.prepare(s)));
   }
@@ -68,6 +68,8 @@ before(async()=>{
 });
 after(async()=>{await mf?.dispose();if(persistence)await rm(persistence,{recursive:true,force:true});});
 beforeEach(async()=>{
+ await db.prepare('DELETE FROM cloud_receipt_retention').run();
+ await db.prepare('DELETE FROM cloud_housekeeping_cursor').run();
  for(const t of ['cloud_fence_actions','cloud_fence_tickets','cloud_fence','cloud_fence_assertion'])await control.prepare('DELETE FROM '+t).run();
  await db.prepare('DELETE FROM cloud_reopen_receipts').run();
  await db.prepare('DELETE FROM cloud_operator_receipts').run();
@@ -445,6 +447,21 @@ test('reopen refuses corrupt catalog, active old credentials, incorrect index an
  await assert.rejects(reopen(plan),/RECOVERED_INDEX_MISMATCH/);
  assert.equal((await fenceState(control,fencedScope.fence.resource)).running,0);
 });
+test('authenticated housekeeping uses ordinary admission and cannot mutate a HELD generation',async()=>{
+ const {plan}=await recoveredFixture();
+ const before=await snapshot(adapters().db,scope.library);
+ const closed=await operatorHttp('/maintenance/housekeep',{});assert.equal(closed.status,503);assert.equal((await closed.json()).error,'MAINTENANCE_REQUIRED');
+ assert.deepEqual(await snapshot(adapters().db,scope.library),before);
+ await reopen(plan);
+ const result=await operatorHttp('/maintenance/housekeep',{});assert.equal(result.status,200);assert.equal((await result.json()).inspected,4);
+ const fence=await fenceState(control,fencedScope.fence.resource);assert.equal(fence.state,'OPEN');assert.equal(fence.pending,0);
+});
+test('only housekeeping may inspect enabled application authority',()=>{
+ const enabled=fencedAuthority();enabled.vars.ENABLE_CATALOG_API='true';
+ assert.ok(authorityBlockers(enabled,fencedScope).length>0);assert.deepEqual(authorityBlockers(enabled,fencedScope,false),[]);
+ enabled.database='unrelated';assert.ok(authorityBlockers(enabled,fencedScope,false).includes('WORKER_BINDING_MISMATCH'));
+});
+
 test('competing reopen plans have one winner and later maintenance cannot reuse the old cycle',async()=>{
  const {plan}=await recoveredFixture();
  const other=await makeReopenPlan(reopenAdapters(),fencedScope,[{...freshDevices[0],device:'device-20000000-0000-4000-8000-000000000001',tokenHash:await sha256('6'.repeat(64))}]);

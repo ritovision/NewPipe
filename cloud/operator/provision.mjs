@@ -45,7 +45,7 @@ try{
   if(!Array.isArray(r)||r.length!==1||!r[0].success)fail('PROVISION_SCHEMA_FAILED');return r[0].results;
  };
  const root=dirname(dirname(fileURLToPath(import.meta.url)));
- for(const [id,files] of [[data.uuid,['migrations/0001_catalog_service.sql','migrations/0002_recovery.sql','migrations/0003_replacement.sql','migrations/0004_operator_receipts.sql','migrations/0005_reopen_receipts.sql']],
+ for(const [id,files] of [[data.uuid,['migrations/0001_catalog_service.sql','migrations/0002_recovery.sql','migrations/0003_replacement.sql','migrations/0004_operator_receipts.sql','migrations/0005_reopen_receipts.sql','migrations/0006_housekeeping.sql']],
   [control.uuid,['control-migrations/0001_fence.sql','control-migrations/0002_reopen.sql']]]){
   for(const file of files){
    const statements=(await readFile(resolve(root,file),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);

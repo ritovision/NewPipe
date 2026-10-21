@@ -13,6 +13,7 @@ const help=`NewPipe guarded recovery operator (Node 24)
   node operator/cli.mjs verify --plan private-plan.json
   node operator/cli.mjs close --scope scope.json --maintenance UUID
   node operator/cli.mjs state --scope scope.json
+  node operator/cli.mjs housekeep --scope scope.json
   node operator/cli.mjs bookmark --scope scope.json
   node operator/cli.mjs restore --scope scope.json --bookmark BOOKMARK --out private-action.json
   node operator/cli.mjs abort --plan private-plan.json --key KEY --upload ID --out private-action.json
@@ -66,6 +67,7 @@ try{
      if(!v.maintenance)throw new OperatorError('MAINTENANCE_ID_REQUIRED');
      result=await call('/maintenance/close',{scope,maintenance:v.maintenance});
     }else if(mode==='state')result=await call('/maintenance/state',{scope});
+    else if(mode==='housekeep')result=await call('/maintenance/housekeep',{scope,cloudflareToken});
     else if(mode==='status'){
      if(!v.action||!['apply','restore','abort','reopen'].includes(v.kind))throw new OperatorError('ACTION_AND_KIND_REQUIRED');
      result=await call('/recovery/status',{scope,action:v.action,kind:v.kind,...(v.maintenance?{maintenance:v.maintenance}:{}),cloudflareToken});

@@ -152,9 +152,9 @@ export async function snapshot(db, library) {
   }
   return result;
 }
-export function authorityBlockers(authority, scope) {
+export function authorityBlockers(authority, scope, requireDisabled = true) {
   const b = [], expected = {
-    ENABLE_CATALOG_API:'false',ENABLE_RECOVERY_API:'false',ENABLE_REPLACEMENT_API:'false',
+    ...(requireDisabled?{ENABLE_CATALOG_API:'false',ENABLE_RECOVERY_API:'false',ENABLE_REPLACEMENT_API:'false'}:{}),
     LIBRARY_ID:scope.library,SERVICE_GENERATION:scope.generation
   };
   if (!authority || typeof authority.deployment !== 'string' || typeof authority.version !== 'string') return ['ACTIVE_DEPLOYMENT_UNVERIFIED'];
