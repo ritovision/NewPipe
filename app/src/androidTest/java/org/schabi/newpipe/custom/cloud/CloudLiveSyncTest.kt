@@ -49,7 +49,7 @@ class CloudLiveSyncTest {
         val config = CloudWireJson.obj(credentialFile.readText())
         check(config.getBoolean("syntheticOnly")) { "SYNTHETIC_ONLY" }
         val origin = config.getString("origin")
-        check(origin == "https://newpipe-cloud-sync-v1.ritorhymes.workers.dev") { "LIVE_QA_ORIGIN_REQUIRED" }
+        check(origin == "https://newpipe-fence-qa-20261020.ritorhymes.workers.dev") { "LIVE_QA_ORIGIN_REQUIRED" }
         val repo = TagRuntime.get(app)
         repo.definitions()
         val controller = CloudSyncController(app)
@@ -112,7 +112,139 @@ class CloudLiveSyncTest {
                 }
             }
         }
+        val continuation = "Cloud continuation " + (config.getString("run") ?: "missing")
+        fun continuationCategory() = repo.definitions().categories.single { it.name.startsWith("$continuation category") }
+        fun continuationTag() = repo.definitions().tags.single { it.name.startsWith("$continuation tag") }
+        fun requireOffline() {
+            @Suppress("DEPRECATION")
+            val connected = (app.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).activeNetworkInfo?.isConnected == true
+            assertFalse("Host must disable networking only on the dedicated QA emulator", connected)
+        }
         when (step) {
+            "continuationJoin" -> {
+                check(config.getString("run")?.matches(Regex("[a-z0-9-]{1,48}")) == true)
+                check(controller.connection.read() == null) { "LIVE_QA_ALREADY_CONNECTED" }
+                controller.connect(origin, config.getString("token"))
+                assertEquals(config.getString("generation"), controller.connection.read()!!.scope.service)
+                controller.confirm(controller.prepare(true))
+                assertTrue(controller.connection.read()!!.enabled)
+                assertEquals(snapshot().fingerprint, idle { controller.inspect() }.head.fingerprint)
+            }
+
+            "continuationSeed" -> {
+                val category = repo.createCategory("$continuation category")
+                val tag = repo.createTag("$continuation tag", category)
+                val a = media("${config.getString("run")}-A", setOf(tag))
+                val b = media("${config.getString("run")}-B", setOf(tag))
+                TagRuntime.mutate(
+                    repo.library,
+                    Callable {
+                        repo.library.runInTransaction {
+                            val id = repo.library.playlistDAO().insert(PlaylistEntity(name = "$continuation duplicates", isThumbnailPermanent = false, thumbnailStreamId = a.uid, displayIndex = 1))
+                            repo.library.playlistStreamDAO().insertAll(listOf(PlaylistStreamEntity(id, a.uid, 0), PlaylistStreamEntity(id, a.uid, 1), PlaylistStreamEntity(id, b.uid, 2)))
+                        }
+                    }
+                )
+                UnavailableRepository.setMarked(app, b.uid, true).blockingAwait()
+                val expected = snapshot().fingerprint
+                CloudScheduler.reconcile(app)
+                waitForBaseline(expected)
+                assertEquals(expected, idle { controller.inspect() }.head.fingerprint)
+            }
+
+            "continuationPull" -> {
+                CloudScheduler.reconcile(app)
+                checkExpected()
+                val current = snapshot().catalog
+                val playlist = current.playlists.single { it.name == "$continuation duplicates" }
+                assertEquals(3, playlist.items.size)
+                assertEquals(playlist.items[0], playlist.items[1])
+                assertTrue(current.unavailable.any { it.url.endsWith("${config.getString("run")}-B") })
+                continuationTag()
+            }
+
+            "continuationOfflineEdit" -> {
+                requireOffline()
+                val before = TagRuntime.lock.withLock { checkNotNull(CloudApplyStore.baseline(repo.store.readableDatabase)).head.fingerprint }
+                val category = continuationCategory()
+                repo.renameCategory(category.id, "$continuation category offline")
+                assertTrue(before != snapshot().fingerprint)
+                CloudScheduler.reconcile(app)
+                val error = assertThrows(CloudRemoteException::class.java) { idle { controller.syncNow() } }
+                assertEquals("CLOUD_NETWORK_UNAVAILABLE", error.code)
+                assertEquals(before, TagRuntime.lock.withLock { CloudApplyStore.baseline(repo.store.readableDatabase)!!.head.fingerprint })
+                assertTrue(controller.connection.read()!!.enabled)
+            }
+
+            "continuationOfflineRestart" -> {
+                requireOffline()
+                assertEquals(args.getString("expectedLocalFingerprint"), snapshot().fingerprint)
+                assertEquals(args.getString("expectedFingerprint"), TagRuntime.lock.withLock { CloudApplyStore.baseline(repo.store.readableDatabase)!!.head.fingerprint })
+                CloudScheduler.reconcile(app)
+                val deadline = SystemClock.elapsedRealtime() + 15_000
+                while (true) {
+                    val work = WorkManager.getInstance(app).getWorkInfosForUniqueWork("ritovision-cloud-change-v1").get(10, TimeUnit.SECONDS)
+                    if (work.any { it.state == androidx.work.WorkInfo.State.ENQUEUED }) break
+                    check(SystemClock.elapsedRealtime() < deadline) { "OFFLINE_WORK_NOT_QUEUED" }
+                    SystemClock.sleep(100)
+                }
+                assertTrue(controller.connection.read()!!.enabled)
+            }
+
+            "continuationResume" -> {
+                CloudScheduler.reconcile(app)
+                checkExpected()
+                assertFalse(controller.hasPending())
+                assertEquals(snapshot().fingerprint, idle { controller.inspect() }.head.fingerprint)
+            }
+
+            "continuationConflictEdit" -> {
+                requireOffline()
+                val category = continuationCategory()
+                repo.renameCategory(category.id, "$continuation category conflict")
+                assertTrue(args.getString("expectedFingerprint") != snapshot().fingerprint)
+            }
+
+            "continuationRemoteEdit" -> {
+                val tag = continuationTag()
+                repo.editTag(tag.id, "$continuation tag remote", continuationCategory().id)
+                val expected = snapshot().fingerprint
+                CloudScheduler.reconcile(app)
+                waitForBaseline(expected)
+                assertEquals(expected, idle { controller.inspect() }.head.fingerprint)
+            }
+
+            "continuationConflict" -> {
+                assertEquals(args.getString("expectedLocalFingerprint"), snapshot().fingerprint)
+                assertEquals("CLOUD_CONFLICT_REVIEW_REQUIRED", assertThrows(IllegalStateException::class.java) { idle { controller.syncNow() } }.message)
+                assertEquals(args.getString("expectedLocalFingerprint"), snapshot().fingerprint)
+                assertEquals(args.getString("expectedFingerprint"), idle { controller.inspect() }.head.fingerprint)
+            }
+
+            "continuationReconcile" -> {
+                val preview = idle { controller.prepare(true) }
+                assertEquals(args.getString("expectedLocalFingerprint"), preview.before.fingerprint)
+                assertEquals(args.getString("expectedFingerprint"), preview.remote.head.fingerprint)
+                idle { controller.confirm(preview) }
+                assertEquals(args.getString("expectedFingerprint"), snapshot().fingerprint)
+                assertTrue(File(controller.connection.directory, "recovery/before-last-cloud-restore.zip").isFile)
+            }
+
+            "continuationDisable" -> {
+                controller.disable()
+                CloudScheduler.reconcile(app)
+                media("${config.getString("run")}-disabled")
+                assertFalse(controller.connection.read()!!.enabled)
+                assertEquals("ENABLE_SYNC_OR_USE_ONE_TIME_RESTORE", assertThrows(IllegalStateException::class.java) { controller.syncNow() }.message)
+            }
+
+            "continuationOneTime" -> {
+                assertFalse(controller.connection.read()!!.enabled)
+                idle { controller.confirm(controller.prepare(false)) }
+                assertEquals(args.getString("expectedFingerprint"), snapshot().fingerprint)
+                assertFalse(controller.connection.read()!!.enabled)
+            }
+
             "initialize" -> {
                 check(controller.connection.read() == null) { "LIVE_QA_ALREADY_CONNECTED" }
                 val existing = repo.library.openHelper.readableDatabase.query("SELECT COUNT(*) FROM streams").use {

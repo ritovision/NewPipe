@@ -22,7 +22,7 @@ credentials = Path(args.credentials).resolve()
 if credentials.stat().st_mode & 0o077:
     parser.error("Credential file must be private (0600).")
 config = json.loads(credentials.read_text())
-if config.get("syntheticOnly") is not True or config.get("origin") != "https://newpipe-cloud-sync-v1.ritorhymes.workers.dev":
+if config.get("syntheticOnly") is not True or config.get("origin") != "https://newpipe-fence-qa-20261020.ritorhymes.workers.dev":
     parser.error("Only the dedicated synthetic NewPipe service is accepted.")
 output = Path(args.output).resolve()
 output.mkdir(parents=True, exist_ok=False)
