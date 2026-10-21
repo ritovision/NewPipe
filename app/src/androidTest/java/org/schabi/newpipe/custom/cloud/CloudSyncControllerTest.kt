@@ -227,6 +227,23 @@ class CloudSyncControllerTest {
 
     @Test fun detachCompletionIsIdempotentAfterConnectionRemoval() = interruptDetach("connection")
 
+    @Test fun replayIdentityRejectionAllowsExplicitDetachButNeverClaimsOldRemoteWorkWasRetired() {
+        f.seed()
+        enable()
+        f.media("conflicting-device-sequence")
+        peer.fault = "beforeStart"
+        assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+        peer.beforeRequest = { throw CloudRemoteException("REPLAY_MISMATCH", 409) }
+        assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+        assertTrue(connection.read()!!.authorityRejected)
+        assertFalse(connection.read()!!.enabled)
+        val retired = peer.requests.count { it == "/v1/uploads/retire" }
+        controller.detachRejectedConnection()
+        assertEquals(retired, peer.requests.count { it == "/v1/uploads/retire" })
+        assertEquals(null, connection.read())
+        assertTrue(File(connection.directory, "retired-connections").listFiles()!!.single().resolve("outbox").isDirectory)
+    }
+
     @Test fun transientNetworkFailureDoesNotAuthorizeLocalDetachOfAnUnresolvedUpload() {
         f.seed()
         enable()

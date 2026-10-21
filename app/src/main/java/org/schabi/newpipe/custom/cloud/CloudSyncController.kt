@@ -580,18 +580,25 @@ internal class CloudSyncController(
     fun hasPending(): Boolean = transfers.hasPending()
     fun recordFailure(error: Throwable, failedGeneration: String? = null) {
         val message = CloudUserMessages.error(error)
-        val terminal = error is CloudRemoteException && error.httpStatus in setOf(401, 403) &&
-            error.code in setOf("INVALID_CREDENTIAL", "AUTH_REJECTED", "AUTH_OR_LIBRARY_UNAVAILABLE") ||
-            error.message in setOf("CLOUD_SCOPE_MISMATCH", "CLOUD_DEVICE_MISMATCH", "CLOUD_REMOTE_ROLLBACK_SUSPECTED", "CLOUD_CREDENTIAL_UNAVAILABLE_RECONNECT")
+        val rejectedIdentity = error is CloudRemoteException && (
+            error.httpStatus in setOf(401, 403) && error.code in setOf("INVALID_CREDENTIAL", "AUTH_REJECTED", "AUTH_OR_LIBRARY_UNAVAILABLE") ||
+                error.httpStatus == 409 && error.code in setOf("REPLAY_MISMATCH", "RECOVERY_REPLAY_MISMATCH", "CHUNK_REPLAY_MISMATCH")
+            )
+        val terminal = rejectedIdentity || error.message in setOf("CLOUD_SCOPE_MISMATCH", "CLOUD_DEVICE_MISMATCH", "CLOUD_REMOTE_ROLLBACK_SUSPECTED", "CLOUD_CREDENTIAL_UNAVAILABLE_RECONNECT")
         val paused = TagRuntime.lock.withLock {
             val state = connection.read() ?: return@withLock false
             if (failedGeneration != null && state.generation != failedGeneration) return@withLock false
-            if (connection.reconnectPending()) return@withLock false
+            if (connection.reconnectPending() || connection.detachPending()) return@withLock false
             val stop = failedGeneration != null && terminal
             runCatching {
                 connection.update(state.generation) {
                     if (stop) {
-                        it.copy(generation = UUID.randomUUID().toString(), enabled = false, message = message)
+                        it.copy(
+                            generation = UUID.randomUUID().toString(),
+                            enabled = false,
+                            message = message,
+                            authorityRejected = it.authorityRejected || rejectedIdentity
+                        )
                     } else {
                         it.copy(message = message)
                     }
@@ -610,7 +617,7 @@ internal object CloudUserMessages {
     fun error(error: Throwable): String = when (error.message) {
         "CLOUD_DETACH_RECOVERY_REQUIRED" -> "Finish the saved local disconnect. Pending records remain archived; remote outcomes are not cleared."
         "CLOUD_FRESH_DEVICE_REQUIRED" -> "Use a fresh device token. This installation has archived unresolved work under the old device identity."
-        "CLOUD_DETACH_REQUIRES_REJECTED_AUTHORITY" -> "This local escape is available only after permanent credential rejection. Resolve pending work normally while authority remains valid."
+        "CLOUD_DETACH_REQUIRES_REJECTED_AUTHORITY" -> "This local escape is available only after permanent credential or device-operation identity rejection. Resolve pending work normally while authority remains valid."
         "CLOUD_DETACH_STORAGE_UNAVAILABLE", "CLOUD_DETACH_ARCHIVE_CONFLICT", "CLOUD_DETACH_RECORD_INVALID", "CLOUD_RETIRED_DEVICE_LIMIT", "CLOUD_RETIRED_DEVICE_RECORD_INVALID" -> "Local disconnect could not safely preserve its records. Keep the app data and finish recovery before connecting again."
         "CLOUD_RECONNECT_RECOVERY_REQUIRED" -> "Finish reconnecting after cloud recovery before using other cloud actions. Local edits are safe."
         "CLOUD_RECOVERED_SCOPE_REQUIRED" -> "Use a fresh device token for the recovered version of this same cloud library."
@@ -639,6 +646,7 @@ internal object CloudUserMessages {
         "CLOUD_ORPHAN_RECONCILIATION_REQUIRED" -> "Recoverable local tags conflict with the cloud copy. Use the detailed restore preview."
         "CLOUD_SERVER_LIBRARY_LIMIT", "CLOUD_SERVER_TRANSFER_LIMIT" -> "This library exceeds the server's configured size limit. Nothing was uploaded."
         "CLOUD_API_DISABLED" -> "The Worker is connected but its catalog API is disabled."
+        "REPLAY_MISMATCH", "RECOVERY_REPLAY_MISMATCH", "CHUNK_REPLAY_MISMATCH" -> "This device identity conflicts with existing cloud work. Automatic sync is off; preserve the records and use local disconnect with a fresh device token. Earlier requests may still need operator reconciliation."
         "INVALID_CREDENTIAL", "AUTH_REJECTED", "AUTH_OR_LIBRARY_UNAVAILABLE" -> "This device token was rejected or revoked. Check the connection credentials."
         "REQUEST_LIMIT" -> "Cloud request limit reached. Retry later; your local library is unchanged."
         "BUDGET_OR_MAINTENANCE_UNAVAILABLE", "MAINTENANCE_REQUIRED" -> "Cloud sync is paused by a resource limit or maintenance. Local edits are retained; retry later."

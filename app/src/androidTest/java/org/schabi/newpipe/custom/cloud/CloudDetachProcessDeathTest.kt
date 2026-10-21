@@ -56,7 +56,7 @@ class CloudDetachProcessDeathTest {
         assertThrows(CloudRemoteException::class.java) { c.syncNow() }
         assertTrue(store.read()!!.authorityRejected)
         val files = File(store.directory, "outbox").walkTopDown().filter { it.isFile }.associate {
-            it.relativeTo(store.directory).path to CloudWireJson.sha256(it.readText())
+            it.relativeTo(store.directory).path to CloudApplyStore.hash(it.readBytes())
         }
         write(File(dir, "outbox-digests"), CloudWireJson.encode(files))
         write(File(dir, "native-digest"), CloudRoomContentDigest.withoutCloudWitness(f.db.openHelper.readableDatabase))
@@ -93,7 +93,7 @@ class CloudDetachProcessDeathTest {
         assertFalse(store.detachPending())
         val archive = File(store.directory, "retired-connections").listFiles()!!.single()
         val expected = CloudWireJson.obj(File(dir, "outbox-digests").readText())
-        for (name in expected.keys) assertEquals(expected.getString(name), CloudWireJson.sha256(File(archive, name).readText()))
+        for (name in expected.keys) assertEquals(expected.getString(name), CloudApplyStore.hash(File(archive, name).readBytes()))
         assertFalse(File(archive, "connection.json").readText().contains(peer.tokenA))
         assertEquals(File(dir, "native-digest").readText(), CloudRoomContentDigest.withoutCloudWitness(f.db.openHelper.readableDatabase))
         assertEquals(File(dir, "definitions").readText(), f.repo.definitions().toString())
