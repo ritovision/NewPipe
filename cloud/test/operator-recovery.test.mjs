@@ -10,7 +10,10 @@ import {s3Store,cloudflareClient} from '../operator/adapters.mjs';
 import {bytesDigest,recoveryDigest,cloudArchiveHeader,cloudArchivePage} from '../src/recovery-format.ts';
 import {encodePages,pageManifest,byteLength,sha256} from '../src/pages.ts';
 import {fingerprint} from '../src/catalog.ts';
-import operatorWorker,{applyPlan} from '../operator/worker.mjs';
+import operatorWorker,{applyPlan,existing} from '../operator/worker.mjs';
+import {makeReopenPlan,executeReopen,latestAction} from '../operator/reopen.mjs';
+import {admit} from '../src/fence.ts';
+import {closeFence} from '../src/maintenance.ts';
 import {fenceState,claimAction,finishAction} from '../src/maintenance.ts';
 import {authenticateToken} from '../src/service.ts';
 
@@ -55,17 +58,18 @@ before(async()=>{
   mf=new Miniflare(convertV4MiniflareOptions({cf:false,modules:true,script:'export default {fetch(){return new Response("operator local tests")}}',
     compatibilityDate:'2026-08-25',d1Databases:{DB:'operator-local',CONTROL:'operator-control'},r2Buckets:{RECOVERY:'operator-local'},resourcePersistencePath:persistence}));
   await mf.ready;control=await mf.getD1Database('CONTROL');db=await mf.getD1Database('DB');r2=await mf.getR2Bucket('RECOVERY');
-  for(const file of ['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql','0004_operator_receipts.sql']){
+  for(const file of ['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql','0004_operator_receipts.sql','0005_reopen_receipts.sql']){
     const parts=(await readFile(new URL('../migrations/'+file,import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(x=>x.trim()).filter(Boolean);
     await db.batch(parts.map(s=>db.prepare(s)));
   }
- const schema=(await readFile(new URL('../control-migrations/0001_fence.sql',import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ const schema=(await Promise.all(['0001_fence.sql','0002_reopen.sql'].map(f=>readFile(new URL('../control-migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
  await control.batch(schema.map(s=>control.prepare(s)));
 
 });
 after(async()=>{await mf?.dispose();if(persistence)await rm(persistence,{recursive:true,force:true});});
 beforeEach(async()=>{
  for(const t of ['cloud_fence_actions','cloud_fence_tickets','cloud_fence','cloud_fence_assertion'])await control.prepare('DELETE FROM '+t).run();
+ await db.prepare('DELETE FROM cloud_reopen_receipts').run();
  await db.prepare('DELETE FROM cloud_operator_receipts').run();
   for(const o of (await r2.list()).objects)await r2.delete(o.key);
   for(const t of ['cloud_replace_attempts','cloud_replace_approvals','cloud_replace_grants','cloud_backup_slots','cloud_backup_operations','cloud_backup_approvals','cloud_backup_control','cloud_upload_changes','cloud_upload_chunks','cloud_uploads','cloud_catalog_pages','cloud_receipts','cloud_catalog_info','cloud_devices','cloud_head','cloud_commit_assertion'])await db.prepare('DELETE FROM '+t).run();
@@ -282,6 +286,7 @@ test('a completed rebuild receipt becomes superseded after a later restore actio
  const p=await fencedPlan();await apply(p);
  const f=await fenceState(control,fencedScope.fence.resource),id='d'.repeat(64);
  await claimAction(control,f,id,'restore');
+ await db.prepare('DELETE FROM cloud_reopen_receipts').run();
  await db.prepare('DELETE FROM cloud_operator_receipts').run();
  await finishAction(control,maintenance,id,{restored:true});
  assert.equal((await apply(p)).state,'SUPERSEDED');
@@ -343,4 +348,113 @@ test('delayed unclaimed restore intent cannot overtake a later completed action'
  const r=await operatorHttp('/recovery/restore',{bookmark:'00000001-00000002-00000003-'+'2'.repeat(32)},{},()=>{calls++;return Response.json({success:true,result:{}});});
  assert.equal(r.status,503);assert.equal((await r.json()).error,'STALE_MAINTENANCE_INTENT');assert.equal(calls,0);
  assert.equal((await fenceState(control,fencedScope.fence.resource)).running,0);
+});
+
+const freshDevices=[
+ {device:'device-10000000-0000-4000-8000-000000000001',tokenHash:await sha256('4'.repeat(64)),writable:true},
+ {device:'device-10000000-0000-4000-8000-000000000002',tokenHash:await sha256('5'.repeat(64)),writable:false}
+];
+const reopenAdapters=()=>({...adapters(),authority:async()=>fencedAuthority(),fence:()=>fenceState(control,fencedScope.fence.resource),
+ latestAction:m=>latestAction(control,fencedScope,m)});
+async function recoveredFixture(){
+ const pages=await encodePages(catalog);
+ await db.batch([
+  db.prepare("UPDATE cloud_head SET fingerprint=? WHERE library_id=?").bind(await fingerprint(catalog),scope.library),
+  db.prepare("UPDATE cloud_catalog_info SET initialized=1,page_count=?,payload_bytes=?,manifest=? WHERE library_id=?")
+   .bind(pages.length,pages.reduce((n,p)=>n+byteLength(p.body),0),await pageManifest(pages),scope.library),
+  db.prepare("DELETE FROM cloud_catalog_pages WHERE library_id=?").bind(scope.library),
+  ...pages.map(p=>db.prepare('INSERT INTO cloud_catalog_pages VALUES(?,?,?)').bind(scope.library,p.id,p.body))
+ ]);
+ const recovery=await fencedPlan();await apply(recovery);
+ return {recovery,plan:await makeReopenPlan(reopenAdapters(),fencedScope,freshDevices)};
+}
+const reopen=async(p,database=db,controlDb=control)=>{
+ const env={DB:database,CONTROL:controlDb,RECOVERY:r2};
+ return await existing(env,fencedScope,p.body.fence.maintenance_id,p.digest,'reopen')??
+  executeReopen(env,p,fencedAuthority(),store);
+};
+test('reopen validates accepted catalog and archives, enrolls fresh tokens and atomically opens a new generation',async()=>{
+ const {recovery,plan}=await recoveredFixture(),before=await Promise.all(objects.map(o=>r2.get(o.key).then(r=>r.arrayBuffer())));
+ const result=await reopen(plan);assert.equal(result.state,'DONE');assert.equal(result.result.opened,true);
+ assert.deepEqual(await reopen(plan),result);
+ const f=await fenceState(control,fencedScope.fence.resource);
+ assert.equal(f.state,'OPEN');assert.equal(f.service_generation,scope.generation);assert.equal(f.pending,0);assert.equal(f.running,0);
+ assert.equal(f.maintenance_id,null);assert.equal(f.next_generation,null);
+ await assert.rejects(admit(control,{resource:f.resource_id,library:scope.library,generation:'old-service'}));
+ const ticket=await admit(control,{resource:f.resource_id,library:scope.library,generation:scope.generation});await ticket.finish();
+ for(const [i,d] of freshDevices.entries()){
+  const auth=await authenticateToken(db,d.device+'.'+String(i+4).repeat(64),scope.library,scope.generation);
+  assert.equal(auth.writable,d.writable);
+ }
+ await assert.rejects(authenticateToken(db,'device-a.'+'1'.repeat(64),scope.library,scope.generation));
+ assert.deepEqual(await Promise.all(objects.map(o=>r2.get(o.key).then(r=>r.arrayBuffer()))),before);
+ assert.equal((await apply(recovery)).state,'SUPERSEDED');
+ assert.equal((await db.prepare('SELECT COUNT(*) n FROM cloud_reopen_receipts').first()).n,1);
+});
+test('lost enrollment reply resolves its receipt and never submits the data batch twice',async()=>{
+ const {plan}=await recoveredFixture();let batches=0;
+ const ambiguous={prepare:db.prepare.bind(db),batch:async s=>{batches++;await db.batch(s);throw new Error('lost data reply');}};
+ await assert.rejects(reopen(plan,ambiguous));
+ assert.equal((await fenceState(control,fencedScope.fence.resource)).state,'HELD');
+ assert.equal((await fenceState(control,fencedScope.fence.resource)).running,1);
+ assert.equal((await reopen(plan,ambiguous)).state,'DONE');assert.equal(batches,1);
+ assert.equal((await fenceState(control,fencedScope.fence.resource)).state,'OPEN');
+});
+test('unresolved enrollment without a receipt keeps maintenance exclusive and blocks restore',async()=>{
+ const {plan}=await recoveredFixture();let batches=0;
+ const ambiguous={prepare:db.prepare.bind(db),batch:async()=>{batches++;throw new Error('unknown request');}};
+ await assert.rejects(reopen(plan,ambiguous));assert.equal((await reopen(plan,ambiguous)).state,'RUNNING');assert.equal(batches,1);
+ const f=await fenceState(control,fencedScope.fence.resource);assert.equal(f.state,'HELD');assert.equal(f.running,1);
+ await assert.rejects(claimAction(control,f,'8'.repeat(64),'restore'));
+ await assert.rejects(admit(control,{resource:f.resource_id,library:scope.library,generation:scope.generation}));
+});
+test('lost external open reply is resolved without repeating either transaction',async()=>{
+ const {plan}=await recoveredFixture();let batches=0;
+ const ambiguous={prepare:control.prepare.bind(control),batch:async s=>{
+  batches++;const r=await control.batch(s);if(batches===2)throw new Error('lost open reply');return r;
+ }};
+ await assert.rejects(reopen(plan,db,ambiguous));
+ assert.equal((await fenceState(control,fencedScope.fence.resource)).state,'OPEN');
+ assert.equal((await reopen(plan,db,ambiguous)).state,'DONE');assert.equal(batches,2);
+});
+test('a committed enrollment cannot admit requests before the external open transaction',async()=>{
+ const {plan}=await recoveredFixture();let batches=0;
+ const delayed={prepare:control.prepare.bind(control),batch:async s=>{if(++batches===2)throw new Error('open not sent');return control.batch(s);}};
+ await assert.rejects(reopen(plan,db,delayed));
+ const f=await fenceState(control,fencedScope.fence.resource);assert.equal(f.state,'HELD');assert.equal(f.running,1);
+ await assert.rejects(admit(control,{resource:f.resource_id,library:scope.library,generation:scope.generation}));
+ assert.equal((await reopen(plan)).state,'DONE');
+});
+test('reopen refuses corrupt catalog, active old credentials, incorrect index and stale plans before claiming',async()=>{
+ const {plan}=await recoveredFixture();
+ await db.prepare('DROP TABLE cloud_reopen_receipts').run();
+ await assert.rejects(reopen(plan),/REOPEN_SCHEMA_UPGRADE_REQUIRED/);
+ assert.equal((await fenceState(control,fencedScope.fence.resource)).running,0);
+ const receiptSchema=(await readFile(new URL('../migrations/0005_reopen_receipts.sql',import.meta.url),'utf8')).replace(/^--.*$/gm,'');
+ await db.prepare(receiptSchema).run();
+ await db.prepare("UPDATE cloud_head SET head_counter=head_counter+1 WHERE library_id=?").bind(scope.library).run();
+ await assert.rejects(reopen(plan),/PLAN_STALE/);
+ await db.prepare("UPDATE cloud_head SET head_counter=head_counter-1 WHERE library_id=?").bind(scope.library).run();
+ await db.prepare("UPDATE cloud_head SET fingerprint=? WHERE library_id=?").bind('f'.repeat(64),scope.library).run();
+ await assert.rejects(makeReopenPlan(reopenAdapters(),fencedScope,freshDevices),/RECOVERED_CATALOG_INVALID/);
+ await db.prepare("UPDATE cloud_head SET fingerprint=? WHERE library_id=?").bind(await fingerprint(catalog),scope.library).run();
+ await db.prepare("UPDATE cloud_devices SET revoked=0 WHERE library_id=? AND device_id='device-a'").bind(scope.library).run();
+ await assert.rejects(reopen(plan),/RECOVERED_AUTHORITY_REQUIRED/);
+ await db.prepare("UPDATE cloud_devices SET revoked=1 WHERE library_id=?").bind(scope.library).run();
+ await db.prepare("UPDATE cloud_backup_slots SET object_etag='wrong' WHERE library_id=? AND slot=0").bind(scope.library).run();
+ await assert.rejects(reopen(plan),/RECOVERED_INDEX_MISMATCH/);
+ assert.equal((await fenceState(control,fencedScope.fence.resource)).running,0);
+});
+test('competing reopen plans have one winner and later maintenance cannot reuse the old cycle',async()=>{
+ const {plan}=await recoveredFixture();
+ const other=await makeReopenPlan(reopenAdapters(),fencedScope,[{...freshDevices[0],device:'device-20000000-0000-4000-8000-000000000001',tokenHash:await sha256('6'.repeat(64))}]);
+ const results=await Promise.allSettled([reopen(plan),reopen(other)]);
+ assert.equal(results.filter(r=>r.status==='fulfilled'&&r.value.state==='DONE').length,1);
+ assert.equal((await db.prepare('SELECT COUNT(*) n FROM cloud_reopen_receipts').first()).n,1);
+ const nextGeneration='99999999-9999-4999-8999-999999999999';
+ await assert.rejects(closeFence(control,fencedScope.fence.resource,maintenance,nextGeneration),/MAINTENANCE_CONFLICT/);
+ const next='88888888-8888-4888-8888-888888888888';
+ assert.equal((await closeFence(control,fencedScope.fence.resource,next,nextGeneration)).state,'HELD');
+ const winner=results[0].status==='fulfilled'?plan:other;
+ assert.equal((await reopen(winner)).state,'SUPERSEDED');
 });

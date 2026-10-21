@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Explicit small synthetic QA only; credentials and full plans remain private.
+import assert from 'node:assert/strict';
+import {readFile,writeFile,stat} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {cloudflareClient} from '../operator/cloudflare.mjs';
+import {seal} from '../operator/recovery.mjs';
+import {changedPages} from '../src/pages.ts';
+import {makeUpload} from '../src/service.ts';
+const [fixtureDir,enrollmentPath,outputPath]=process.argv.slice(2);
+const load=async p=>JSON.parse(await readFile(p,'utf8'));
+assert.equal((await stat(enrollmentPath)).mode&0o077,0);
+const record=await load(resolve(fixtureDir,'provision.json')),old=await load(resolve(fixtureDir,'device.json'));
+const {plan,credentials}=await load(enrollmentPath),s=plan.body.scope;
+assert.ok(s.worker.startsWith('newpipe-fence-qa-')&&s.library.startsWith('newpipe-fence-qa-'));
+assert.equal(record.steps.at(-1).step,'registered-fresh-resources');assert.equal(s.database,record.scope.database);assert.equal(s.fence.resource,record.scope.fence.resource);
+assert.equal(plan.digest,seal(plan.body));assert.equal(plan.body.devices.length,2);
+const writer=plan.body.devices.find(d=>d.writable),reader=plan.body.devices.find(d=>!d.writable);assert.ok(writer&&reader);
+const credential=d=>credentials.find(c=>c.device===d.device).token;
+const cf=cloudflareClient(s,process.env.NEWPIPE_CLOUDFLARE_API_TOKEN),authority=await cf.authority(),fence=await cf.fence();
+assert.equal(authority.vars.ENABLE_CATALOG_API,'true');assert.equal(authority.vars.ENABLE_RECOVERY_API,'false');assert.equal(authority.vars.ENABLE_REPLACEMENT_API,'false');
+assert.equal(fence.state,'OPEN');assert.equal(fence.service_generation,s.generation);assert.equal(fence.pending,0);assert.equal(fence.running,0);
+const call=async(token,path,data={})=>{
+ const r=await fetch(record.origin+path,{method:'POST',redirect:'manual',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(30000)});
+ return {status:r.status,body:await r.json()};
+};
+const rows=table=>{const t=plan.body.snapshot.find(t=>t.table===table);return JSON.parse(t.state).map(v=>Object.fromEntries(t.columns.map((c,i)=>[c,v[i]])));};
+const denied=await call(old.token,'/v1/connect');assert.equal(denied.status,401);assert.equal(denied.body.error,'INVALID_CREDENTIAL');
+const a=await call(credential(writer),'/v1/connect'),b=await call(credential(reader),'/v1/connect');assert.equal(a.status,200);assert.equal(b.status,200);
+assert.equal(a.body.scope.service,s.generation);assert.deepEqual(a.body.head,b.body.head);
+assert.ok(a.body.capabilities.includes('catalog.sync'));assert.deepEqual(b.body.capabilities,['catalog.read']);
+assert.equal(a.body.head.fingerprint,rows('cloud_head')[0].fingerprint);
+const pages=rows('cloud_catalog_pages').map(p=>({id:p.page_id,body:p.body}));
+const upload=await makeUpload('sync','1',a.body.head,a.body.head.fingerprint,changedPages([],pages));
+const blocked=await call(credential(reader),'/v1/uploads/start',upload.header);assert.equal(blocked.status,403);
+const started=await call(credential(writer),'/v1/uploads/start',upload.header);assert.equal(started.status,200);
+const retired=await call(credential(writer),'/v1/uploads/retire',{sequence:'1',digest:upload.header.digest});assert.equal(retired.status,200);assert.equal(retired.body.receipt.outcome,'RETIRED');
+const after=await call(credential(writer),'/v1/head');assert.equal(after.status,200);assert.deepEqual(after.body.head,a.body.head);
+const stored=await cf.db.query('SELECT page_id,body FROM cloud_catalog_pages WHERE library_id=? ORDER BY page_id',[s.library]);assert.deepEqual(stored,pages.map(p=>({page_id:p.id,body:p.body})).sort((a,b)=>a.page_id.localeCompare(b.page_id)));
+const finalFence=await cf.fence();assert.equal(finalFence.pending,0);assert.equal(finalFence.running,0);
+const evidence={at:new Date().toISOString(),authority,fence:finalFence,reopenAction:plan.digest,oldTokenRejected:true,freshWriterConnected:true,freshReaderConnected:true,readerWriteRejected:true,writerStageRetired:true,catalogUnchanged:true,head:after.body.head};
+await writeFile(outputPath,JSON.stringify(evidence,null,2)+'\n',{flag:'wx',mode:0o600});
+console.log(JSON.stringify({passed:true,oldTokenRejected:true,readerWriteRejected:true,writerStageRetired:true,catalogUnchanged:true}));

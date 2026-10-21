@@ -127,7 +127,29 @@ node operator/cli.mjs status --scope /private/scope.json --action DIGEST --kind 
 
 A matching transactional receipt proves a completed rebuild and resolves its external RUNNING action. No receipt means unknown, not failed: the batch is never automatically resubmitted, and Time Travel is blocked. A completed action followed by a later operator action is reported SUPERSEDED; its historical result is not evidence of the current database state.
 
-10. Verify archive digests, catalog contents, slot bounds, all old credentials and any unrelated library. This checkpoint intentionally offers **no reopen command** and does not reenroll devices. A separately reviewed reopening/enrollment flow is required before serving the recovered generation.
+10. Verify archive digests, catalog contents, slot bounds, all old credentials and any unrelated library. Reopening is a separate, explicit action after the latest successful rebuild.
+
+## Reopening a recovered generation
+
+Keep all public API flags false while preparing and executing reopening. The operator requires exclusive HELD maintenance with zero tickets and no unknown action; a matching receipt for the latest completed rebuild; a valid initialized accepted catalog; verified READY archives matching physical R2 bytes; and revoked, non-writable old devices with no active upload, backup or replacement authority. It independently repeats these checks immediately before execution.
+
+```sh
+node operator/cli.mjs prepare-reopen --scope /private/scope.json --devices 2 --out /private/enrollment.json
+node operator/cli.mjs reopen --plan /private/enrollment.json
+node operator/cli.mjs status --scope /private/scope.json --maintenance MAINTENANCE_UUID --action DIGEST --kind reopen
+```
+
+The enrollment file contains both a sealed plan and new plaintext device credentials. It is created exclusively with mode 0600; never commit it, include it in logs, or export it with native backups. The default credentials are read-only; `--write` explicitly grants catalog writes to the generated cohort. One to sixteen fresh devices are supported. The server accepts only token hashes, rejects reused device IDs/hashes, and leaves every old credential revoked. Reopening does not grant protected replacement authority.
+
+The operator first claims a non-expiring external action. One data transaction verifies the exact pre-state, inserts fresh devices and writes a reopening receipt. Only that receipt permits a second transaction to mark the external fence OPEN and the action DONE atomically. There is no remaining data effect after OPEN. A lost reply is resolved from the receipts; the enrollment batch is never automatically submitted twice. If no data receipt exists, the action stays RUNNING and maintenance stays closed. Use the original maintenance UUID for status after reopening, because OPEN clears the active maintenance field.
+
+Public API deployment flags remain false after this command. Any subsequent activation is a separate deployment decision using the recovered generation. Devices must reconnect using their new tokens, remain sync-off, and inspect a fresh catalog preview before enabling sync. Android reconnection with unresolved old work is still a release gate. A later maintenance cycle needs a new maintenance UUID and a new generation; prior action results then report SUPERSEDED.
+
+### Existing QA schema upgrade
+
+New provisioning includes data migration `0005_reopen_receipts.sql` and external-control migration `0002_reopen.sql`. For a pair created by the earlier raw-schema provisioner, do not blindly run the complete migration directory: the old schema was not recorded in Wrangler's migration table. First disable all APIs and prove HELD with zero tickets/running actions. Save the action history and a data export/bookmark privately. Use a private Wrangler config with the exact database bindings, upgrade-only directories containing just these two new files, and a distinct migration table. Apply each whole migration transactionally using `d1 migrations apply --remote`, CONTROL first, then DB; verify action row ordering, results and resource ownership before deploying the new operator. Never restore CONTROL with the data database. After a data Time Travel that predates migration 0005, reapply that data migration under HELD maintenance before preparing reopening; the operator refuses a missing or incompatible receipt table before claiming any action.
+
+The control migration itself rejects open/draining resources, pending tickets, unknown actions and unmappable historical actions. A failed migration must roll back in full; never execute its statements individually on existing resources. The [reopening checkpoint](../validation/cloud-reopen-20261021/README.md) records the actual isolated upgrade and HTTP verification.
 
 ## Verification and operational limits
 

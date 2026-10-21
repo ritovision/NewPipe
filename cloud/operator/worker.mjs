@@ -3,6 +3,7 @@
 import {timingSafeEqual} from 'node:crypto';
 import {canonical,seal,fail,OperatorError,validateScope,authorityBlockers,fenceBlockers,verifyPlan,rebuildBatch} from './recovery.mjs';
 import {recoveryStore} from './adapters.mjs';
+import {executeReopen,finishReopen} from './reopen.mjs';
 import {cloudflareClient} from './cloudflare.mjs';
 import {FenceError} from '../src/fence.ts';
 import {fenceState,closeFence,requireHeld,claimAction,finishAction} from '../src/maintenance.ts';
@@ -18,10 +19,14 @@ async function body(request){
 }
 const query=db=>({query:async(sql,params)=>(await db.prepare(sql).bind(...params).all()).results});
 const receipt=async(db,digest)=>db.prepare('SELECT plan_digest,maintenance_id,library_id,service_generation FROM cloud_operator_receipts WHERE plan_digest=?').bind(digest).first();
-async function existing(env,maintenance,id,kind){
- const a=await env.CONTROL.prepare('SELECT a.kind,a.state,a.result,NOT EXISTS(SELECT 1 FROM cloud_fence_actions later WHERE later.maintenance_id=a.maintenance_id AND later.rowid>a.rowid) AS current FROM cloud_fence_actions a WHERE a.maintenance_id=? AND a.action_id=?').bind(maintenance,id).first();
+export async function existing(env,scope,maintenance,id,kind){
+ const a=await env.CONTROL.prepare('SELECT a.kind,a.state,a.result,f.state AS fence_state,f.maintenance_id AS active_maintenance,NOT EXISTS(SELECT 1 FROM cloud_fence_actions later WHERE later.resource_id=a.resource_id AND later.rowid>a.rowid) AS current FROM cloud_fence_actions a JOIN cloud_fence f ON f.resource_id=a.resource_id WHERE a.resource_id=? AND a.maintenance_id=? AND a.action_id=?').bind(scope.fence.resource,maintenance,id).first();
  if(!a)return null;if(a.kind!==kind)fail('ACTION_ID_CONFLICT');
- if(a.state==='DONE')return a.current?{state:'DONE',result:JSON.parse(a.result)}:{state:'SUPERSEDED',action:id};
+ if(a.state==='DONE'){
+  const current=a.current&&(kind==='reopen'?a.fence_state==='OPEN':a.active_maintenance===maintenance&&a.fence_state==='HELD');
+  return current?{state:'DONE',result:JSON.parse(a.result)}:{state:'SUPERSEDED',action:id};
+ }
+ if(kind==='reopen'){const done=await finishReopen(env,scope,maintenance,id);if(done)return done;}
  if(kind==='apply'){
   const r=await receipt(env.DB,id);
   if(r&&r.maintenance_id===maintenance){
@@ -37,7 +42,7 @@ export async function applyPlan(env,plan,actualAuthority,store){
  if(!scope.fence||plan.body.blockers.length||authorityBlockers(actualAuthority,scope).length)fail('PLAN_BLOCKED');
  if(canonical(plan.body.authority)!==canonical(actualAuthority))fail('PLAN_STALE');
  const f=await fenceState(env.CONTROL,scope.fence.resource);
- const done=await existing(env,plan.body.fence?.maintenance_id,plan.digest,'apply');if(done)return done;
+ const done=await existing(env,scope,plan.body.fence?.maintenance_id,plan.digest,'apply');if(done)return done;
  if(fenceBlockers(f,scope).length||canonical(f)!==canonical(plan.body.fence))fail('PLAN_STALE');
  // Reinspect every object, multipart upload and SQL table under the same fence.
  // The regenerated plan also prevents a resealed file from supplying arbitrary SQL.
@@ -82,17 +87,22 @@ export default {async fetch(request,env){
    phase='s3-client';const store=recoveryStore(scope,input.r2Credentials);
    phase='apply';return response(await applyPlan(env,input.plan,authority,store));
   }
+  if(url.pathname==='/recovery/reopen'){
+   if(!input.plan?.body||input.plan.digest!==seal(input.plan.body))fail('PLAN_SEAL_MISMATCH');
+   const done=await existing(env,scope,input.plan.body.fence?.maintenance_id,input.plan.digest,'reopen');
+   return response(done??await executeReopen(env,input.plan,authority,recoveryStore(scope,input.r2Credentials)));
+  }
   if(url.pathname==='/recovery/status'){
    if(!/^[0-9a-f]{64}$/.test(input.action))fail('INVALID_ACTION_ID');
    const f=await fenceState(env.CONTROL,scope.fence.resource);
-   return response(await existing(env,f.maintenance_id,input.action,input.kind)??{state:'ABSENT'});
+   return response(await existing(env,scope,input.maintenance??f.maintenance_id,input.action,input.kind)??{state:'ABSENT'});
   }
   const f=await fenceState(env.CONTROL,scope.fence.resource);
   if(fenceBlockers(f,scope).length && f.running===0)fail('MAINTENANCE_NOT_EXCLUSIVE');
   if(url.pathname==='/recovery/restore'){
    if(typeof input.bookmark!=='string'||!bookmarkPattern.test(input.bookmark))fail('EXACT_BOOKMARK_REQUIRED');
    const id=seal({kind:'restore',maintenance:input.maintenance,revision:input.revision,bookmark:input.bookmark});
-   const prior=await existing(env,f.maintenance_id,id,'restore');if(prior)return response({...prior,action:id});
+   const prior=await existing(env,scope,f.maintenance_id,id,'restore');if(prior)return response({...prior,action:id});
    if(input.maintenance!==f.maintenance_id||input.revision!==f.revision)fail('STALE_MAINTENANCE_INTENT');
    requireHeld(f);await claimAction(env.CONTROL,f,id,'restore');
    const result=await client.restore(input.bookmark);
@@ -104,7 +114,7 @@ export default {async fetch(request,env){
    if(typeof input.key!=='string'||!input.key.startsWith(prefix)||!/^([0-2])\/[0-9a-f-]{36}$/.test(input.key.slice(prefix.length))||
     typeof input.uploadId!=='string'||!input.uploadId||input.uploadId.length>1024)fail('EXACT_UPLOAD_REQUIRED');
    const id=seal({kind:'abort',maintenance:input.maintenance,revision:input.revision,key:input.key,uploadId:input.uploadId});
-   const prior=await existing(env,f.maintenance_id,id,'abort');if(prior)return response({...prior,action:id});
+   const prior=await existing(env,scope,f.maintenance_id,id,'abort');if(prior)return response({...prior,action:id});
    if(input.maintenance!==f.maintenance_id||input.revision!==f.revision)fail('STALE_MAINTENANCE_INTENT');
    requireHeld(f);await claimAction(env.CONTROL,f,id,'abort');
    await env.RECOVERY.resumeMultipartUpload(input.key,input.uploadId).abort();

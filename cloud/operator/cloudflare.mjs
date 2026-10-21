@@ -61,6 +61,7 @@ export function cloudflareClient(scope,token,fetcher=globalThis.fetch.bind(globa
   if(r.length!==1)fail('FENCE_RESOURCE_UNREGISTERED');return r[0];
  };
  return {db,authority,fence,
+  latestAction:async maintenance=>(await query(scope.fence.control,'SELECT action_id,kind,state FROM cloud_fence_actions WHERE resource_id=? AND maintenance_id=? ORDER BY rowid DESC LIMIT 1',[scope.fence.resource,maintenance]))[0]??null,
   // Only the authenticated operator Worker uses this mutation; it claims a
   // durable exclusive action first. No retries after an uncertain response.
   restore:bookmark=>call('/d1/database/'+scope.database+'/time_travel/restore?bookmark='+encodeURIComponent(bookmark),{}),

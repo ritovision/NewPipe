@@ -58,7 +58,7 @@ before(async()=>{
  }
  mf=await runtime();await mf.ready;
  const controlDb=await mf.getD1Database('CONTROL');
- const fenceSchema=(await readFile(new URL('../control-migrations/0001_fence.sql',import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ const fenceSchema=(await Promise.all(['0001_fence.sql','0002_reopen.sql'].map(f=>readFile(new URL('../control-migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
  await controlDb.batch(fenceSchema.map(s=>controlDb.prepare(s)));
  await controlDb.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,created_at) VALUES('test-resource','test-db','test-bucket','library-a','service-a','fresh-resources-v1','OPEN',0)").run();
 

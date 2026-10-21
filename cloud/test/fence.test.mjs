@@ -14,7 +14,7 @@ before(async()=>{
  mf=new Miniflare(convertV4MiniflareOptions({cf:false,modules:true,script:'export default {fetch(){return new Response("fence tests")}}',
   compatibilityDate:'2026-08-25',d1Databases:{DB:'data',CONTROL:'control'},r2Buckets:{RECOVERY:'fence-bucket'}}));
  await mf.ready;db=await mf.getD1Database('DB');control=await mf.getD1Database('CONTROL');r2=await mf.getR2Bucket('RECOVERY');
- const schema=(await readFile(new URL('../control-migrations/0001_fence.sql',import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
+ const schema=(await Promise.all(['0001_fence.sql','0002_reopen.sql'].map(f=>readFile(new URL('../control-migrations/'+f,import.meta.url),'utf8')))).join('\n').replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);
  await control.batch(schema.map(s=>control.prepare(s)));
  await db.batch([db.prepare('CREATE TABLE sample(value INTEGER)'),db.prepare('CREATE TABLE cloud_commit_assertion(slot INTEGER PRIMARY KEY,ok INTEGER CHECK(ok = 1))')]);
 });

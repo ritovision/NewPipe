@@ -1,0 +1,172 @@
+{
+  "baselineCommit": "cf686a631b9bb718f2487a361ed9f31ac3c0b164",
+  "backendTests": {
+    "passed": 313,
+    "failed": 0,
+    "skipped": 0
+  },
+  "migration": {
+    "at": "2026-10-21T06:24:02.612Z",
+    "actionHistoryPreserved": true,
+    "actions": 3,
+    "dataReceiptTableReady": true
+  },
+  "live": {
+    "at": "2026-10-21T06:28:35.649Z",
+    "authority": {
+      "deployment": "427f1c90-590e-42c0-aab7-a94ade211afe",
+      "version": "fa88e296-832e-423c-a330-990e53bd77a9",
+      "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+      "bucket": "newpipe-fence-qa-20261020",
+      "vars": {
+        "ENABLE_CATALOG_API": "true",
+        "ENABLE_RECOVERY_API": "false",
+        "ENABLE_REPLACEMENT_API": "false",
+        "LIBRARY_ID": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+        "SERVICE_GENERATION": "161790ee-29a5-4113-ac49-a54f12073a29",
+        "FENCE_RESOURCE": "5886b5e0-750c-4cff-a93a-f8117a25e6ff"
+      },
+      "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+      "operator": {
+        "deployment": "8b973ade-e2d8-4de2-afa8-6ded107ff82b",
+        "version": "fbfe36b3-e028-4f1a-8205-62cc10e48e44",
+        "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+        "bucket": "newpipe-fence-qa-20261020",
+        "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+        "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+        "origin": "https://newpipe-fence-qa-20261020-op.ritorhymes.workers.dev"
+      }
+    },
+    "fence": {
+      "resource_id": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "database_id": "7fdf0708-4d39-4efb-946c-567109a6422b",
+      "bucket_name": "newpipe-fence-qa-20261020",
+      "library_id": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+      "service_generation": "161790ee-29a5-4113-ac49-a54f12073a29",
+      "provenance": "fresh-resources-v1",
+      "state": "OPEN",
+      "maintenance_id": null,
+      "next_generation": null,
+      "revision": "7",
+      "pending": 0,
+      "running": 0
+    },
+    "reopenAction": "81513f576c59ca19d7ed2fb35ef9db62df9cfd92b51b405b761be2f37e75cf05",
+    "oldTokenRejected": true,
+    "freshWriterConnected": true,
+    "freshReaderConnected": true,
+    "readerWriteRejected": true,
+    "writerStageRetired": true,
+    "catalogUnchanged": true,
+    "head": {
+      "serviceGeneration": "161790ee-29a5-4113-ac49-a54f12073a29",
+      "library": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+      "epoch": "b6603a5b-e388-4fba-9b24-4df82b472416",
+      "revision": "1",
+      "headCounter": "1",
+      "fingerprint": "079d3140d3771f698dff19f4a5673e77867f9877bc2c6d5c3542f5c1b9cd3337"
+    }
+  },
+  "closeout": {
+    "at": "2026-10-21T06:34:06.994Z",
+    "scope": {
+      "account": "b35814b119cba4448e3e0ac59442cc25",
+      "worker": "newpipe-fence-qa-20261020",
+      "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+      "bucket": "newpipe-fence-qa-20261020",
+      "library": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+      "generation": "424c2b81-be62-4062-a407-04c86c49ec71",
+      "fence": {
+        "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+        "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+        "operator": "newpipe-fence-qa-20261020-op"
+      }
+    },
+    "authority": {
+      "deployment": "e4e8b1fb-22f3-4bd7-ae32-91f12e6c817d",
+      "version": "93f5792a-2275-4da3-afc3-fc049b64ad7a",
+      "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+      "bucket": "newpipe-fence-qa-20261020",
+      "vars": {
+        "ENABLE_CATALOG_API": "false",
+        "ENABLE_RECOVERY_API": "false",
+        "ENABLE_REPLACEMENT_API": "false",
+        "LIBRARY_ID": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+        "SERVICE_GENERATION": "424c2b81-be62-4062-a407-04c86c49ec71",
+        "FENCE_RESOURCE": "5886b5e0-750c-4cff-a93a-f8117a25e6ff"
+      },
+      "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+      "operator": {
+        "deployment": "8a696447-e40c-456c-b191-2d72980564e9",
+        "version": "abe63276-dc4a-4cdf-b77e-6732905db6de",
+        "database": "7fdf0708-4d39-4efb-946c-567109a6422b",
+        "bucket": "newpipe-fence-qa-20261020",
+        "control": "9e60001d-359c-481e-8b1d-eaf2058f2f42",
+        "resource": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+        "origin": "https://newpipe-fence-qa-20261020-op.ritorhymes.workers.dev"
+      }
+    },
+    "fence": {
+      "resource_id": "5886b5e0-750c-4cff-a93a-f8117a25e6ff",
+      "database_id": "7fdf0708-4d39-4efb-946c-567109a6422b",
+      "bucket_name": "newpipe-fence-qa-20261020",
+      "library_id": "newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7",
+      "service_generation": "161790ee-29a5-4113-ac49-a54f12073a29",
+      "provenance": "fresh-resources-v1",
+      "state": "HELD",
+      "maintenance_id": "5cab2304-0bde-4971-bbde-a5f3f105ad74",
+      "next_generation": "424c2b81-be62-4062-a407-04c86c49ec71",
+      "revision": "10",
+      "pending": 0,
+      "running": 0
+    },
+    "archives": [
+      {
+        "archive": "f8152b60-e835-4705-9fbd-99d7b0e2de4a",
+        "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/0/f8152b60-e835-4705-9fbd-99d7b0e2de4a",
+        "bytes": 1665,
+        "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+        "digest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+      },
+      {
+        "archive": "cd4e128c-e214-4ad9-9651-646eb987406c",
+        "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/1/cd4e128c-e214-4ad9-9651-646eb987406c",
+        "bytes": 1665,
+        "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+        "digest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+      },
+      {
+        "archive": "dbe24a93-1d3a-4874-8d89-250bbbca3a3a",
+        "key": "recovery/newpipe-fence-qa-5e70adae-c0fb-4ca3-97e4-6a3ecc5db9c7/2/dbe24a93-1d3a-4874-8d89-250bbbca3a3a",
+        "bytes": 1665,
+        "etag": "3c563baa0f9619621eaf589f3b085c6f-1",
+        "digest": "332aada6953cf556fcee1e452e00e933ff528fa5c48c54ad398ea98476cadcc8"
+      }
+    ],
+    "archivesUnchanged": true,
+    "catalogUnchanged": true,
+    "allThreeCredentialsRevoked": true,
+    "incompleteUploads": 0,
+    "publicApiDisabled": true,
+    "oldReopenStatus": "SUPERSEDED"
+  },
+  "reopen": {
+    "state": "DONE",
+    "result": {
+      "digest": "81513f576c59ca19d7ed2fb35ef9db62df9cfd92b51b405b761be2f37e75cf05",
+      "opened": true,
+      "generation": "161790ee-29a5-4113-ac49-a54f12073a29",
+      "devices": [
+        "device-0149d338-084a-4ec8-a80a-fe1d7a27ad60",
+        "device-191c6d8d-17d3-447c-94ed-08b5bbc56e83"
+      ]
+    }
+  },
+  "closeoutApply": {
+    "state": "DONE",
+    "result": {
+      "digest": "2efc9845276f24fea2d7b4727f411b235fafc635628c059bc13734de36831d20",
+      "committed": true
+    }
+  }
+}
