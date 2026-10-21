@@ -76,7 +76,7 @@ class CloudDatabaseMigrationTest {
 
     @Test fun tagFourToFivePreservesMappingsAndTagContent() {
         val app = ApplicationProvider.getApplicationContext<Context>()
-        val dir = Files.createTempDirectory(app.cacheDir.toPath(), "cloud-tag-migration-")
+        val dir = Files.createTempDirectory(app.noBackupFilesDir.toPath(), "cloud-tag-migration-")
         try {
             val path = dir.resolve("tags.db").toString()
             var oldContext: CloudIdentityStore.Context? = null

@@ -481,7 +481,7 @@ class CloudNativeApplyTest {
         val a = f
         val source = a.seed()
         val app = ApplicationProvider.getApplicationContext<Context>()
-        val secondDir = Files.createTempDirectory(app.cacheDir.toPath(), "cloud-other-install-")
+        val secondDir = Files.createTempDirectory(app.noBackupFilesDir.toPath(), "cloud-other-install-")
         val b = CloudApplyFixture(app, secondDir)
         try {
             b.initialize()

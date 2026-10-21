@@ -54,7 +54,7 @@ import org.schabi.newpipe.local.bookmark.MergedPlaylistManager
 import org.schabi.newpipe.local.playlist.LocalPlaylistManager
 import org.schabi.newpipe.streams.io.StoredFileHelper
 
-/** All content is synthetic and file-backed under the separate QA package cache. */
+/** All content is synthetic and file-backed under the separate QA package no-backup directory. */
 class CloudNativeCatalogTest {
     private lateinit var dir: Path
     private lateinit var context: Context
@@ -81,7 +81,7 @@ class CloudNativeCatalogTest {
         TagRuntime.restoring = false
         LibraryRepository.forgetSessionForTest()
         UnavailableRepository.reset()
-        dir = Files.createTempDirectory(app.cacheDir.toPath(), "cloud-native-")
+        dir = Files.createTempDirectory(app.noBackupFilesDir.toPath(), "cloud-native-")
         context = object : ContextWrapper(app) {
             override fun getApplicationContext(): Context = this
             override fun getDatabasePath(name: String): File = if (name.startsWith("/")) File(name) else dir.resolve(name).toFile()

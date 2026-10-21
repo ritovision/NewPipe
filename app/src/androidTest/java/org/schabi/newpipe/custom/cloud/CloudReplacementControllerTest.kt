@@ -28,7 +28,7 @@ class CloudReplacementControllerTest {
 
     @Before fun setup() {
         val app = ApplicationProvider.getApplicationContext<Context>()
-        f = CloudApplyFixture(app, Files.createTempDirectory(app.cacheDir.toPath(), "cloud-replacement-"))
+        f = CloudApplyFixture(app, Files.createTempDirectory(app.noBackupFilesDir.toPath(), "cloud-replacement-"))
         f.initialize()
         f.seed()
         peer = CloudFakeReplacementPeer(CloudFakeRecoveryPeer(CloudFakePeer(f.scope)))

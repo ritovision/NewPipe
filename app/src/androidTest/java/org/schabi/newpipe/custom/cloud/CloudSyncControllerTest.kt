@@ -33,7 +33,7 @@ class CloudSyncControllerTest {
 
     @Before fun setup() {
         val app = ApplicationProvider.getApplicationContext<Context>()
-        f = CloudApplyFixture(app, Files.createTempDirectory(app.cacheDir.toPath(), "cloud-controller-"))
+        f = CloudApplyFixture(app, Files.createTempDirectory(app.noBackupFilesDir.toPath(), "cloud-controller-"))
         f.initialize()
         peer = CloudFakePeer(f.scope)
         connection = CloudConnectionStore(f.context, f.dir.resolve("connection").toFile())

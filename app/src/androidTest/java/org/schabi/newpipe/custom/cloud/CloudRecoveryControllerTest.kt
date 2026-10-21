@@ -31,7 +31,7 @@ class CloudRecoveryControllerTest {
 
     @Before fun setup() {
         val app = ApplicationProvider.getApplicationContext<Context>()
-        f = CloudApplyFixture(app, Files.createTempDirectory(app.cacheDir.toPath(), "cloud-recovery-"))
+        f = CloudApplyFixture(app, Files.createTempDirectory(app.noBackupFilesDir.toPath(), "cloud-recovery-"))
         f.initialize()
         f.seed()
         peer = CloudFakeRecoveryPeer(CloudFakePeer(f.scope))
