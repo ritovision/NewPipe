@@ -29,7 +29,9 @@ internal class CloudScreenModel(application: Application) : AndroidViewModel(app
         val previewId: String? = null,
         val previewSummary: String = "",
         val confirmLabel: String = "Confirm",
-        val reconnectPending: Boolean = false
+        val reconnectPending: Boolean = false,
+        val canDetach: Boolean = false,
+        val detachPending: Boolean = false
     )
     data class Row(val group: String, val title: String, val detail: String, val action: String, val kind: String = "")
     private val app = application.applicationContext
@@ -56,7 +58,7 @@ internal class CloudScreenModel(application: Application) : AndroidViewModel(app
         val s = controller.connection.read()
         val p = preview
         return Screen(
-            busy, s != null, s?.enabled == true, s?.origin.orEmpty(), s?.device.orEmpty(),
+            busy, s != null || controller.connection.detachPending(), s?.enabled == true, s?.origin.orEmpty(), s?.device.orEmpty(),
             message ?: s?.message ?: "Not connected", s?.lastSuccess?.takeIf { it > 0 }?.let { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it)) } ?: "Never",
             controller.hasPending(), java.io.File(controller.connection.directory, "recovery/before-last-cloud-restore.zip").isFile, p?.id, p?.let(::summary).orEmpty(),
             if (p?.direction == CloudSyncController.Direction.INITIALIZE_CLOUD) {
@@ -66,7 +68,9 @@ internal class CloudScreenModel(application: Application) : AndroidViewModel(app
             } else {
                 "Restore this cloud copy"
             },
-            controller.connection.reconnectPending()
+            controller.connection.reconnectPending(),
+            s?.authorityRejected == true && !s.enabled || controller.connection.detachPending(),
+            controller.connection.detachPending()
         )
     }
     private fun summary(p: CloudSyncController.Preview): String {
@@ -166,6 +170,13 @@ internal class CloudScreenModel(application: Application) : AndroidViewModel(app
     }
     fun syncNow() = run("Synchronizing library changes…") { controller.syncNow() }
     fun resolve() = run("Resolving the interrupted upload…") { controller.resolvePending() }
+    fun detachRejected() = run("Archiving rejected-device records and disconnecting locally…") {
+        controller.detachRejectedConnection()
+        preview = null
+        groups = emptyList()
+        CloudScheduler.reconcile(app)
+        "Disconnected locally. Native content is unchanged; old pending records are archived. Use a fresh device token."
+    }
     fun forget() = run("Forgetting cloud credentials; local library is kept…") {
         controller.forget()
         CloudScheduler.reconcile(app)

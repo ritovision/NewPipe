@@ -4,7 +4,7 @@ import {handleRequest} from '../src/index.ts';
 import {ReplacementService} from '../src/replacement.ts';
 import {authenticateToken,DEFAULT_SERVICE_LIMITS} from '../src/service.ts';
 let options={},fault=null,block=null,blockedRequest=false;
-let stats={calls:{},maxPayloads:0,blocked:null,statements:0},uploads=new Map(),objects=new Set();
+let stats={calls:{},maxPayloads:0,blocked:null,statements:0},uploads=new Map(),objects=new Set(),aborted=new Set();
 const measured=new WeakMap();
 async function hook(point){
  if(block===point&&!blockedRequest){
@@ -33,7 +33,7 @@ function bucket(r2){
   uploadPart:(...args)=>call('part',()=>u.uploadPart(...args)),
   complete:(...args)=>call('complete',()=>u.complete(...args),o=>{uploads.delete(u.uploadId);objects.add(o.key);})
    .then(o=>options.sparseComplete?{key:o.key,size:o.size,etag:o.etag,version:o.version}:o),
-  abort:()=>call('abort',()=>u.abort(),()=>uploads.delete(u.uploadId))});
+  abort:()=>call('abort',()=>{if(options.rejectRepeatedAbort&&aborted.has(u.uploadId))throw new Error('NoSuchUpload on repeated abort');return u.abort();},()=>{uploads.delete(u.uploadId);aborted.add(u.uploadId);})});
  return {
   createMultipartUpload:(...args)=>call('create',()=>r2.createMultipartUpload(...args),u=>uploads.set(u.uploadId,u.key)).then(multipart),
   resumeMultipartUpload:(...args)=>multipart(r2.resumeMultipartUpload(...args)),
@@ -61,7 +61,7 @@ export default {async fetch(request,env){
   fault=null;block=null;options={};
   for(const [id,key]of uploads)try{await env.RECOVERY.resumeMultipartUpload(key,id).abort();}catch{}
   for(const o of (await env.RECOVERY.list({limit:1000})).objects)await env.RECOVERY.delete(o.key);
-  uploads=new Map();objects=new Set();stats={calls:{},maxPayloads:0,blocked:null,statements:0};return Response.json({ok:true});
+  uploads=new Map();objects=new Set();aborted=new Set();stats={calls:{},maxPayloads:0,blocked:null,statements:0};return Response.json({ok:true});
  }
  if(path==='/__test/object'){
   const p=await request.json();if(p.remove){await env.RECOVERY.delete(p.key);objects.delete(p.key);}

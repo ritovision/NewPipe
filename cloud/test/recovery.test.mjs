@@ -22,7 +22,15 @@ async function call(path,data={},token=tokens.a){
 }
 function ok(r){assert.equal(r.status,200,JSON.stringify(r.data));return r.data;}
 function failure(r,code){assert.notEqual(r.status,200,JSON.stringify(r.data));if(code)assert.equal(r.data.error,code);return r;}
-const recovery=(path,data={},token=tokens.a)=>call('/v1/recovery/'+path,data,token);
+// Client-equivalent continuation for tests asking for completed cancellation.
+// Raw per-request tests below use call() and assert each progress step/SQL cap.
+async function recovery(path,data={},token=tokens.a){
+ for(let step=0;step<4;step++){
+  const r=await call('/v1/recovery/'+path,data,token);
+  if(!['abort','abandon'].includes(path)||r.status!==200||!r.data.cleanupPending)return r;
+ }
+ assert.fail('ordinary cleanup exceeded four explicit continuation requests');
+}
 const control=data=>call('/__test/control',data).then(ok);
 async function sql(...statements){return ok(await call('/__test/sql',statements.map(s=>typeof s==='string'?{sql:s}:s)));}
 async function rows(table){return (await sql('SELECT * FROM '+table))[0].results;}
@@ -534,3 +542,43 @@ for (const phase of ['RESERVED','UPLOADING','READY','ROTATING']) for(const route
   assert.deepEqual(budget,{state:'ACTIVE',held_reads:0,held_writes:0});
  });
 }
+
+for(const route of ['abort','abandon'])test('Claude 007: ordinary '+route+' from ROTATING reports bounded cleanup and preserves both survivors',async()=>{
+ for(let i=0;i<3;i++)await backup(zip(40+i));
+ const before=(await state()).archives;
+ const op=await reserve(zip(90));assert.equal(op.state,'ROTATING');
+ const body=route==='abort'?ref(op):{approvalId:op.approvalId,sequence:op.sequence};
+ let result,passes=0;
+ do{
+  await control({resetStatements:true});
+  result=ok(await call('/v1/recovery/'+route,body));
+  assert.ok((await control({})).statements+5<=32);
+  assert.ok(++passes<=4);
+ }while(result.cleanupPending);
+ assert.equal(result.state,'CANCELED');
+ const survivors=(await state()).archives;
+ assert.equal(survivors.length,2);
+ for(const a of before.filter(a=>a.archiveId!==op.preview.evictArchiveId))assert.ok(survivors.some(b=>b.archiveId===a.archiveId&&b.digest===a.digest&&b.usable));
+ const controlDb=await mf.getD1Database('CONTROL');
+ assert.equal((await controlDb.prepare('SELECT COUNT(*) n FROM cloud_fence_tickets').first()).n,0);
+});
+
+test('Claude 006: a provider refusing repeated multipart abort never sees a duplicate successful abort during bounded cancellation',async()=>{
+ await enableReplacement();await publishCatalog('base');
+ const p=await reserveReplacement(await replacementPreview(await publishCatalog('reorder')));
+ assert.equal(ok(await recovery('advance',ref(p.operation))).state,'UPLOADING');
+ await control({options:{ENABLE_REPLACEMENT_API:'true',rejectRepeatedAbort:true}});
+ let result,passes=0;
+ do{
+  await control({resetStatements:true});
+  result=ok(await replace('abandon',{approvalId:p.preview.approvalId,recoverySequence:p.attempt.recoverySequence}));
+  assert.ok((await control({})).statements+5<=32);
+  assert.ok(++passes<=4);
+ }while(result.cleanupPending);
+ assert.equal(result.attempt.state,'CANCELED');
+ assert.equal((await control({})).calls.abort,1);
+ assert.equal((await state()).archives.length,0);
+ const controlDb=await mf.getD1Database('CONTROL');
+ assert.equal((await controlDb.prepare('SELECT COUNT(*) n FROM cloud_fence_tickets').first()).n,0);
+ assert.deepEqual(await controlDb.prepare('SELECT state,held_reads,held_writes FROM cloud_budget').first(),{state:'ACTIVE',held_reads:0,held_writes:0});
+});

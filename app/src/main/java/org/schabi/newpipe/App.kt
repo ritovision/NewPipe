@@ -122,6 +122,7 @@ open class App :
         )
 
         configureRxJavaErrorHandler()
+        org.schabi.newpipe.custom.tagging.NativeCatalogStaging.startup(this)
         org.schabi.newpipe.custom.cloud.CloudScheduler.install(this)
 
         YoutubeStreamExtractor.setPoTokenProvider(PoTokenProviderImpl)

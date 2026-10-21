@@ -28,6 +28,8 @@
         <Preference android:key="cloud_local_restore" android:title="@string/cloud_local_recovery"
             android:summary="@string/cloud_local_recovery_summary" android:persistent="false" app:iconSpaceReserved="false" />
     </PreferenceCategory>
+    <Preference android:key="cloud_detach" android:title="@string/cloud_detach_title"
+        android:summary="@string/cloud_detach_summary" android:persistent="false" app:iconSpaceReserved="false" />
     <Preference android:key="cloud_forget" android:title="@string/cloud_forget"
         android:summary="@string/cloud_forget_summary" android:persistent="false" app:iconSpaceReserved="false" />
 </PreferenceScreen>

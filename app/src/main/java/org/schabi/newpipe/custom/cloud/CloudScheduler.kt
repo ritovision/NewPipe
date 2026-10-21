@@ -59,7 +59,7 @@ object CloudScheduler {
                 }
                 val db = TagRuntime.get(app).library
                 if (!observers.containsKey(db)) {
-                    val observer = object : InvalidationTracker.Observer("playlists", "playlist_stream_join", "streams") {
+                    val observer = object : InvalidationTracker.Observer("playlists", "playlist_stream_join") {
                         override fun onInvalidated(tables: Set<String>) {
                             request(app)
                         }
@@ -89,6 +89,7 @@ object CloudScheduler {
             WorkManager.getInstance(app).enqueueUniqueWork(IMMEDIATE, ExistingWorkPolicy.KEEP, work)
         } catch (_: Exception) { /* WorkManager may be unavailable in isolated native fixtures. */ }
     }
+    internal fun observes(db: AppDatabase): Boolean = observers.containsKey(db)
     internal fun ticket(): Long = generation.get()
     internal fun complete(context: Context, started: Long) {
         if (generation.get() != started) executor.schedule({ enqueue(context.applicationContext) }, 2, TimeUnit.SECONDS)

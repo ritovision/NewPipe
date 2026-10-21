@@ -14,6 +14,7 @@ internal class CloudFakeRecoveryPeer(val catalog: CloudFakePeer) {
     var fault: String? = null
     var before: ((String) -> Unit)? = null
     var created = 0
+    var cleanupPauses = 0
     var sequence = 0L
     var op: JsonObject? = null
     private var approval: String? = null
@@ -155,7 +156,11 @@ internal class CloudFakeRecoveryPeer(val catalog: CloudFakePeer) {
 
             "abandon", "abort" -> {
                 val existing = op
-                if (existing == null) return json(mapOf("state" to "CANCELED"))
+                if (existing == null) return json(mapOf("state" to "CANCELED", "sequence" to body["sequence"], "approvalId" to body["approvalId"]))
+                if (cleanupPauses > 0) {
+                    cleanupPauses--
+                    return json(existing + mapOf("cleanupPending" to true))
+                }
                 if (existing.getString("state") != "DONE") existing["state"] = "CANCELED"
                 return json(existing)
             }

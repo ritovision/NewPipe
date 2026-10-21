@@ -142,6 +142,7 @@ export class ReplacementService {
     try {
       if (a.state === "ACTIVE") {
         const op = await this.recovery.abandon({ approvalId: a.attempt_id, sequence: a.recovery_sequence });
+        if ("cleanupPending" in op && op.cleanupPending) return { ...result, attempt: this.view(a), cleanupPending: true };
         if (r.keepForRetry && op.state !== "DONE") fail("REPLACEMENT_RECOVERY_NOT_READY");
       }
       const c = this.context, target = r.keepForRetry ? "STALE" : "CANCELED";

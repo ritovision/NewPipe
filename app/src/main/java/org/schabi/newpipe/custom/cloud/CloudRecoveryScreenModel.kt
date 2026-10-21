@@ -99,7 +99,7 @@ internal class CloudRecoveryScreenModel(application: Application) : AndroidViewM
         val retained = p.retained.joinToString("\n") { label(it) }.ifEmpty { "None yet" }
         "${name(p.manifest.kind)} · ${android.text.format.Formatter.formatShortFileSize(app, p.manifest.bytes.toLong())}\n\n$rotation\n\nCopies retained:\n$retained\n\nConfirm this exact backup and rotation."
     }
-    fun prepareRestore(id: String) = run("Downloading and validating the archive. Automatic sync is being turned off…") {
+    fun prepareRestore(id: String) = run("Downloading and validating the archive. Your sync toggle changes only if you confirm…") {
         clearPreview()
         val p = controller.prepareRestore(id)
         restore = p
@@ -107,9 +107,9 @@ internal class CloudRecoveryScreenModel(application: Application) : AndroidViewM
             val hints = p.before.hints + p.decoded.hints.associateBy { it.key }
             groups = CloudChangeExplorer.groups(p.before.catalog, p.decoded.catalog, hints, p.before.orphaned)
             val d = CloudCatalogCodec.diff(p.before.catalog, p.decoded.catalog)
-            "${label(p.archive)}\nFrom ${p.archive.sourceDevice}\n\n${d.added.size} videos added · ${d.removed.size} removed\n${d.playlists.size} playlists changed\n\nReview all changes below. This restores only this device's catalog; settings, history and subscriptions stay. A verified local safety copy is saved first. Automatic sync stays off."
+            "${label(p.archive)}\nFrom ${p.archive.sourceDevice}\n\n${d.added.size} videos added · ${d.removed.size} removed\n${d.playlists.size} playlists changed\n\nReview all changes below. This restores only this device's catalog; settings, history and subscriptions stay. A verified local safety copy is saved first. Confirming turns automatic sync off."
         } else {
-            "${label(p.archive)}\nFrom ${p.archive.sourceDevice}\n\nThe complete library, history, subscriptions and tags on this device will be replaced. A verified local safety copy is saved first. The app restarts, AI control is unpaired, and automatic sync stays off. Settings are kept unless you select the option below."
+            "${label(p.archive)}\nFrom ${p.archive.sourceDevice}\n\nThe complete library, history, subscriptions and tags on this device will be replaced. A verified local safety copy is saved first. The app restarts, AI control is unpaired, and confirming turns automatic sync off. Settings are kept unless you select the option below."
         }
     }
     fun confirm(id: String, settings: Boolean) = run("Applying the confirmed recovery action…") {

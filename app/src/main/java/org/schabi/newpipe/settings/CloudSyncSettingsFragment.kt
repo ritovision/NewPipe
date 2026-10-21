@@ -55,6 +55,12 @@ class CloudSyncSettingsFragment : BasePreferenceFragment() {
             if (value == true) model.prepare(true) else model.disable()
             false // The switch changes only after durable admission, never before confirmation.
         }
+        preference<Preference>("cloud_detach").setOnPreferenceClickListener {
+            AlertDialog.Builder(requireContext()).setTitle(R.string.cloud_detach_title)
+                .setMessage(R.string.cloud_detach_confirm).setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.ok) { _, _ -> model.detachRejected() }.show()
+            true
+        }
         preference<Preference>("cloud_forget").setOnPreferenceClickListener {
             AlertDialog.Builder(requireContext()).setTitle(R.string.cloud_forget)
                 .setMessage(R.string.cloud_forget_confirmation).setNegativeButton(R.string.cancel, null)
@@ -107,14 +113,22 @@ class CloudSyncSettingsFragment : BasePreferenceFragment() {
             isEnabled = state.connected && !state.reconnectPending && (state.enabled || !state.busy)
         }
         for (key in listOf("cloud_check", "cloud_restore", "cloud_forget", "cloud_remote_recovery", "cloud_replace")) preference<Preference>(key).isEnabled = state.connected && !state.busy && !state.reconnectPending
+        preference<Preference>("cloud_detach").apply {
+            isVisible = state.canDetach
+            isEnabled = state.canDetach && !state.busy && !state.reconnectPending
+            setTitle(if (state.detachPending) R.string.cloud_detach_resume else R.string.cloud_detach_title)
+        }
+        if (state.detachPending) {
+            for (key in listOf("cloud_check", "cloud_restore", "cloud_forget", "cloud_remote_recovery", "cloud_replace", "cloud_reconnect", "cloud_enabled")) preference<Preference>(key).isEnabled = false
+        }
         preference<Preference>("cloud_now").isEnabled = state.connected && state.enabled && !state.busy
         preference<Preference>("cloud_last").summary = state.lastSync
         preference<Preference>("cloud_pending").apply {
-            isVisible = state.pending && !state.reconnectPending
-            isEnabled = state.connected && !state.busy && !state.reconnectPending
+            isVisible = state.pending && !state.reconnectPending && !state.detachPending
+            isEnabled = state.connected && !state.busy && !state.reconnectPending && !state.detachPending
         }
-        preference<Preference>("cloud_local_restore").isEnabled = state.hasLocalRecovery && !state.busy && !state.reconnectPending
-        if (state.previewId != null && !state.reconnectPending && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && !parentFragmentManager.isStateSaved &&
+        preference<Preference>("cloud_local_restore").isEnabled = state.hasLocalRecovery && !state.busy && !state.reconnectPending && !state.detachPending
+        if (state.previewId != null && !state.reconnectPending && !state.detachPending && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && !parentFragmentManager.isStateSaved &&
             parentFragmentManager.findFragmentByTag(CloudChangePreviewDialog.TAG) == null
         ) {
             CloudChangePreviewDialog().show(parentFragmentManager, CloudChangePreviewDialog.TAG)

@@ -182,6 +182,35 @@ class CloudRecoveryControllerTest {
         assertEquals(cloud, CloudApplyStore.baseline(f.repo.store.readableDatabase)!!.acknowledgedHead)
     }
 
+    @Test fun historicalPreviewCancelKeepsSyncOnButConfirmedRestoreDurablyTurnsItOff() {
+        val archived = archiveCloud()
+        sync.confirm(sync.prepare(true))
+        val generation = sync.connection.read()!!.generation
+        recovery.prepareRestore(archived).use {
+            assertTrue(sync.connection.read()!!.enabled)
+            assertEquals(generation, sync.connection.read()!!.generation)
+        }
+        assertTrue(sync.connection.read()!!.enabled)
+        assertEquals(generation, sync.connection.read()!!.generation)
+        recovery.prepareRestore(archived).use { recovery.confirmRestore(it) }
+        assertFalse(sync.connection.read()!!.enabled)
+        assertNotEquals(generation, sync.connection.read()!!.generation)
+        f.reopen()
+        assertFalse(sync.connection.read()!!.enabled)
+    }
+
+    @Test fun ordinaryRecoveryCancellationContinuesOnlyItsExactPendingOperation() {
+        val p = recovery.prepareUpload("device-zip")
+        peer.fault = "reserve.after"
+        assertThrows(CloudRemoteException::class.java) { recovery.confirmUpload(p) }
+        peer.cleanupPauses = 5
+        assertEquals("RECOVERY_CLEANUP_PENDING", assertThrows(CloudRemoteException::class.java) { recovery.abort() }.code)
+        assertTrue(recovery.hasPending())
+        assertEquals(1, peer.cleanupPauses)
+        recovery.abort()
+        assertFalse(recovery.hasPending())
+    }
+
     @Test fun changedLocalContentsInvalidateArchiveRestoreBeforeSafetyBackupOrApply() {
         val archive = archiveCloud()
         recovery.prepareRestore(archive).use {

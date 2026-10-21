@@ -28,7 +28,8 @@ internal class CloudSyncController(
     private val apiFactory: (String, String, () -> Unit) -> CloudApi = { origin, token, admit -> CloudHttpClient(origin, token, admit) },
     private val safetyBackup: ((CloudNativeSnapshot) -> Unit)? = null,
     private val reconnectCheckpoint: ((String) -> Unit)? = null,
-    private val forgetCheckpoint: ((String) -> Unit)? = null
+    private val forgetCheckpoint: ((String) -> Unit)? = null,
+    private val detachCheckpoint: ((String) -> Unit)? = null
 ) {
     enum class Direction { TO_DEVICE, INITIALIZE_CLOUD }
     class Preview(
@@ -52,6 +53,7 @@ internal class CloudSyncController(
         try {
             admittedGeneration = connection.read()?.generation
             check(recoverReconnection || !connection.reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
+            check(recoverReconnection || !connection.detachPending()) { "CLOUD_DETACH_RECOVERY_REQUIRED" }
             return body()
         } catch (error: Exception) {
             if (stopOnAuthorityFailure && admittedGeneration != null) recordFailure(error, admittedGeneration)
@@ -67,6 +69,7 @@ internal class CloudSyncController(
         val api = apiFactory(origin, token) { check(connection.read() == null) { "CLOUD_CONNECTION_CHANGED" } }
         val remote = CloudRemoteCatalog.status(api)
         check(remote.device == token.substringBefore('.')) { "CLOUD_DEVICE_MISMATCH" }
+        connection.requireFreshDevice(origin, remote.scope, remote.device)
         check(remote.upload == null && remote.replacement == null) { "CLOUD_TOKEN_HAS_UNRESOLVED_UPLOAD" }
         val r = repository()
         r.definitions()
@@ -170,6 +173,54 @@ internal class CloudSyncController(
             transfers.discardCache()
             connection.forget(stopped.generation)
             forgetCheckpoint?.invoke("connection")
+        }
+    }
+
+    /** Explicit local-only escape from permanently rejected authority. This never
+     * cancels a remote request or releases a server hold. Evidence is archived,
+     * not deleted, and that device identity cannot be enrolled again locally.
+     */
+    fun detachRejectedConnection() = operation(recoverReconnection = true, stopOnAuthorityFailure = false) {
+        check(!connection.reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
+        if (!connection.detachPending()) {
+            val old = connection.read() ?: return@operation
+            check(old.authorityRejected && !old.enabled) { "CLOUD_DETACH_REQUIRES_REJECTED_AUTHORITY" }
+            TagRuntime.lock.withLock {
+                native(old)
+                connection.beginDetach(old.generation)
+                detachCheckpoint?.invoke("journal")
+            }
+        }
+        CloudScheduler.reconcile(context)
+        TagRuntime.lock.withLock {
+            val p = checkNotNull(connection.pendingDetach())
+            check(connection.read() == null || connection.read()!!.generation == p.previous.generation) { "CLOUD_CONNECTION_CHANGED" }
+            val r = repository()
+            CloudNativeApply.recoverLocked(r)
+            val archive = File(connection.directory, "retired-connections/${p.archive}")
+            check(archive.isDirectory || archive.mkdirs()) { "CLOUD_DETACH_STORAGE_UNAVAILABLE" }
+            connection.archiveDetachedState(p, archive)
+            for (name in listOf("outbox", "remote-recovery", "remote-replacement", "catalog-cache.json", "catalog-cache.json.bak", "catalog-cache.json.new")) {
+                val source = File(connection.directory, name)
+                val target = File(archive, name)
+                if (source.exists()) {
+                    check(!target.exists()) { "CLOUD_DETACH_ARCHIVE_CONFLICT" }
+                    Files.move(source.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
+                }
+                detachCheckpoint?.invoke("archived-$name")
+            }
+            r.library.runInTransaction { r.library.openHelper.writableDatabase.execSQL("DELETE FROM rv_cloud_apply_receipt") }
+            detachCheckpoint?.invoke("witness")
+            r.store.transaction { side ->
+                check(CloudApplyStore.pending(side) == null) { "LOCAL_CLOUD_RECOVERY_REQUIRED" }
+                CloudIdentityStore.discard(side)
+                CloudApplyStore.discard(side)
+            }
+            detachCheckpoint?.invoke("metadata")
+            r.binding.read()?.let { r.binding.write(it.copy(cloudIncarnation = null, cloudPlaylistSequence = null)) }
+            detachCheckpoint?.invoke("binding")
+            connection.completeDetach(p)
+            detachCheckpoint?.invoke("connection")
         }
     }
     private fun api(s: CloudConnectionStore.State, automatic: Boolean = false): CloudApi = apiFactory(s.origin, connection.token(s)) {
@@ -489,9 +540,8 @@ internal class CloudSyncController(
             val old = it.highest
             if (old != null && old.headCounter == head.headCounter) check(old == head) { "CLOUD_REMOTE_ROLLBACK_SUSPECTED" }
             it.copy(
-                enabled = false,
                 highest = if (old == null || CloudCounter.parse(old.headCounter) < CloudCounter.parse(head.headCounter)) head else old,
-                message = if (outcome == "COMMITTED") "Cloud replaced with the approved catalog. Automatic sync remains off." else "Replacement stopped. Local changes were kept."
+                message = if (outcome == "COMMITTED") "Cloud replaced with the approved catalog. Automatic sync remains ${if (it.enabled) "on" else "off"}." else "Replacement stopped. Local changes were kept."
             )
         }
         transfers.discardCache()
@@ -558,12 +608,16 @@ internal class CloudSyncController(
 
 internal object CloudUserMessages {
     fun error(error: Throwable): String = when (error.message) {
+        "CLOUD_DETACH_RECOVERY_REQUIRED" -> "Finish the saved local disconnect. Pending records remain archived; remote outcomes are not cleared."
+        "CLOUD_FRESH_DEVICE_REQUIRED" -> "Use a fresh device token. This installation has archived unresolved work under the old device identity."
+        "CLOUD_DETACH_REQUIRES_REJECTED_AUTHORITY" -> "This local escape is available only after permanent credential rejection. Resolve pending work normally while authority remains valid."
+        "CLOUD_DETACH_STORAGE_UNAVAILABLE", "CLOUD_DETACH_ARCHIVE_CONFLICT", "CLOUD_DETACH_RECORD_INVALID", "CLOUD_RETIRED_DEVICE_LIMIT", "CLOUD_RETIRED_DEVICE_RECORD_INVALID" -> "Local disconnect could not safely preserve its records. Keep the app data and finish recovery before connecting again."
         "CLOUD_RECONNECT_RECOVERY_REQUIRED" -> "Finish reconnecting after cloud recovery before using other cloud actions. Local edits are safe."
         "CLOUD_RECOVERED_SCOPE_REQUIRED" -> "Use a fresh device token for the recovered version of this same cloud library."
         "CLOUD_FRESH_RECOVERY_TOKEN_REQUIRED" -> "This token is not a fresh enrollment for an initialized recovered library. Ask the operator for a new token."
         "CLOUD_RECONNECT_LOCAL_IDENTITY_CHANGED", "CLOUD_RECONNECT_RECORD_INVALID", "CLOUD_RECONNECT_ARCHIVE_CONFLICT" -> "The saved reconnection no longer matches this installation. Local content and pending files have been kept for recovery."
         "CLOUD_RECONNECT_STORAGE_UNAVAILABLE" -> "Reconnection could not preserve the old pending files. Free local storage and resume reconnecting."
-        "REPLACEMENT_CLEANUP_PENDING" -> "Cleanup is still pending. Continue the same cancellation; its identity and local edits are retained."
+        "RECOVERY_CLEANUP_PENDING", "REPLACEMENT_CLEANUP_PENDING" -> "Cleanup is still pending. Continue the same cancellation; its identity and local edits are retained."
         "EXPORT_SNAPSHOT_CHANGED" -> "The local backup snapshot changed or is missing. No complete backup was produced; retry before applying cloud changes."
         "PREPARED_IMPORT_CHANGED" -> "The prepared backup changed or is missing. Prepare a fresh restore preview; installed data was not replaced."
         "CLOUD_REPLACEMENT_PENDING", "REPLACEMENT_PENDING_OR_NOT_AUTHORIZED" -> "Resolve the current cloud replacement before starting another catalog action."

@@ -83,7 +83,7 @@ internal class CloudReplacementScreenModel(application: Application) : AndroidVi
         val active = when (s.attempt?.getString("state")) {
             "ACTIVE" -> "An approved replacement is unfinished. Resume it or resolve it before another catalog action."
             "STALE" -> "The previous publication is resolved. Review the current cloud before retrying."
-            else -> "Review the complete changes before replacing the cloud with this device's catalog. Automatic sync is turned off during review and remains off afterward."
+            else -> "Review the complete changes before replacing the cloud with this device's catalog. Reviewing, canceling, or completing replacement does not change your sync toggle. Unfinished replacements pause automatic work until resolved."
         }
         val cooldown = if (s.cooldownUntil > System.currentTimeMillis()) "\nNext replacement may be confirmed after ${date(s.cooldownUntil)}." else ""
         if (!s.allowed && !s.pending) {
@@ -92,7 +92,7 @@ internal class CloudReplacementScreenModel(application: Application) : AndroidVi
             "$active\n\n${s.archives.size} of 3 recovery slots occupied. The retained copies are listed below.$cooldown"
         }
     }
-    fun prepare() = run("Freezing both catalogs and preparing the outgoing recovery copy. Automatic sync is being turned off…") {
+    fun prepare() = run("Freezing both catalogs and preparing the outgoing recovery copy…") {
         clearPreview()
         val p = controller.prepare()
         preview = p
@@ -105,7 +105,7 @@ internal class CloudReplacementScreenModel(application: Application) : AndroidVi
         "This device → cloud library\nReplacing cloud revision ${p.outgoing.status.head.revision}\n\n" +
             "${delta.added.size} videos added · ${delta.removed.size} removed\n${delta.playlists.size} playlists changed · ${delta.tags.added.size + delta.tags.removed.size + delta.tags.changed.size} tags changed\n\n" +
             "The exact outgoing cloud catalog is backed up and verified first. This device keeps its current contents. Other devices must reconcile this replacement.\n\n" +
-            "$rotation\n\nExisting copies retained:\n$kept\n\nReview all changes below. Confirming publishes only this frozen catalog. Automatic sync remains off."
+            "$rotation\n\nExisting copies retained:\n$kept\n\nReview all changes below. Confirming publishes only this frozen catalog. Your sync toggle is unchanged."
     }
     fun confirm(id: String) = run("Verifying the outgoing backup and publishing the approved catalog…") {
         val p = checkNotNull(preview) { "CLOUD_PREVIEW_EXPIRED" }
@@ -120,31 +120,31 @@ internal class CloudReplacementScreenModel(application: Application) : AndroidVi
         }
         preview = null
         groups = emptyList()
-        "Cloud replaced with the approved catalog. Its previous contents remain in the verified recovery copy. Automatic sync remains off."
+        "Cloud replaced with the approved catalog. Its previous contents remain in the verified recovery copy. Your sync toggle is unchanged."
     }
     fun resume() = run("Resolving and resuming the same approved replacement…") {
         current = controller.resume()
-        "Replacement resolved. Automatic sync remains off."
+        "Replacement resolved. Your sync toggle is unchanged."
     }
     fun resolveForRetry() = run("Resolving the old publication before a fresh preview…") {
         current = controller.resolveForRetry()
         if (current?.attempt?.getString("state") == "STALE") {
             "The previous publication is resolved. Its verified recovery copy is retained. Review the current cloud to retry using that same slot."
         } else {
-            "Replacement completed and its receipt was resolved. Automatic sync remains off."
+            "Replacement completed and its receipt was resolved. Your sync toggle is unchanged."
         }
     }
     fun stop() = run("Resolving publication and stopping the attempt…") {
         current = controller.cancel()
         if (current?.pending == true) {
-            "This request is resolved. An earlier replacement still needs attention. Stop it or review the current cloud to retry. Automatic sync remains off."
+            "This request is resolved. An earlier replacement still needs attention. Stop it or review the current cloud to retry. Your sync toggle is unchanged."
         } else {
-            "Attempt resolved. Completed recovery copies are retained. Automatic sync remains off."
+            "Attempt resolved. Completed recovery copies are retained. Your sync toggle is unchanged."
         }
     }
     fun cancelPreview() = run("Discarding the local preview…") {
         clearPreview()
-        "Preview discarded. Automatic sync remains off."
+        "Preview discarded. Your sync toggle is unchanged."
     }
     private fun clearPreview() {
         controller.cancelPreview()

@@ -111,7 +111,7 @@ object TagBackupCoordinator {
     fun prepare(context: Context, file: StoredFileHelper): Prepared {
         requireIo()
         TagRuntime.assertAvailable()
-        val prepared = Prepared(Files.createTempDirectory(context.noBackupFilesDir.toPath(), "tag-import-"), TagRuntime.generation)
+        val prepared = Prepared(NativeCatalogStaging.create(context, "import"), TagRuntime.generation)
         try {
             val recognized = recognizedEntries
             val seen = HashSet<String>()
@@ -293,7 +293,7 @@ object TagBackupCoordinator {
         check(inProgress.compareAndSet(false, true)) { "Another catalog import/export is running" }
         var directory: Path? = null
         try {
-            val stage = Files.createTempDirectory(context.noBackupFilesDir.toPath(), "tag-export-")
+            val stage = NativeCatalogStaging.create(context, "export")
             directory = stage
             val prefValues = preferences.all.toMap()
             val entries = linkedSetOf(DB, TagStore.FILE_NAME)

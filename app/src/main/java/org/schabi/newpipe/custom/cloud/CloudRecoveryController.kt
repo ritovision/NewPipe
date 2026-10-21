@@ -15,6 +15,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.UUID
 import java.util.zip.ZipFile
+import kotlin.concurrent.withLock
 import org.schabi.newpipe.custom.tagging.TagBackupCoordinator
 import org.schabi.newpipe.custom.tagging.TagRuntime
 import org.schabi.newpipe.custom.tagging.TagStore
@@ -63,8 +64,15 @@ internal class CloudRecoveryController(
     private val lock = CloudSyncController.operationLock(connection.directory)
     private fun <T> operation(body: () -> T): T {
         check(lock.tryLock()) { "CLOUD_OPERATION_BUSY" }
+        var admittedGeneration: String? = null
         try {
+            admittedGeneration = connection.read()?.generation
+            check(!connection.detachPending()) { "CLOUD_DETACH_RECOVERY_REQUIRED" }
+            check(!connection.reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
             return body()
+        } catch (error: Exception) {
+            if (admittedGeneration != null) sync.recordFailure(error, admittedGeneration)
+            throw error
         } finally {
             lock.unlock()
         }
@@ -224,14 +232,23 @@ internal class CloudRecoveryController(
     fun abort(): Status = operation {
         val s = connected()
         val api = api(s)
-        val op = if (hasPending()) {
+        val request = if (hasPending()) {
             val p = pending(s)
-            api.post("/v1/recovery/abandon", mapOf("approvalId" to p.getString("approvalId"), "sequence" to p.getString("sequence")))
+            "/v1/recovery/abandon" to mapOf("approvalId" to p.getString("approvalId"), "sequence" to p.getString("sequence"))
         } else {
             val existing = status(api).operation ?: return@operation status(api)
-            api.post("/v1/recovery/abort", mapOf("sequence" to existing.getString("sequence"), "archiveId" to existing.getString("archiveId")))
+            "/v1/recovery/abort" to mapOf("sequence" to existing.getString("sequence"), "archiveId" to existing.getString("archiveId"))
         }
-        check(op.getString("state") in setOf("DONE", "CANCELED")) { "RECOVERY_CLEANUP_UNCONFIRMED" }
+        var completed = false
+        for (step in 0 until 4) {
+            val op = api.post(request.first, request.second)
+            check(op.getString("sequence") == request.second["sequence"]) { "RECOVERY_IDENTITY_CHANGED" }
+            if (op["cleanupPending"] == true) continue
+            check(op.getString("state") in setOf("DONE", "CANCELED")) { "RECOVERY_CLEANUP_UNCONFIRMED" }
+            completed = true
+            break
+        }
+        if (!completed) throw CloudRemoteException("RECOVERY_CLEANUP_PENDING", 503)
         clearPending()
         status(api)
     }
@@ -242,9 +259,9 @@ internal class CloudRecoveryController(
     fun prepareRestore(archiveId: String): RestorePreview = operation {
         check(!CloudReplacementController.hasPending(connection.directory)) { "CLOUD_REPLACEMENT_PENDING" }
         check(!hasPending() && !sync.hasPending()) { "RECOVERY_UPLOAD_PENDING" }
-        // The change in generation immediately fences any already-admitted automatic request.
-        val s = checkNotNull(sync.disable())
-        CloudScheduler.reconcile(context)
+        // Reading/canceling a preview is not consent to change the sync mode.
+        // Confirmation fences the current generation at the final writer barrier.
+        val s = connected()
         val live = sync.inspect()
         check("backup.read" in live.capabilities) { "RECOVERY_API_DISABLED" }
         val api = api(s)
@@ -293,7 +310,7 @@ internal class CloudRecoveryController(
     fun confirmRestore(preview: RestorePreview, includeSettings: Boolean = false) = operation {
         check(!CloudReplacementController.hasPending(connection.directory)) { "CLOUD_REPLACEMENT_PENDING" }
         val s = connection.requireCurrent(preview.generation)
-        check(!s.enabled && SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
+        check(SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
         check(!hasPending() && !sync.hasPending()) { "RECOVERY_UPLOAD_PENDING" }
         check(CloudRecoveryFormat.fromFile(preview.file, preview.manifest.source, preview.manifest.native) == preview.manifest) { "RECOVERY_LOCAL_FILE_CHANGED" }
         val before = CloudNativeCatalog(TagRuntime.get(context)).capture(s.scope, s.incarnation)
@@ -304,24 +321,36 @@ internal class CloudRecoveryController(
         ) { "CLOUD_LOCAL_PREVIEW_CHANGED" }
         sync.saveLocalRecovery(preview.before)
         if (preview.decoded != null) {
-            CloudNativeApply(TagRuntime.get(context)).restoreHistorical(
-                preview.before,
-                preview.manifest.source!!.head,
-                preview.decoded.catalog,
-                preview.decoded.hints
-            ) {
-                val current = connection.requireCurrent(preview.generation)
-                check(!current.enabled && SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
+            TagRuntime.lock.withLock {
+                connection.requireCurrent(preview.generation)
+                check(SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
+                val current = CloudNativeCatalog(TagRuntime.get(context)).capture(s.scope, s.incarnation)
+                check(
+                    current.identities == preview.before.identities && current.fingerprint == preview.before.fingerprint &&
+                        current.tagRevision == preview.before.tagRevision && current.nativeIds == preview.before.nativeIds &&
+                        current.orphaned == preview.before.orphaned
+                ) { "CLOUD_LOCAL_PREVIEW_CHANGED" }
+                val stopped = checkNotNull(sync.disable())
+                CloudScheduler.reconcile(context)
+                CloudNativeApply(TagRuntime.get(context)).restoreHistorical(
+                    preview.before,
+                    preview.manifest.source!!.head,
+                    preview.decoded.catalog,
+                    preview.decoded.hints
+                ) {
+                    val admitted = connection.requireCurrent(stopped.generation)
+                    check(!admitted.enabled && SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
+                }
+                CloudTransferStore(connection.directory).discardCache()
+                connection.update(stopped.generation) { it.copy(enabled = false, message = "Recovery catalog restored on this device. Automatic sync is off.") }
             }
-            CloudTransferStore(connection.directory).discardCache()
-            connection.update(s.generation) { it.copy(enabled = false, message = "Recovery catalog restored on this device. Automatic sync is off.") }
         } else {
             val prepared = checkNotNull(preview.prepared)
             val preferences = if (includeSettings) TagBackupCoordinator.readPreferences(prepared) else null
             // install() retains native AI unpairing, writer fencing, fresh identity and restart requirements.
             installNative(context, prepared) {
                 connection.requireCurrent(preview.generation)
-                check(!connected().enabled && SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
+                check(SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
                 val current = CloudNativeCatalog(TagRuntime.get(context)).capture(s.scope, s.incarnation)
                 check(
                     current.identities == preview.before.identities && current.fingerprint == preview.before.fingerprint &&

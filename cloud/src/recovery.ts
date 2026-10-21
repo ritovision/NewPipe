@@ -122,8 +122,8 @@ export class RecoveryService {
     const known = new Set(slots.map(s => s.object_key));
     if (listed.truncated || listed.objects.length > L.slots || listed.objects.some(o => !known.has(o.key))) fail("RECOVERY_UNINDEXED_OBJECTS", 503);
   }
-  private async operationView(op: Operation) {
-    const s = ["DONE", "CANCELED"].includes(op.state) ? null : await this.slot(op);
+  private async operationView(op: Operation, knownSlot?: Slot | null) {
+    const s = knownSlot !== undefined ? knownSlot : ["DONE", "CANCELED"].includes(op.state) ? null : await this.slot(op);
     return { sequence: op.sequence, approvalId: op.approval_id, archiveId: op.archive_id, state: op.state,
       manifest: manifest(op), digest: op.digest, evictArchiveId: op.evict_id,
       nextPart: s?.next_part ?? null, verifyPart: s?.verify_part ?? null, error: op.error ?? s?.error ?? null };
@@ -454,55 +454,77 @@ export class RecoveryService {
     return this.operationView((await this.ownOperation())!);
   }
   async abort(ref: RecoveryReference) {
-    let op = await this.operation(ref);
+    const op = await this.operation(ref);
     if (op.state === "CANCELED") return this.operationView(op);
     if (op.state === "DONE") fail("RECOVERY_ALREADY_COMMITTED");
     if (op.state === "ROTATING") {
-      await this.advance(ref); op = await this.operation(ref);
-      // A concurrent resumer may have completed the new archive while rotation returned.
-      if (op.state === "CANCELED") return this.operationView(op);
-      if (op.state === "DONE") fail("RECOVERY_ALREADY_COMMITTED");
+      // Rotation alone is one bounded request. Never start abort claims after its
+      // approved eviction has consumed this request's statement envelope.
+      const progress = await this.advance(ref);
+      if (progress.state === "DONE") fail("RECOVERY_ALREADY_COMMITTED");
+      return { ...progress, cleanupPending: progress.state !== "CANCELED" };
     }
-    const abortable = "'RESERVED','CREATING','UPLOADING','COMPLETING','VERIFYING','ABORTING','QUARANTINED'";
-    let s = await this.slot(op), original = op.state;
+    const s = await this.slot(op), original = op.state;
     if (original === "CREATING" && !s.upload_id) {
       await this.quarantine(op, s, "RECOVERY_CREATION_OUTCOME_UNKNOWN"); fail("RECOVERY_OPERATOR_CLEANUP_REQUIRED", 503);
     }
     if (original === "QUARANTINED" && !s.upload_id) fail("RECOVERY_OPERATOR_CLEANUP_REQUIRED", 503);
+    const p = this.opCondition(op);
     if (op.state !== "ABORTING") {
-      const p = this.opCondition(op);
+      const abortable = "'RESERVED','CREATING','UPLOADING','COMPLETING','VERIFYING','QUARANTINED'";
+      const fenced = original === "RESERVED" ? 1 : s.abort_fenced;
       try { await this.batch(p.sql + " AND EXISTS(SELECT 1 FROM cloud_backup_slots s WHERE s.library_id=b.library_id AND s.archive_id=? AND s.state=? AND s.state IN(" + abortable + "))",
-        [...p.values, s.archive_id, original], [this.setOp(op, "ABORTING"), this.setSlot(s, "state='ABORTING',busy_token=NULL,busy_until=0,abort_fenced=?", [original === "RESERVED" ? 1 : s.abort_fenced])]); }
+        [...p.values, s.archive_id, original], [this.setOp(op, "ABORTING"), this.setSlot(s, "state='ABORTING',busy_token=NULL,busy_until=0,abort_fenced=?", [fenced])]); }
       catch (e) { asError(e); }
-      op = await this.operation(ref);
-      if (op.state === "CANCELED") return this.operationView(op);
-      if (op.state !== "ABORTING") fail("RECOVERY_STATE_CHANGED");
-      s = await this.slot(op);
+      // A competing uncertain cleanup may have quarantined this operation after
+      // our claim committed. Do not turn a stale progress response into implicit
+      // permission to retry/clear that later quarantine.
+      const current = await this.operation(ref);
+      if (current.state === "CANCELED") return this.operationView(current);
+      if (current.state !== "ABORTING") fail("RECOVERY_STATE_CHANGED");
+      const currentSlot = await this.slot(current);
+      if (currentSlot.state !== "ABORTING") fail("RECOVERY_STATE_CHANGED");
+      return { ...await this.operationView(current, currentSlot), cleanupPending: true };
     }
-    if (op.state !== "ABORTING" || s.state !== "ABORTING") fail("RECOVERY_STATE_CHANGED");
-    // RESERVED has never admitted a create; all other known identities are fenced by abort.
-    let fenced = s.abort_fenced === 1 || s.object_etag !== null;
-    if (s.upload_id) {
-      try { await this.bucket.resumeMultipartUpload(s.object_key, s.upload_id).abort(); fenced = true; }
-      catch { /* Could already be completed; only a matching extant object proves consumption. */ }
+    if (s.state !== "ABORTING") fail("RECOVERY_STATE_CHANGED");
+    if (s.abort_fenced !== 1 && s.object_etag === null) {
+      let consumed = false;
+      if (s.upload_id) {
+        try { await this.bucket.resumeMultipartUpload(s.object_key, s.upload_id).abort(); consumed = true; }
+        catch { /* Unknown abort is not proof. Only an exact completed object can prove consumption. */ }
+      }
+      if (!consumed) {
+        const object = await this.bucket.head(s.object_key);
+        if (object && !this.matches(s, object)) {
+          await this.quarantine(op, s, "RECOVERY_OBJECT_MISSING_OR_CHANGED"); fail("RECOVERY_OPERATOR_CLEANUP_REQUIRED", 503);
+        }
+        consumed = object !== null;
+      }
+      if (!consumed) {
+        await this.quarantine(op, s, "RECOVERY_ABORT_OUTCOME_UNKNOWN"); fail("RECOVERY_ABORT_OUTCOME_UNKNOWN", 503);
+      }
+      // Persist definite provider progress before returning. Later requests skip
+      // abort altogether: no dependence on repeated multipart-abort idempotence.
+      try { await this.batch(p.sql + " AND EXISTS(SELECT 1 FROM cloud_backup_slots WHERE library_id=b.library_id AND archive_id=? AND state='ABORTING' AND abort_fenced=0)",
+        [...p.values, s.archive_id], [this.setSlot(s, "abort_fenced=1")]); }
+      catch (e) { asError(e); }
+      return { ...await this.operationView(op, { ...s, abort_fenced: 1 }), cleanupPending: true };
     }
     const object = await this.bucket.head(s.object_key);
     if (object) {
       if (!this.matches(s, object)) { await this.quarantine(op, s, "RECOVERY_OBJECT_MISSING_OR_CHANGED"); fail("RECOVERY_OPERATOR_CLEANUP_REQUIRED", 503); }
-      fenced = true;
       try { await this.bucket.delete(s.object_key); } catch { fail("RECOVERY_DELETE_UNCONFIRMED", 503); }
     }
-    if (!fenced || await this.bucket.head(s.object_key)) {
+    if (await this.bucket.head(s.object_key)) {
       await this.quarantine(op, s, "RECOVERY_ABORT_OUTCOME_UNKNOWN"); fail("RECOVERY_ABORT_OUTCOME_UNKNOWN", 503);
     }
-    const p = this.opCondition(op);
-    // CANCELED and removal of this exact ABORTING slot must commit together. A competing
-    // quarantine invalidates both assertions; it cannot leave a hidden occupied slot.
-    try { await this.batch(p.sql + " AND EXISTS(SELECT 1 FROM cloud_backup_slots WHERE library_id=b.library_id AND archive_id=? AND state='ABORTING')", [...p.values, s.archive_id], [
+    // Provider work is proven consumed and the exact object absent. Final state
+    // and slot removal still commit together; uncertainty fences remain intact.
+    try { await this.batch(p.sql + " AND EXISTS(SELECT 1 FROM cloud_backup_slots WHERE library_id=b.library_id AND archive_id=? AND state='ABORTING' AND (abort_fenced=1 OR object_etag IS NOT NULL))", [...p.values, s.archive_id], [
       this.db.prepare("DELETE FROM cloud_backup_slots WHERE library_id=? AND archive_id=? AND state='ABORTING'").bind(this.context.library, s.archive_id),
       this.setOp(op, "CANCELED")]); }
     catch (e) { asError(e); }
-    return this.operationView((await this.ownOperation())!);
+    return this.operationView({ ...op, state: "CANCELED" }, null);
   }
   async pin(raw: unknown, now = Date.now()) {
     const r = recoveryObject(raw, ["archiveId"]), id = uuid(r.archiveId);

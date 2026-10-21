@@ -372,6 +372,29 @@ class TagBackupIntegrationTest {
         assertEquals("Archive", repository.definitions().tags.single().name)
     }
 
+    @Test fun firstStagingOwnerSweepsOrphansButNeverActiveCandidatesOrRecoveryFiles() {
+        val root = context.noBackupFilesDir.toPath()
+        val oldImport = Files.createDirectories(root.resolve("tag-import-orphan"))
+        val oldExport = Files.createDirectories(root.resolve("tag-export-orphan"))
+        Files.write(oldImport.resolve("newpipe.db"), byteArrayOf(1))
+        Files.write(oldExport.resolve(TagStore.FILE_NAME), byteArrayOf(2))
+        val protected = Files.createDirectories(root.resolve("cloud-sync/recovery"))
+        Files.write(protected.resolve("before-last-cloud-restore.zip"), byteArrayOf(3))
+        NativeCatalogStaging.initialize(context)
+        assertFalse(Files.exists(oldImport))
+        assertFalse(Files.exists(oldExport))
+        assertTrue(Files.exists(protected.resolve("before-last-cloud-restore.zip")))
+        val active = NativeCatalogStaging.create(context, "import")
+        Files.write(active.resolve("owned"), byteArrayOf(4))
+        NativeCatalogStaging.initialize(context)
+        assertTrue(Files.exists(active.resolve("owned")))
+        // The process-lifetime OS lock prevents a second owner from sweeping.
+        java.nio.channels.FileChannel.open(root.resolve(".rv-native-staging-owner"), java.nio.file.StandardOpenOption.WRITE).use { competing ->
+            assertThrows(java.nio.channels.OverlappingFileLockException::class.java) { competing.tryLock() }
+        }
+        CatalogFileSwap.deleteTree(active)
+    }
+
     @Test fun malformedDatabaseDoesNotFenceOrAlterExistingCatalog() {
         val tag = repository.createTag("Keep", null)
         val media = item("stay", tag)

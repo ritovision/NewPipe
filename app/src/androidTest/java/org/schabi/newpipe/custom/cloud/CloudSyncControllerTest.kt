@@ -124,6 +124,121 @@ class CloudSyncControllerTest {
         assertTrue(same())
     }
 
+    @Test fun hintOnlyStreamUpdatesDoNotScheduleSyncButSemanticPlaylistEditsStillDo() {
+        connection = CloudConnectionStore(f.context)
+        controller = newController()
+        f.seed()
+        enable()
+        CloudScheduler.reconcile(f.context)
+        val deadline = android.os.SystemClock.elapsedRealtime() + 10_000
+        while (!CloudScheduler.observes(f.db)) {
+            check(android.os.SystemClock.elapsedRealtime() < deadline)
+            Thread.sleep(50)
+        }
+        Thread.sleep(400)
+        val baselineTicket = CloudScheduler.ticket()
+        repeat(12) { f.main("UPDATE streams SET title=title || ' metadata' WHERE uid=(SELECT MIN(uid) FROM streams)") }
+        f.db.invalidationTracker.refreshVersionsAsync()
+        Thread.sleep(600)
+        assertEquals("History/feed hint changes must not trigger catalog capture/network work", baselineTicket, CloudScheduler.ticket())
+        f.main("UPDATE playlists SET name=name || ' changed' WHERE name NOT IN('Library','Unavailable')")
+        f.db.invalidationTracker.refreshVersionsAsync()
+        val changedDeadline = android.os.SystemClock.elapsedRealtime() + 10_000
+        while (CloudScheduler.ticket() == baselineTicket) {
+            check(android.os.SystemClock.elapsedRealtime() < changedDeadline) { "SEMANTIC_CHANGE_NOT_OBSERVED" }
+            Thread.sleep(50)
+        }
+        controller.disable()
+        CloudScheduler.reconcile(f.context)
+    }
+
+    private fun rejectedPendingUpload() {
+        f.seed()
+        enable()
+        f.media("pending-before-revoke")
+        peer.fault = "beforeStart"
+        assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+        peer.beforeRequest = { throw CloudRemoteException("INVALID_CREDENTIAL", 401) }
+        assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+        assertTrue(connection.read()!!.authorityRejected)
+        assertFalse(connection.read()!!.enabled)
+    }
+
+    @Test fun rejectedDeviceCanDetachLocallyWithAllPendingEvidenceThenRequiresFreshDeviceEnrollment() {
+        rejectedPendingUpload()
+        val pending = File(connection.directory, "outbox").walkTopDown().filter { it.isFile }.associate { it.relativeTo(connection.directory).path to it.readBytes().toList() }
+        check(pending.isNotEmpty())
+        for (name in listOf("remote-recovery", "remote-replacement")) {
+            val root = File(connection.directory, name).also { it.mkdirs() }
+            File(root, "pending.json").writeText("opaque previous operation, not permission to discard")
+            File(root, "payload").writeBytes(byteArrayOf(4, 5, 6))
+        }
+        val digest = CloudRoomContentDigest.withoutCloudWitness(f.db.openHelper.readableDatabase)
+        val definitions = f.repo.definitions()
+        peer.beforeRequest = { throw AssertionError("LOCAL_DETACH_MUST_NOT_CONTACT_SERVER") }
+        controller.detachRejectedConnection()
+        assertEquals(null, connection.read())
+        assertFalse(connection.detachPending())
+        assertEquals(digest, CloudRoomContentDigest.withoutCloudWitness(f.db.openHelper.readableDatabase))
+        assertEquals(definitions, f.repo.definitions())
+        val archived = File(connection.directory, "retired-connections").listFiles()!!.single()
+        for ((path, bytes) in pending) assertEquals(bytes, File(archived, path).readBytes().toList())
+        for (name in listOf("remote-recovery", "remote-replacement")) {
+            assertTrue(File(archived, "$name/pending.json").isFile)
+            assertEquals(listOf<Byte>(4, 5, 6), File(archived, "$name/payload").readBytes().toList())
+        }
+        assertFalse(File(archived, "connection.json").readText().contains(peer.tokenA))
+        peer.beforeRequest = null
+        reject("CLOUD_FRESH_DEVICE_REQUIRED") { newController().connect("https://example.test", peer.tokenA) }
+        val next = newController().connect("https://example.test", peer.tokenB)
+        assertFalse(next.enabled)
+        assertEquals(peer.scope, next.scope)
+        assertEquals(digest, CloudRoomContentDigest.withoutCloudWitness(f.db.openHelper.readableDatabase))
+        assertTrue(archived.isDirectory)
+    }
+
+    private fun interruptDetach(point: String) {
+        rejectedPendingUpload()
+        val digest = CloudRoomContentDigest.withoutCloudWitness(f.db.openHelper.readableDatabase)
+        val interrupted = CloudSyncController(
+            f.context,
+            connection,
+            { f.repo },
+            peer::client,
+            { _: CloudNativeSnapshot -> },
+            detachCheckpoint = { if (it == point) throw AssertionError("INTERRUPTED_DETACH") }
+        )
+        assertThrows(AssertionError::class.java) { interrupted.detachRejectedConnection() }
+        f.reopen()
+        peer.beforeRequest = { throw AssertionError("LOCAL_DETACH_MUST_NOT_CONTACT_SERVER") }
+        newController().detachRejectedConnection()
+        assertEquals(null, connection.read())
+        assertFalse(connection.detachPending())
+        assertEquals(digest, CloudRoomContentDigest.withoutCloudWitness(f.db.openHelper.readableDatabase))
+        assertTrue(File(connection.directory, "retired-connections").listFiles()!!.single().resolve("outbox").isDirectory)
+        f.repo.definitions()
+    }
+
+    @Test fun detachRecoversAfterItsJournalIsDurable() = interruptDetach("journal")
+
+    @Test fun detachRecoversAfterArchivingTheOutbox() = interruptDetach("archived-outbox")
+
+    @Test fun detachRecoversAfterIndependentMetadataCommit() = interruptDetach("metadata")
+
+    @Test fun detachCompletionIsIdempotentAfterConnectionRemoval() = interruptDetach("connection")
+
+    @Test fun transientNetworkFailureDoesNotAuthorizeLocalDetachOfAnUnresolvedUpload() {
+        f.seed()
+        enable()
+        f.media("network-unknown")
+        peer.fault = "beforeStart"
+        assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+        controller.disable()
+        reject("CLOUD_DETACH_REQUIRES_REJECTED_AUTHORITY") { controller.detachRejectedConnection() }
+        assertTrue(controller.hasPending())
+        assertFalse(connection.detachPending())
+    }
+
     @Test fun connectRetainsLocalContentAndStartsDisabledWithEncryptedCredential() {
         val before = f.seed()
         val s = connect()

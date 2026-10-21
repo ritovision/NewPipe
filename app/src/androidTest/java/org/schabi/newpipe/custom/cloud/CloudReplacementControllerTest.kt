@@ -119,6 +119,26 @@ class CloudReplacementControllerTest {
         assertEquals("CANCELED", peer.attempt!!.getString("state"))
     }
 
+    @Test fun replacementPreviewCancelAndSuccessfulCommitPreserveTheOwnersEnabledMode() {
+        // Adopt the existing cloud first, then make a distinct local branch.
+        sync.confirm(sync.prepare(true))
+        f.media("Enabled-replacement")
+        val generation = sync.connection.read()!!.generation
+        val c = controller()
+        c.prepare()
+        assertTrue(sync.connection.read()!!.enabled)
+        assertEquals(generation, sync.connection.read()!!.generation)
+        c.cancelPreview()
+        assertTrue(sync.connection.read()!!.enabled)
+        assertEquals(generation, sync.connection.read()!!.generation)
+        val p = c.prepare()
+        c.confirm(p)
+        assertTrue(sync.connection.read()!!.enabled)
+        assertEquals(generation, sync.connection.read()!!.generation)
+        assertEquals(p.before.fingerprint, peer.catalog.head.fingerprint)
+        assertFalse(c.hasPending())
+    }
+
     @Test fun unconfirmedReservationAfterRecreationRequiresResolutionAndFreshPreview() {
         val c = controller()
         val p = c.prepare()

@@ -51,8 +51,15 @@ internal class CloudReplacementController(
     private val lock = CloudSyncController.operationLock(connection.directory)
     private fun <T> operation(body: () -> T): T {
         check(lock.tryLock()) { "CLOUD_OPERATION_BUSY" }
+        var admittedGeneration: String? = null
         try {
+            admittedGeneration = connection.read()?.generation
+            check(!connection.detachPending()) { "CLOUD_DETACH_RECOVERY_REQUIRED" }
+            check(!connection.reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
             return body()
+        } catch (error: Exception) {
+            if (admittedGeneration != null) sync.recordFailure(error, admittedGeneration)
+            throw error
         } finally {
             lock.unlock()
         }
@@ -114,7 +121,8 @@ internal class CloudReplacementController(
         val existing = attempt(remote(api(initial)))
         check(existing?.getString("state") != "ACTIVE") { "CLOUD_REPLACEMENT_PENDING" }
         if (old != null) check(existing?.getString("attemptId") == old.getString("approvalId") && existing.getString("state") == "STALE") { "REPLACEMENT_IDENTITY_CHANGED" }
-        sync.disable()
+        // Preview/cancel does not alter the owner's mode. Durable pending
+        // replacement identity blocks automatic sync once confirmation begins.
         val base = sync.prepare(false, forReplacement = true)
         val s = connected()
         check("catalog.replace" in base.remote.capabilities) { "REPLACEMENT_NOT_AUTHORIZED" }

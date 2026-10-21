@@ -39,4 +39,8 @@
     <string name="cloud_resume_reconnect">Finish reconnecting</string>
     <string name="cloud_resume_reconnect_summary">Resume the interrupted reconnection. Your local library and old pending files are preserved.</string>
     <string name="cloud_reconnect_explanation">Enter a new device token for the recovered version of this same library. Your local videos, playlists and tags stay unchanged. A verified local backup replaces the previous manual recovery copy. Old pending transfers are kept on this device and will not be sent again. Sync stays off until you review a fresh preview.</string>
+    <string name="cloud_detach_title">Disconnect rejected device locally</string>
+    <string name="cloud_detach_summary">Archive pending records without deleting native content. A fresh device token is required afterward.</string>
+    <string name="cloud_detach_confirm">This preserves unresolved upload and recovery records in a private local archive and removes this connection. It does not cancel requests already sent, clear cloud reservations, or prove earlier writes failed. Keep your app data. Reconnect only with a fresh device token and review the cloud copy before enabling sync.</string>
+    <string name="cloud_detach_resume">Finish local disconnect</string>
 </resources>

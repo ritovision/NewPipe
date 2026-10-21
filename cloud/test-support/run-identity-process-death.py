@@ -22,7 +22,10 @@ FORGET_PHASES = {"forget-" + p: p for p in ("off", "before-witness-commit", "wit
 CLASSES.update({name: "CloudForgetProcessDeathTest" for name in FORGET_PHASES})
 HISTORICAL_PHASES = {"historical-" + name.removeprefix("apply-"): phase for name, phase in APPLY_PHASES.items()}
 CLASSES.update({name: "CloudApplyProcessDeathTest" for name in HISTORICAL_PHASES})
-PHASES = {**APPLY_PHASES, **RECONNECT_PHASES, **FORGET_PHASES, **HISTORICAL_PHASES}
+DETACH_PHASES = {"detach-" + p: p for p in ("journal", "archived-outbox", "metadata", "connection")}
+CLASSES.update({name: "CloudDetachProcessDeathTest" for name in DETACH_PHASES})
+CLASSES["staging"] = "CloudStagingProcessDeathTest"
+PHASES = {**APPLY_PHASES, **RECONNECT_PHASES, **FORGET_PHASES, **HISTORICAL_PHASES, **DETACH_PHASES}
 
 
 def main() -> None:
@@ -61,8 +64,8 @@ def main() -> None:
         raise RuntimeError("Expected isolated QA instrumentation is not installed")
     run("shell", "run-as", args.package, "--user", str(args.user), "pwd")
     token = "probe-" + uuid.uuid4().hex[:20]
-    kind = "forget" if args.suite in FORGET_PHASES else "reconnect" if args.suite in RECONNECT_PHASES else "apply" if args.suite in (APPLY_PHASES | HISTORICAL_PHASES) else args.suite
-    storage = "no_backup" if args.suite in (FORGET_PHASES | HISTORICAL_PHASES) else "cache"
+    kind = "detach" if args.suite in DETACH_PHASES else "forget" if args.suite in FORGET_PHASES else "reconnect" if args.suite in RECONNECT_PHASES else "apply" if args.suite in (APPLY_PHASES | HISTORICAL_PHASES) else args.suite
+    storage = "no_backup" if args.suite in (FORGET_PHASES | HISTORICAL_PHASES | DETACH_PHASES) or args.suite == "staging" else "cache"
     directory = f"{storage}/cloud-{kind}-probe-{token}"
     klass = "org.schabi.newpipe.custom.cloud." + CLASSES[args.suite]
     base_command = adb + ["shell", "am", "instrument", "--user", str(args.user), "-w", "-r"]
@@ -110,7 +113,7 @@ def main() -> None:
         raise RuntimeError("Old QA process still alive after force-stop")
     phase("verifyRollbackAfterActualProcessDeath", "verify.log")
     verified = run("shell", "run-as", args.package, "--user", str(args.user), "cat", directory + "/verified").stdout.strip()
-    expected_marker = "forget-preserved-local-content" if args.suite in FORGET_PHASES else "reconnect-preserved-local-content" if args.suite in RECONNECT_PHASES else "rollback-restored-original-identities"
+    expected_marker = "staging-orphans-cleaned-active-recovery-preserved" if args.suite == "staging" else "detach-preserved-native-and-pending-evidence" if args.suite in DETACH_PHASES else "forget-preserved-local-content" if args.suite in FORGET_PHASES else "reconnect-preserved-local-content" if args.suite in RECONNECT_PHASES else "rollback-restored-original-identities"
     if verified != expected_marker:
         raise RuntimeError("Fresh-process verification marker mismatch")
     result = {
@@ -121,6 +124,8 @@ def main() -> None:
         "scope": PHASES.get(args.suite, "single tag-map transaction" if args.suite == "identity" else "binding durable before tag enrollment commit"),
         "native_apply_recovery_tested": args.suite in (APPLY_PHASES | HISTORICAL_PHASES),
         "native_historical_recovery_tested": args.suite in HISTORICAL_PHASES,
+        "native_detach_recovery_tested": args.suite in DETACH_PHASES,
+        "native_staging_cleanup_tested": args.suite == "staging",
         "native_forget_recovery_tested": args.suite in FORGET_PHASES,
         "native_reconnection_recovery_tested": args.suite in RECONNECT_PHASES,
         "not_network_or_power_loss_recovery": True,
