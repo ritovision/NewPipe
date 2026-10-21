@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "source_commit": "439af53cca239a9bdf37c84790436c0fc695d0f0",
+  "suite": "detach-journal",
+  "serial": "emulator-5576",
+  "avd": "Pixel_9_API_35",
+  "android_user": 0,
+  "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+  "probe": "probe-e406ff7ecbaf46d8a744",
+  "killed_pid": "31560",
+  "actual_host_force_stop": true,
+  "verified_marker": "detach-preserved-native-and-pending-evidence",
+  "scope": "journal",
+  "native_apply_recovery_tested": false,
+  "native_historical_recovery_tested": false,
+  "native_detach_recovery_tested": true,
+  "native_staging_cleanup_tested": false,
+  "native_forget_recovery_tested": false,
+  "native_reconnection_recovery_tested": false,
+  "not_network_or_power_loss_recovery": true,
+  "logs": {
+    "verify.log": "b2e46103acc428d647d5b197fe69522bab595dcb65d9611449d1fc21807e2031",
+    "interrupted.log": "98e99464668304ab1c597ed091bfefdcadc80a79d156facb93b5871aa9b93bc7",
+    "prepare.log": "c1184fabbd293537e4e61306e0068d70c14f5e68e508942e8bd2544877bd2902"
+  }
+}

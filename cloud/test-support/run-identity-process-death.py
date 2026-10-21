@@ -121,7 +121,7 @@ def main() -> None:
         "serial": args.serial, "avd": args.avd, "android_user": args.user,
         "package": args.package, "probe": token, "killed_pid": killed_pid,
         "actual_host_force_stop": True, "verified_marker": verified,
-        "scope": PHASES.get(args.suite, "single tag-map transaction" if args.suite == "identity" else "binding durable before tag enrollment commit"),
+        "scope": PHASES.get(args.suite, "orphan native import/export staging cleanup after process death" if args.suite == "staging" else "single tag-map transaction" if args.suite == "identity" else "binding durable before tag enrollment commit"),
         "native_apply_recovery_tested": args.suite in (APPLY_PHASES | HISTORICAL_PHASES),
         "native_historical_recovery_tested": args.suite in HISTORICAL_PHASES,
         "native_detach_recovery_tested": args.suite in DETACH_PHASES,

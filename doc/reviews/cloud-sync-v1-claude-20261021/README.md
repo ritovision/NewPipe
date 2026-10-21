@@ -6,6 +6,10 @@ The complete unedited report is [review.md](review.md). The exact instructions a
 
 **Reviewed source:** `582f0791d7ecf34291afd6009a4e09e92b7ddf19`, branch `feature/cloud-sync-v1-20261019`, tree `59d7846c39d020ca75c8cb743afabb75d53fe248`. The reviewer used a frozen `git archive` snapshot, not the active checkout. All 5,048 snapshot-file hashes remained unchanged. It made 114 read-only tool calls: 83 Read, 26 Grep, 5 Glob. The process exited successfully. No Bash, writing/editing tools, MCP services, browser, coding subagents, runtime tests, installation or deployment capability was granted. Claude did not write implementation code or independently execute the retained tests.
 
+## Subsequent implementation resolution
+
+All nine findings now have implemented corrections and local/native regression evidence at `0f9988b001248050097d96972ba1e86d1b312c5e`. See [implementation resolution](correction-resolution.md) for the exact results and scope. Claude's original report below remains unchanged and applies to its earlier frozen source; no new independent approval or production activation is implied. Live/rollout gates remain open.
+
 ## Verdict and findings
 
 Claude's overall verdict is **CONDITIONAL**: acceptable only for its narrowly named closed, isolated, owner-operated synthetic QA scope; **HOLD for normal-use release or production**. This is not permission to reopen QA.

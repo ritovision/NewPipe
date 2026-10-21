@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "source_commit": "439af53cca239a9bdf37c84790436c0fc695d0f0",
+  "suite": "staging",
+  "serial": "emulator-5576",
+  "avd": "Pixel_9_API_35",
+  "android_user": 0,
+  "package": "org.schabi.newpipe.debug.featurecloudsyncv120261019",
+  "probe": "probe-da86be14f51e4a79b6d3",
+  "killed_pid": "32351",
+  "actual_host_force_stop": true,
+  "verified_marker": "staging-orphans-cleaned-active-recovery-preserved",
+  "scope": "binding durable before tag enrollment commit",
+  "native_apply_recovery_tested": false,
+  "native_historical_recovery_tested": false,
+  "native_detach_recovery_tested": false,
+  "native_staging_cleanup_tested": true,
+  "native_forget_recovery_tested": false,
+  "native_reconnection_recovery_tested": false,
+  "not_network_or_power_loss_recovery": true,
+  "logs": {
+    "verify.log": "18eda22a4a1bcd71524b352ef69b57250cdd37a45c80eebb3e0e75dbb21258b8",
+    "interrupted.log": "1d6ae376c44b062b075d9eeed88b894c79fed4904491234998517fadd9bc8146",
+    "prepare.log": "da2460da02e29df543dc22fe5729938d1ba96a76c42b214aba4f97405328d654"
+  }
+}

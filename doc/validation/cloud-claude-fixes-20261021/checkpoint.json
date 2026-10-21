@@ -1,0 +1,38 @@
+{
+  "implementationCommit": "0f9988b001248050097d96972ba1e86d1b312c5e",
+  "fullNativeCommit": "439af53cca239a9bdf37c84790436c0fc695d0f0",
+  "backend": {
+    "passed": 372,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 385.219
+  },
+  "jvm": {
+    "tests": 353,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fullNative": {
+    "passed": 213,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 442.534
+  },
+  "finalControllerFollowup": {
+    "passed": 52,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 88.454,
+    "overlapsFullNative": true
+  },
+  "actualProcessDeathCases": 5,
+  "liveCloudflareTested": false,
+  "physicalPhoneUsed": false,
+  "applicationDataCleared": false,
+  "productionActivated": false,
+  "implementationSubagents": false,
+  "reviewOnlyClaudeInvokedThisCycle": false,
+  "deploymentOrMergePerformed": false,
+  "rawLogsPreserved": true
+}
