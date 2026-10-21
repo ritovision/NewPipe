@@ -186,7 +186,14 @@ internal class CloudSyncController(
             val old = connection.read() ?: return@operation
             check(old.authorityRejected && !old.enabled) { "CLOUD_DETACH_REQUIRES_REJECTED_AUTHORITY" }
             TagRuntime.lock.withLock {
-                native(old)
+                // A legitimate full native import may have removed cloud identity
+                // while retaining this rejected connection/outbox. Detachment does
+                // not require re-enrolling it merely to remove active authority.
+                val r = repository()
+                CloudNativeApply.recoverLocked(r)
+                val identity = CloudIdentityStore.context(r.store.readableDatabase)
+                check(identity == null || identity.scope == old.scope && identity.incarnation == old.incarnation) { "CLOUD_DETACH_LOCAL_IDENTITY_CHANGED" }
+                r.definitions()
                 connection.beginDetach(old.generation)
                 detachCheckpoint?.invoke("journal")
             }
@@ -618,7 +625,7 @@ internal object CloudUserMessages {
         "CLOUD_DETACH_RECOVERY_REQUIRED" -> "Finish the saved local disconnect. Pending records remain archived; remote outcomes are not cleared."
         "CLOUD_FRESH_DEVICE_REQUIRED" -> "Use a fresh device token. This installation has archived unresolved work under the old device identity."
         "CLOUD_DETACH_REQUIRES_REJECTED_AUTHORITY" -> "This local escape is available only after permanent credential or device-operation identity rejection. Resolve pending work normally while authority remains valid."
-        "CLOUD_DETACH_STORAGE_UNAVAILABLE", "CLOUD_DETACH_ARCHIVE_CONFLICT", "CLOUD_DETACH_RECORD_INVALID", "CLOUD_RETIRED_DEVICE_LIMIT", "CLOUD_RETIRED_DEVICE_RECORD_INVALID" -> "Local disconnect could not safely preserve its records. Keep the app data and finish recovery before connecting again."
+        "CLOUD_DETACH_LOCAL_IDENTITY_CHANGED", "CLOUD_DETACH_STORAGE_UNAVAILABLE", "CLOUD_DETACH_ARCHIVE_CONFLICT", "CLOUD_DETACH_RECORD_INVALID", "CLOUD_RETIRED_DEVICE_LIMIT", "CLOUD_RETIRED_DEVICE_RECORD_INVALID" -> "Local disconnect could not safely preserve its records. Keep the app data and finish recovery before connecting again."
         "CLOUD_RECONNECT_RECOVERY_REQUIRED" -> "Finish reconnecting after cloud recovery before using other cloud actions. Local edits are safe."
         "CLOUD_RECOVERED_SCOPE_REQUIRED" -> "Use a fresh device token for the recovered version of this same cloud library."
         "CLOUD_FRESH_RECOVERY_TOKEN_REQUIRED" -> "This token is not a fresh enrollment for an initialized recovered library. Ask the operator for a new token."

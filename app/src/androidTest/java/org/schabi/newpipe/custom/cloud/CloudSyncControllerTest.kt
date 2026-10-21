@@ -244,6 +244,28 @@ class CloudSyncControllerTest {
         assertTrue(File(connection.directory, "retired-connections").listFiles()!!.single().resolve("outbox").isDirectory)
     }
 
+    @Test fun rejectedConnectionCanDetachAfterNativeRestoreHasRemovedItsCloudIdentity() {
+        rejectedPendingUpload()
+        val content = CloudRoomContentDigest.withoutCloudWitness(f.db.openHelper.readableDatabase)
+        val definitions = f.repo.definitions()
+        // The same clean metadata state produced by a verified complete native import.
+        org.schabi.newpipe.custom.tagging.TagRuntime.lock.withLock {
+            f.db.runInTransaction { f.db.openHelper.writableDatabase.execSQL("DELETE FROM rv_cloud_apply_receipt") }
+            f.repo.store.transaction {
+                CloudIdentityStore.discard(it)
+                CloudApplyStore.discard(it)
+            }
+            f.repo.binding.read()!!.let { f.repo.binding.write(it.copy(cloudIncarnation = null, cloudPlaylistSequence = null)) }
+        }
+        f.reopen()
+        peer.beforeRequest = { throw AssertionError("LOCAL_ONLY") }
+        newController().detachRejectedConnection()
+        assertEquals(null, connection.read())
+        assertEquals(definitions, f.repo.definitions())
+        assertEquals(content, CloudRoomContentDigest.withoutCloudWitness(f.db.openHelper.readableDatabase))
+        assertTrue(File(connection.directory, "retired-connections").listFiles()!!.single().resolve("outbox").isDirectory)
+    }
+
     @Test fun transientNetworkFailureDoesNotAuthorizeLocalDetachOfAnUnresolvedUpload() {
         f.seed()
         enable()
