@@ -1,0 +1,14 @@
+{
+  "privateLogHashes": {
+    "001-before.log": "09794b699d1e690ca6304dc955c1a99a1b4ed72191813c329931543a9ccb51d9",
+    "blockers-instrumentation.log": "f3ca40e0a3bf20eaf9ab861db129a85ecafc52160588fc2089c7bb0239bc1d94",
+    "integrated-final-build.log": "62505b185bf3b13ebd90645a6985b239de0da888fcdbe224f63413bd2fc914f1",
+    "backend-full.log": "53e587ccbc28ac42d516d7c0223f205e6c037958543c0172e38f252ad8ba845a"
+  },
+  "notes": {
+    "001-before.log": "An initial synthetic fixture assumed two generated pages; corrected before the valid negative reproduction. Not used as product-defect evidence.",
+    "blockers-instrumentation.log": "First native launch exited before any tests; exact same installed binaries subsequently passed 70 cases after package force-stop, no data reset.",
+    "integrated-final-build.log": "New host-test wildcard imports rejected by lint; explicit imports corrected without changing runtime assertions.",
+    "backend-full.log": "371/372 passed; unchanged concurrent-quarantine assertion caught stale progress during phased cancellation. Fixed and complete final suite passed 372/372."
+  }
+}

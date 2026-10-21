@@ -37,3 +37,9 @@ https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
 
 
 Outcome contract: a timeout, expired upload response, authorization loss or error after a D1 publication attempt does not prove non-commit. `OUTCOME_UNKNOWN` and post-batch resolution failures return HTTP503 with `outcome: "unknown"`. Only a matching committed/retired receipt is definitive. Keep the same sequence/digest and resolve-or-retire rather than inventing a replacement operation identity.
+
+## Corrected invalid-chunk and client-resolution behavior (2026-10-21)
+
+Chunk changes are strictly increasing **globally across the upload**, not only within each chunk. The committing CHECK guard compares new IDs with all existing stage IDs, so duplicate/descending cross-chunk input receives a known refusal before the UNIQUE insert. An exact retransmission of an already accepted chunk still returns its recorded outcome. Do not classify arbitrary constraint/transport errors as known rollbacks or expire unknown request tickets.
+
+The Android client retains frozen sequence/digest identity after unknown/network failures. For explicitly classified definite 409/410 head/initialization/expiry refusals, it calls resolve-or-retire for that same identity. A racing COMMITTED receipt is acknowledged; a RETIRED receipt permits a fresh policy evaluation. Failure or absence of a retirement receipt never permits local discard. One invocation makes at most one fresh evaluation after retirement rather than repeatedly sending a stale upload forever.

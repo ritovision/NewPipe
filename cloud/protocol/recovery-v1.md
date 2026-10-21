@@ -49,13 +49,21 @@ Known multipart part retries are protected by a short lease. Lease expiry permit
 
 Abort first fences further admission. It must have a definitely unused reservation, definite known-upload abort, or matching completed object proving the upload was consumed; then it deletes any completed bytes and confirms absence. Ambiguous cleanup retains/quarantines the slot. A timeout alone is not proof of cleanup. Abandon resolves an approval whose reserve reply was lost: if not reserved, it persists a terminal sequence that blocks delayed reserve; otherwise it aborts that exact operation. DONE history is preserved.
 
+## Bounded cancellation continuation (2026-10-21)
+
+`abort` and `abandon` may return the same operation identity with `cleanupPending: true`. HTTP 200 for such a response is **progress, not completed cancellation**. The matching Android client repeats the exact route/body at most four times per user action and clears local pending files only after a terminal DONE/CANCELED response. Further progress retains identity/files and asks the user to continue; no new approval, sequence, rotation or upload is invented.
+
+The phases are bounded independently: an already approved rotation, an ABORTING claim, durable provider-consumption proof, and atomic final cancellation/slot removal. After the ABORTING claim, current operation/slot state is rechecked so a competing later quarantine cannot be implicitly cleared by a stale progress response. After a successful multipart abort (or an exact matching completed object proving consumption), a guarded batch persists `abort_fenced=1` **before** a progress response. Later requests do not call abort again once consumption is proven; they verify/delete only the exact object, then remove the exact slot and mark the operation CANCELED together. Arbitrary provider failures remain uncertain and retain their request fence; absence alone is not proof of successful abort.
+
+The public 32-statement ceiling and non-expiring unknown-operation holds are unchanged. Local tests use all DATA/CONTROL migrations, a provider that rejects repeated successful abort, real D1/R2 bindings and an unchanged concurrent-quarantine regression. This does not claim a new live R2 measurement. Deploy/select the matched integrated client/server; older clients that do not understand progress are not certified for this contract.
+
 ## Restore
 
 Pin protects a READY archive for ten minutes. Repeated pin by the same device does not extend the original expiry. Download serves authenticated, immutable, bounded ranges with expected part hash headers; Android independently hashes them. Read-only credentials may list, pin, download and release but never upload or abort.
 
-After download/validation, the client releases the remote pin and retains the private local candidate for an expiring confirmation. Release failure is visible and blocks that preview. Local confirmation rechecks connection generation and exact local catalog. It first saves the existing verified local safety backup.
+After download/validation, the client releases the remote pin and retains the private local candidate for an expiring confirmation. Release failure is visible and blocks that preview. Preparing or canceling a restore preview does not change the sync toggle. Local confirmation rechecks connection generation and exact local catalog. It first saves the existing verified local safety backup. Confirmed local restore turns synchronization OFF at final admission/commit, invalidating old automatic work.
 
-A cloud-catalog restore is a local historical apply with automatic sync disabled. It preserves the highest observed live cloud head, makes no D1 publication and requires a new reconciliation preview before enabling sync. Native ZIP restore uses the existing native install path, explicit optional settings restore, AI unpairing and process restart. The final native writer barrier repeats the local-preview check.
+A cloud-catalog restore is a local historical apply with automatic sync disabled. It preserves the highest observed live cloud head, makes no D1 publication and requires a new reconciliation preview before enabling sync. Native ZIP restore uses the existing native install path, explicit optional settings restore, AI unpairing and process restart. AI command admission is reversibly quiesced/drained without unpairing. The final native writer barrier repeats the local-preview and staged-inventory checks before irreversible freeze/unpair. Refusal before that commit restores the latest persisted AI policy/pairing, while successful native replacement retains its deliberate unpair/restart behavior.
 
 ## Operator reconciliation
 

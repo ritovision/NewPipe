@@ -26,7 +26,7 @@ With keepForRetry=false, an already verified archive is kept as ordinary history
 
 ### Bounded cancellation progress
 
-The corrected integrated client/server pair supports explicit progress on `abandon` and `settle`. After the incoming sequence has been durably resolved/retired, a request whose next SQL batch would exceed the public statement allowance may return HTTP 200 with the same `receipt`, same `attemptId`, and **`cleanupPending: true`**. This means cancellation is **not terminal**. It is a known pre-dispatch allowance refusal, not proof of an uncertain write and not permission to discard the operation. The next exact request continues durable ABORTING/retirement progress without rotating another archive or minting a new operation identity.
+The corrected integrated client/server pair supports explicit progress on `abandon` and `settle`. Recovery cleanup now also yields explicit bounded phase transitions: claim, durable multipart-consumption proof, and terminal slot removal; `abort_fenced=1` prevents dependence on repeat-abort success. A competing quarantine is rechecked before continuing from a claimed phase. After the incoming sequence has been durably resolved/retired, a request whose next SQL batch would exceed the public statement allowance may return HTTP 200 with the same `receipt`, same `attemptId`, and **`cleanupPending: true`**. This means cancellation is **not terminal**. It is a known pre-dispatch allowance refusal, not proof of an uncertain write and not permission to discard the operation. The next exact request continues durable ABORTING/retirement progress without rotating another archive or minting a new operation identity.
 
 Android repeats the same cancellation route/body at most four times per user action. It clears the local pending marker only after a response without the progress flag and a CANCELED/DONE attempt (or the valid unadmitted null-attempt result). If bounded progress is still incomplete, the UI retains the identity/files and asks to continue the same cancellation. Genuine unknown storage effects still retain their original fence tickets and reservations; elapsed time never clears them.
 
@@ -35,6 +35,10 @@ Every request retains the 32-statement ceiling including accounting allowance. D
 POST /v1/replacement/status reports only this device's last attempt and the library cooldown. Replays of an older superseded attempt fail rather than acting on its successor. Explicit cancellation and a later independently approved replacement are separate user actions, with the actual retained list shown again.
 
 Android persists observed ACTIVE/STALE server authority independently of outgoing payload staging. Cancellation refreshes authenticated discovery before clearing the final intent; an older surviving STALE attempt stays locally protected and blocks Forget until explicitly resolved.
+
+## Android mode consent
+
+Preview and cancellation preserve the owner's current sync toggle/generation. Successful replacement also retains that toggle; a user disable during an interrupted replacement is not undone. Once confirmation writes durable pending replacement identity, ordinary automatic sync is blocked until that exact operation is resolved. A preview left open while native/cloud data changes is invalidated by its existing exact-candidate checks, not silently refreshed. Recovery restoration on this device remains a different operation whose confirmed postcondition is OFF.
 
 ## Evidence and limits
 

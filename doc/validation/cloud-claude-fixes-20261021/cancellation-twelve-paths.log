@@ -1,0 +1,22 @@
+(node:91858) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ concurrent uncertain abort cannot hide a quarantined slot behind a canceled operation (1576.999453ms)
+✔ Astra 005: bounded replacement abandon progresses truthfully from RESERVED (906.168097ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from RESERVED (847.312953ms)
+✔ Astra 005: bounded replacement abandon progresses truthfully from UPLOADING (954.624922ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from UPLOADING (1010.336097ms)
+✔ Astra 005: bounded replacement abandon progresses truthfully from READY (942.148598ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from READY (958.50288ms)
+✔ Astra 005: bounded replacement abandon progresses truthfully from ROTATING (2109.189777ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from ROTATING (2035.886896ms)
+✔ Claude 007: ordinary abort from ROTATING reports bounded cleanup and preserves both survivors (1556.137504ms)
+✔ Claude 007: ordinary abandon from ROTATING reports bounded cleanup and preserves both survivors (1756.516045ms)
+✔ Claude 006: a provider refusing repeated multipart abort never sees a duplicate successful abort during bounded cancellation (1239.78383ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16608.855154

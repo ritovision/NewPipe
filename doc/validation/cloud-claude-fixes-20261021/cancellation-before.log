@@ -1,0 +1,72 @@
+(node:88912) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ Claude 007: ordinary abort from ROTATING reports bounded cleanup and preserves both survivors (3241.594446ms)
+✖ Claude 007: ordinary abandon from ROTATING reports bounded cleanup and preserves both survivors (1559.989341ms)
+✖ Claude 006: a provider refusing repeated multipart abort never sees a duplicate successful abort during bounded cancellation (998.553985ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7000.065495
+
+✖ failing tests:
+
+test at test/recovery.test.mjs:538:40
+✖ Claude 007: ordinary abort from ROTATING reports bounded cleanup and preserves both survivors (3241.594446ms)
+  AssertionError [ERR_ASSERTION]: {"error":"REQUEST_STATEMENT_BUDGET_EXCEEDED"}
+  
+  503 !== 200
+  
+      at ok (file:///home/ritorhymes/techstuff/NewPipe/cloud/test/recovery.test.mjs:23:23)
+      at TestContext.<anonymous> (file:///home/ritorhymes/techstuff/NewPipe/cloud/test/recovery.test.mjs:546:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 503,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/recovery.test.mjs:538:40
+✖ Claude 007: ordinary abandon from ROTATING reports bounded cleanup and preserves both survivors (1559.989341ms)
+  AssertionError [ERR_ASSERTION]: {"error":"REQUEST_STATEMENT_BUDGET_EXCEEDED"}
+  
+  503 !== 200
+  
+      at ok (file:///home/ritorhymes/techstuff/NewPipe/cloud/test/recovery.test.mjs:23:23)
+      at TestContext.<anonymous> (file:///home/ritorhymes/techstuff/NewPipe/cloud/test/recovery.test.mjs:546:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 503,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/recovery.test.mjs:558:1
+✖ Claude 006: a provider refusing repeated multipart abort never sees a duplicate successful abort during bounded cancellation (998.553985ms)
+  AssertionError [ERR_ASSERTION]: {"error":"RECOVERY_ABORT_OUTCOME_UNKNOWN","outcome":"unknown"}
+  
+  503 !== 200
+  
+      at ok (file:///home/ritorhymes/techstuff/NewPipe/cloud/test/recovery.test.mjs:23:23)
+      at TestContext.<anonymous> (file:///home/ritorhymes/techstuff/NewPipe/cloud/test/recovery.test.mjs:566:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 503,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

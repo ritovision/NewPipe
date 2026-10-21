@@ -1,0 +1,13 @@
+(node:88585) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ exact repeated start/chunk/seal/publish returns one committed outcome (1556.396004ms)
+✔ Claude 001: cross-chunk duplicate rejection settles its ticket and permits maintenance (579.887615ms)
+✔ Claude 001: cross-chunk descending rejection settles its ticket and permits maintenance (578.638516ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3451.278099

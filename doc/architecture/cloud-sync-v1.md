@@ -19,6 +19,16 @@ Full native restore retains the validated original file inventory and cryptograp
 
 Replacement cancellation may explicitly return bounded pending cleanup and must be resumed by the same identity; see the [protocol contract](../../cloud/protocol/replacement-v1.md#bounded-cancellation-progress). No statement cap, unknown-write fence, current authorization check or native-journal corruption guard was removed.
 
+## Claude correction contracts — 2026-10-21
+
+[Correction checkpoints and executed evidence](../validation/cloud-claude-fixes-20261021/README.md) track the nine independent Claude findings and their fixes; implementation is not production authorization. Global cross-chunk ordering is a committing SQL precondition. Definitively refused frozen uploads resolve/retire their exact identity before a bounded fresh policy decision. Cancellation uses explicit bounded progress and durable provider-consumption proof, without relaxing unknown-write fences or row/statement limits.
+
+A rejected-device **local detach** is an explicit, warned escape when credential or device-operation identity is permanently rejected. It archives the encrypted connection and pending catalog/recovery/replacement evidence under a private resumable journal, preserves native data, removes only active connection authority and prohibits reuse of that retired device identity. It does not call a live cleanup endpoint, clear server holds, assert that earlier requests failed, or erase evidence needed for operator reconciliation. Fresh enrollment remains OFF until an exact preview. Transient outages do not enable this escape.
+
+Native restore AI quiescence is reversible until final native admission and inventory checks. Only the irreversible commit freezes the restore and unpairs. Prepared import/export candidates are protected from cache eviction and have a process-owned staging lifecycle: a cold owner sweeps only orphan temporary snapshot directories, never active candidates, cloud outboxes, retained safety ZIPs or database swap journals. An OS lock prevents two live processes from treating one another's candidates as orphaned.
+
+Hint-only stream/history/feed updates no longer trigger event-driven cloud captures; real playlist/membership/tag notifications and periodic remote polling remain. Opening/canceling a replacement or recovery preview no longer changes sync mode. Replacement retains the owner's toggle after completion; confirmed historical/native local restoration turns OFF at final admission. See the linked protocol documents for matching-client rollout requirements.
+
 ## 1. Components and isolation
 
 - **Android:** isolated `custom/cloud/` model, native settings screen, authenticated transport, durable sync coordinator, catalog adapter and preview model. Reuse Android networking/WorkManager dependencies already present; no generic replication framework.

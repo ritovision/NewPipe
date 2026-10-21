@@ -1,0 +1,47 @@
+(node:88358) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ Claude 001: cross-chunk duplicate rejection settles its ticket and permits maintenance (1387.139454ms)
+✖ Claude 001: cross-chunk descending rejection settles its ticket and permits maintenance (270.041591ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2530.892183
+
+✖ failing tests:
+
+test at test/service.test.mjs:377:49
+✖ Claude 001: cross-chunk duplicate rejection settles its ticket and permits maintenance (1387.139454ms)
+  AssertionError [ERR_ASSERTION]: Known invalid chunk must not become permanent uncertainty
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/ritorhymes/techstuff/NewPipe/cloud/test/service.test.mjs:389:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/service.test.mjs:377:49
+✖ Claude 001: cross-chunk descending rejection settles its ticket and permits maintenance (270.041591ms)
+  AssertionError [ERR_ASSERTION]: {"status":200,"data":{"sequence":"1","digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":"UPLOADING","nextChunk":2,"expectedChunks":2,"expiresAt":"1792591924232","verifiedPages":null,"verifiedBytes":null},"headers":{}}
+      at TestContext.<anonymous> (file:///home/ritorhymes/techstuff/NewPipe/cloud/test/service.test.mjs:388:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
