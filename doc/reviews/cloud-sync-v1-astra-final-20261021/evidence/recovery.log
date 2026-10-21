@@ -1,0 +1,39 @@
+(node:99559) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ three full slots rotate only the named oldest after confirming two newer usable survivors (3672.417904ms)
+✔ duplicate advance cannot invoke non-idempotent multipart creation twice (761.688307ms)
+✔ creation identity committed despite lost response resumes the same multipart upload (795.986087ms)
+✔ late creator cannot free a quarantined slot or create an uncounted fourth payload (625.196881ms)
+✔ exact cloud archive is bound to the trusted outgoing head and page manifest (1768.936969ms)
+✔ incoming local pages cannot masquerade as an outgoing cloud recovery archive (1442.405064ms)
+✔ abandon before reserve fences a delayed request without allocating a slot (504.663666ms)
+✔ abandon after lost reserve reply resolves and frees only the reserved attempt (663.626669ms)
+✔ cancel raced with reservation never leaves an unrecorded allocated payload (606.042059ms)
+✔ completion with sparse response metadata uses authoritative head before accepting bytes (849.607924ms)
+✔ concurrent uncertain abort cannot hide a quarantined slot behind a canceled operation (1531.329023ms)
+✔ replacement: revoked grant at final transaction preserves cloud and verified archive (3196.215244ms)
+✔ replacement: stale CAS retry reuses its own slot without a second historical eviction (8382.474117ms)
+✔ replacement: cancellation wins against a delayed final publication (2087.245676ms)
+✔ replacement: approval expiry keeps the verified recovery point and requires explicit resolution (1865.805521ms)
+✔ replacement review: next-sequence ordinary abandonment cannot overwrite its required recovery receipt (1783.604011ms)
+✔ replacement review: publication uses database time after a delayed request entry (1949.63835ms)
+✔ replacement review: database clock rejects approval expiry despite an earlier request timestamp (1383.292712ms)
+✔ Astra 005: bounded replacement abandon progresses truthfully from RESERVED (1116.3177ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from RESERVED (1106.954566ms)
+✔ Astra 005: bounded replacement abandon progresses truthfully from UPLOADING (1434.655631ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from UPLOADING (968.707896ms)
+✔ Astra 005: bounded replacement abandon progresses truthfully from READY (885.121736ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from READY (944.394462ms)
+✔ Astra 005: bounded replacement abandon progresses truthfully from ROTATING (1979.535565ms)
+✔ Astra 005: bounded replacement settle progresses truthfully from ROTATING (2068.695299ms)
+✔ Claude 007: ordinary abort from ROTATING reports bounded cleanup and preserves both survivors (1474.393986ms)
+✔ Claude 007: ordinary abandon from ROTATING reports bounded cleanup and preserves both survivors (1485.012066ms)
+✔ Claude 006: a provider refusing repeated multipart abort never sees a duplicate successful abort during bounded cancellation (1057.288921ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49622.953589

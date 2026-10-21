@@ -1,0 +1,12 @@
+(node:100016) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Astra final: ten malformed start headers release CONTROL and preserve fresh enrollment (2214.688337ms)
+✔ Astra final: twelve malformed chunks preserve exact stage and a valid continuation commits (1522.406213ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4680.402477

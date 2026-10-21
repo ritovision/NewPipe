@@ -1,0 +1,516 @@
+{
+  "reviewer": "Astra Pro",
+  "review_date": "2026-10-21",
+  "audit_generated_at_utc": "2026-10-21T14:53:29.312512+00:00",
+  "reviewed_source_commit": "2b5c85b801481923de9af88aaa082868db40cd92",
+  "new_execution_logs": [
+    {
+      "file": "evidence/budget-fence.log",
+      "bytes": 3375,
+      "sha256": "12e9934527336ec56f8f30edcb581c847b2f0844cab80e5744ad6f0b7f0ad9ec",
+      "node_summary": {
+        "tests": 32,
+        "suites": 0,
+        "pass": 32,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 19089.60968
+      },
+      "exit_code": 0
+    },
+    {
+      "file": "evidence/upload.log",
+      "bytes": 2122,
+      "sha256": "29ff054763eccf7b2429ffcbeb50951c43ae4239395d0967af15ec4e9b2f0136",
+      "node_summary": {
+        "tests": 19,
+        "suites": 0,
+        "pass": 19,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 9668.050307
+      },
+      "exit_code": 0
+    },
+    {
+      "file": "evidence/recovery.log",
+      "bytes": 3271,
+      "sha256": "5b63b85085e159b10cfdba60d39f5b86e14a3a4d63e8fd2db511b5e7d3fb99c3",
+      "node_summary": {
+        "tests": 29,
+        "suites": 0,
+        "pass": 29,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 49622.953589
+      },
+      "exit_code": 0
+    },
+    {
+      "file": "evidence/operator.log",
+      "bytes": 2183,
+      "sha256": "601aa5259bbfe6e3354b6f390b7177d43bf7232e35a86d5592e3d267e85dae43",
+      "node_summary": {
+        "tests": 16,
+        "suites": 0,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 45059.366529
+      },
+      "exit_code": 0
+    },
+    {
+      "file": "evidence/independent.log",
+      "bytes": 518,
+      "sha256": "16b88aae1032854e7f23c4254ce909905cf95ced9fc74cc276cf397ede3e91cd",
+      "node_summary": {
+        "tests": 2,
+        "suites": 0,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 4680.402477
+      },
+      "exit_code": 0
+    },
+    {
+      "file": "evidence/typecheck.log",
+      "bytes": 56,
+      "sha256": "06beff7e0ca05d69657556d4ee4a83f61171ce17ffae33974b801ca84a8ff11e",
+      "node_summary": {},
+      "exit_code": 0
+    }
+  ],
+  "retained_manifests": [
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/evidence-sha256.json",
+      "manifest_sha256": "492a1753970efac870e1df616313ce6f11650a749b1ed58ccf9dd0326e689624",
+      "entries_checked": 52,
+      "mismatches": [],
+      "all_matched": true
+    },
+    {
+      "path": "doc/validation/cloud-claude-fixes-20261021/evidence-sha256.json",
+      "manifest_sha256": "ad4db389ff67f853ff453dbef6bb435f2eac76f40ba39e16d972c4fafbc7a00f",
+      "entries_checked": 35,
+      "mismatches": [],
+      "all_matched": true
+    }
+  ],
+  "retained_jvm_summaries": [
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/jvm-353.json",
+      "source": "c8d852b89e1d9736dd4afb4a4e48445ba54bc9d7",
+      "suite_count": 45,
+      "recomputed": {
+        "tests": 353,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "reported": {
+        "tests": 353,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "totals_match": true,
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-claude-fixes-20261021/jvm-353.json",
+      "source": "0f9988b001248050097d96972ba1e86d1b312c5e",
+      "suite_count": 45,
+      "recomputed": {
+        "tests": 353,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "reported": {
+        "tests": 353,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "totals_match": true,
+      "new_execution": false
+    }
+  ],
+  "retained_native_log_counts": [
+    {
+      "path": "doc/validation/cloud-claude-fixes-20261021/native-213.log",
+      "metadata": "doc/validation/cloud-claude-fixes-20261021/native-213-apks.json",
+      "source_from_metadata": "439af53cca239a9bdf37c84790436c0fc695d0f0",
+      "successful_completion_records": 213,
+      "reported_ok_tests": [
+        213
+      ],
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-claude-fixes-20261021/final-controller-52.log",
+      "metadata": "doc/validation/cloud-claude-fixes-20261021/final-apks.json",
+      "source_from_metadata": "0f9988b001248050097d96972ba1e86d1b312c5e",
+      "successful_completion_records": 52,
+      "reported_ok_tests": [
+        52
+      ],
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-claude-fixes-20261021/blockers-native-70.log",
+      "metadata": "doc/validation/cloud-claude-fixes-20261021/blockers-apks.json",
+      "source_from_metadata": "a7d60141153564fd434717dfaf86d37be73f4f63",
+      "successful_completion_records": 70,
+      "reported_ok_tests": [
+        70
+      ],
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/native-191.log",
+      "metadata": "doc/validation/cloud-astra-fixes-20261021/integrated-apks.json",
+      "source_from_metadata": "c8d852b89e1d9736dd4afb4a4e48445ba54bc9d7",
+      "successful_completion_records": 191,
+      "reported_ok_tests": [
+        191
+      ],
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/export-integrity-native-93.log",
+      "metadata": "doc/validation/cloud-astra-fixes-20261021/export-integrity-apks.json",
+      "source_from_metadata": null,
+      "successful_completion_records": 93,
+      "reported_ok_tests": [
+        93
+      ],
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/p0-native-56.log",
+      "metadata": "doc/validation/cloud-astra-fixes-20261021/p0-apks.json",
+      "source_from_metadata": "8ba94456fcee82565fe27042b98566694012d9b5",
+      "successful_completion_records": 56,
+      "reported_ok_tests": [
+        56
+      ],
+      "new_execution": false
+    }
+  ],
+  "retained_host_process_death": [
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/forget-before-witness-commit/results.json",
+      "source_commit": "8ba94456fcee82565fe27042b98566694012d9b5",
+      "suite": "forget-before-witness-commit",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "forget-preserved-local-content",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/forget-binding/results.json",
+      "source_commit": "8ba94456fcee82565fe27042b98566694012d9b5",
+      "suite": "forget-binding",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "forget-preserved-local-content",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/forget-connection/results.json",
+      "source_commit": "8ba94456fcee82565fe27042b98566694012d9b5",
+      "suite": "forget-connection",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "forget-preserved-local-content",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/forget-metadata/results.json",
+      "source_commit": "8ba94456fcee82565fe27042b98566694012d9b5",
+      "suite": "forget-metadata",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "forget-preserved-local-content",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/forget-off/results.json",
+      "source_commit": "8ba94456fcee82565fe27042b98566694012d9b5",
+      "suite": "forget-off",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "forget-preserved-local-content",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/forget-witness/results.json",
+      "source_commit": "8ba94456fcee82565fe27042b98566694012d9b5",
+      "suite": "forget-witness",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "forget-preserved-local-content",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/historical-after-room/results.json",
+      "source_commit": "437e61c3c9c11c6f689e55c4e3c425c6a4f326cc",
+      "suite": "historical-after-room",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "rollback-restored-original-identities",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/historical-before-room/results.json",
+      "source_commit": "437e61c3c9c11c6f689e55c4e3c425c6a4f326cc",
+      "suite": "historical-before-room",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "rollback-restored-original-identities",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/historical-before-tags/results.json",
+      "source_commit": "437e61c3c9c11c6f689e55c4e3c425c6a4f326cc",
+      "suite": "historical-before-tags",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "rollback-restored-original-identities",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-claude-fixes-20261021/detach-archived-outbox/results.json",
+      "source_commit": "439af53cca239a9bdf37c84790436c0fc695d0f0",
+      "suite": "detach-archived-outbox",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "detach-preserved-native-and-pending-evidence",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-claude-fixes-20261021/detach-connection/results.json",
+      "source_commit": "439af53cca239a9bdf37c84790436c0fc695d0f0",
+      "suite": "detach-connection",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "detach-preserved-native-and-pending-evidence",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-claude-fixes-20261021/detach-journal/results.json",
+      "source_commit": "439af53cca239a9bdf37c84790436c0fc695d0f0",
+      "suite": "detach-journal",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "detach-preserved-native-and-pending-evidence",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-claude-fixes-20261021/detach-metadata/results.json",
+      "source_commit": "439af53cca239a9bdf37c84790436c0fc695d0f0",
+      "suite": "detach-metadata",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "detach-preserved-native-and-pending-evidence",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-claude-fixes-20261021/staging/results.json",
+      "source_commit": "439af53cca239a9bdf37c84790436c0fc695d0f0",
+      "suite": "staging",
+      "status": "PASS",
+      "actual_host_force_stop": true,
+      "nonempty_killed_pid": true,
+      "verified_marker": "staging-orphans-cleaned-active-recovery-preserved",
+      "raw_log_hashes_match": {
+        "verify.log": true,
+        "interrupted.log": true,
+        "prepare.log": true
+      },
+      "new_execution": false
+    }
+  ],
+  "retained_backend_log_summaries": [
+    {
+      "path": "doc/validation/cloud-astra-fixes-20261021/backend-363.log",
+      "node_summary": {
+        "tests": 363,
+        "suites": 0,
+        "pass": 363,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 364825.161894
+      },
+      "new_execution": false
+    },
+    {
+      "path": "doc/validation/cloud-claude-fixes-20261021/backend-372.log",
+      "node_summary": {
+        "tests": 372,
+        "suites": 0,
+        "pass": 372,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 385218.992781
+      },
+      "new_execution": false
+    }
+  ],
+  "source_comparisons": [
+    {
+      "base": "84c47ae6a8b7f7e80638a9ff7eca273f5e4caca5",
+      "target": "2b5c85b801481923de9af88aaa082868db40cd92",
+      "paths": [
+        "cloud/src",
+        "cloud/operator",
+        "cloud/migrations",
+        "cloud/control-migrations"
+      ],
+      "changed_files": []
+    },
+    {
+      "base": "0f9988b001248050097d96972ba1e86d1b312c5e",
+      "target": "2b5c85b801481923de9af88aaa082868db40cd92",
+      "paths": [
+        "app/src/main",
+        "cloud/src",
+        "cloud/operator",
+        "cloud/migrations",
+        "cloud/control-migrations"
+      ],
+      "changed_files": []
+    },
+    {
+      "base": "437e61c3c9c11c6f689e55c4e3c425c6a4f326cc",
+      "target": "582f0791d7ecf34291afd6009a4e09e92b7ddf19",
+      "paths": [
+        "app/src/main",
+        "cloud/src",
+        "cloud/operator"
+      ],
+      "changed_files": []
+    },
+    {
+      "base": "439af53cca239a9bdf37c84790436c0fc695d0f0",
+      "target": "2b5c85b801481923de9af88aaa082868db40cd92",
+      "paths": [
+        "app/src/main",
+        "cloud/src",
+        "cloud/operator",
+        "cloud/migrations",
+        "cloud/control-migrations"
+      ],
+      "changed_files": [
+        "app/src/main/java/org/schabi/newpipe/custom/cloud/CloudSyncController.kt"
+      ]
+    }
+  ],
+  "new_tests_total": 98,
+  "retained_manifest_entries_checked": 87,
+  "retained_host_process_death_cases_checked": 14,
+  "limitations": [
+    "Hash agreement establishes retained-file integrity against the committed manifests; it is not a fresh rerun.",
+    "JVM totals were recomputed from retained per-suite JSON, not from a new Gradle execution.",
+    "Native logs and retained APK metadata were inspected; APKs were not rebuilt, reinstalled, or independently rehashed in this review. Null source_from_metadata means that legacy APK metadata contains no top-level source field; consult the corresponding retained README and history.",
+    "The 52 controller cases overlap the 213 selected native cases; they are not 265 unique cases.",
+    "All 14 process-death cases are retained host-driven force-stop evidence, not newly executed or power-loss tests.",
+    "The staging result has an inherited generic scope label; its suite, native-staging flag, verify marker and actual test source identify staging cleanup.",
+    "New executions are local Node/Miniflare synthetic fixtures, not live Cloudflare or Android executions."
+  ]
+}

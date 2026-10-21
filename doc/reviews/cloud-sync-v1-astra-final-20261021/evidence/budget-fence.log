@@ -1,0 +1,41 @@
+✔ missing policy, missing schema and malformed estimates fail before DATA (2328.482912ms)
+✔ concurrent requests reserve atomically and a full budget starts no extra request (459.281387ms)
+✔ all, first, run and batch meter DATA plus indexed writes and CONTROL overhead (346.770947ms)
+ℹ {"control":{"statements":4,"reads":23,"writes":6},"data":{"statements":5,"reads":6,"writes":4},"charged":{"statements":9,"rowsRead":134,"rowsWritten":36,"dataSize":20480}}
+✔ UTC rollover carries unresolved reservations and rejects competition until safe settlement (414.38975ms)
+✔ settlement itself can roll midnight before the next admission (341.43943ms)
+✔ lost DATA write keeps fence, reservation and size hold across multiple days and DATA rewind (460.339088ms)
+✔ lost CONTROL admission reserves atomically without dispatching DATA (281.385348ms)
+✔ lost settlement reply is never retried and cannot refund twice (331.9651ms)
+✔ statement ceiling rejects an entire oversized batch before any write (831.799905ms)
+✔ known rollback releases its fence but charges the full estimate including unreported work (447.314223ms)
+✔ an underestimated result blocks future admissions and retains its reservation (401.306863ms)
+✔ missing metadata fails closed and cannot release capacity (339.258814ms)
+✔ concurrent growth reservation and measured database size both enforce storage admission (448.232476ms)
+✔ public token lookup occurs only after reservation and its failures are metered (476.000542ms)
+✔ future ledger date refuses instead of manufacturing a reset, and no unmetered methods escape (443.263863ms)
+✔ all published route estimates validate and unknown routes refuse (206.266494ms)
+✔ operator budget remains outside DATA, meters CONTROL without confusing its size and preserves unknown provider writes (472.978367ms)
+✔ disabled scheduled housekeeping makes no storage calls and enabled housekeeping still refuses missing policy (302.262712ms)
+✔ denied accounting is bounded and is charged even when the daily threshold is already exhausted (353.087348ms)
+✔ authenticated CONTROL-only close remains metered when ordinary admission is blocked or exhausted (499.41214ms)
+✔ missing or mismatched authority fails closed before storage admission (1337.511983ms)
+✔ maintenance waits for an admitted catalog batch, then denies stale capabilities across rollback (610.585935ms)
+✔ paused R2 create cannot be overtaken by maintenance (591.891984ms)
+✔ paused R2 part cannot be overtaken by maintenance (540.732447ms)
+✔ paused R2 complete cannot be overtaken by maintenance (577.073843ms)
+✔ paused R2 abort cannot be overtaken by maintenance (565.908712ms)
+✔ paused R2 delete cannot be overtaken by maintenance (510.178062ms)
+✔ ambiguous storage result permanently retains its ticket, even after data rewind (413.181203ms)
+✔ detached storage work retains the ticket and cannot start another effect after finish (407.062386ms)
+✔ confirmed assertion rollback releases safely; arbitrary errors do not (379.691286ms)
+✔ concurrent admission and maintenance always either reject or retain a durable ticket (384.622363ms)
+✔ only one operator effect can claim a fence revision; unknown actions stay exclusive (497.092615ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19089.60968

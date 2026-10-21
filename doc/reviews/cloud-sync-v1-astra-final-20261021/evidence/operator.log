@@ -1,0 +1,25 @@
+✔ real local D1 rebuild is atomic, preserves catalog/unrelated state and revokes resurrected devices (3435.97936ms)
+✔ unresolved real multipart upload blocks the compiled rebuild (1124.7328ms)
+✔ fenced apply independently verifies archives and records a transactional durable receipt (2179.569443ms)
+✔ lost rebuild reply resolves from its receipt without submitting another batch (2121.332498ms)
+✔ unknown rebuild before response retains exclusivity and cannot be resubmitted or rewound (2429.673248ms)
+✔ resealed injected SQL, missing multipart blockers, and changed bytes fail before a live claim (2639.225754ms)
+✔ two simultaneous apply calls have one batch winner (2614.965488ms)
+{"phase":"authority","type":"StorageError","frames":["    at provider (file:///home/ritorhymes/techstuff/NewPipe/cloud/test/operator-recovery.test.mjs:341:36)","    at globalThis.fetch (file:///home/ritorhymes/techstuff/NewPipe/cloud/test/operator-recovery.test.mjs:314:53)","    at call (file:///home/ritorhymes/techstuff/NewPipe/cloud/operator/cloudflare.mjs:8:17)"]}
+✔ unknown provider restore keeps RUNNING and a repeated request never calls the provider twice (1472.484294ms)
+✔ reopen validates accepted catalog and archives, enrolls fresh tokens and atomically opens a new generation (3911.451735ms)
+✔ lost enrollment reply resolves its receipt and never submits the data batch twice (3833.500996ms)
+✔ unresolved enrollment without a receipt keeps maintenance exclusive and blocks restore (3588.003791ms)
+✔ lost external open reply is resolved without repeating either transaction (3669.040473ms)
+✔ a committed enrollment cannot admit requests before the external open transaction (3516.180383ms)
+✔ reopen refuses corrupt catalog, active old credentials, incorrect index and stale plans before claiming (5524.978076ms)
+✔ bounded snapshots and rebuild estimates reject oversized retained operator state before a write claim (1165.834247ms)
+✔ a DATA rewind missing housekeeping bounds cannot prepare fenced recovery or reopening (859.398683ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 45059.366529

@@ -1,0 +1,29 @@
+(node:99338) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ exact repeated start/chunk/seal/publish returns one committed outcome (1639.237276ms)
+✔ well-formed JSON with broken Library invariants is rejected server-side (279.491161ms)
+✔ expired upload can be retired and cleaned but cannot publish (591.278597ms)
+✔ retire races publication without accepting a late discarded upload (410.94457ms)
+✔ one shared revision allows only one of two separately staged devices to commit (532.283856ms)
+✔ revoke between preflight and commit aborts all catalog publication (383.053803ms)
+✔ lost committed HTTP response resolves the existing receipt without duplicate writes (342.825208ms)
+✔ unknown pre-commit transport failure does not mark catalog synchronized (361.068751ms)
+✔ read-only token downloads but cannot upload, retire or claim write capabilities (414.599377ms)
+✔ bounded JSON reader rejects oversized and malformed content before any stage write (141.336732ms)
+✔ unknown request authority fields cannot select a different database/library (132.574812ms)
+✔ publication constraint failure rolls back payload, metadata and receipt together (401.454445ms)
+✔ retire with a different digest cannot destroy or strand the active upload (505.058789ms)
+✔ staged start racing mismatched retirement has one valid winner and no stuck slot (383.022201ms)
+✔ retirement failure rolls back sequence, terminal state and payload together (377.106104ms)
+✔ unknown publication outcome is retryable 503 and never a definitive rejection (308.029337ms)
+✔ revocation during post-batch resolution does not claim the request failed to commit (277.397753ms)
+✔ Claude 001: cross-chunk duplicate rejection settles its ticket and permits maintenance (541.606971ms)
+✔ Claude 001: cross-chunk descending rejection settles its ticket and permits maintenance (694.279984ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9668.050307
