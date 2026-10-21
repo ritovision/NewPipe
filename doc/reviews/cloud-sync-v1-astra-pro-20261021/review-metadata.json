@@ -1,0 +1,486 @@
+{
+  "reviewer": "Astra Pro",
+  "review_date": "2026-10-21",
+  "review_type": "Independent final review only",
+  "requested_reasoning_effort": "Highest available",
+  "branch": "feature/cloud-sync-v1-20261019",
+  "repository": "/home/ritorhymes/techstuff/NewPipe",
+  "github": "https://github.com/ritovision/NewPipe",
+  "implementation_commit_inspected": "1b7ab927a7840f3fc0e0b41cfd281199de77a6c8",
+  "initial_worktree": "Clean; expected branch and checkpoint; no pre-existing changes found",
+  "review_write_scope": "Only six files under doc/reviews/cloud-sync-v1-astra-pro-20261021/",
+  "host": "Primary NotCodex",
+  "subagents_used": false,
+  "claude_invoked": false,
+  "implementation_files_modified": false,
+  "application_data_modified": false,
+  "live_production_or_qa_state_modified": false,
+  "live_application_http_requests_executed": 0,
+  "deployments_executed": 0,
+  "live_migrations_executed": 0,
+  "credentials_created_or_revoked": 0,
+  "budget_policies_changed": 0,
+  "cron_schedules_activated": 0,
+  "archives_modified_or_deleted": 0,
+  "android_installs_executed": 0,
+  "android_app_data_cleared": false,
+  "merge_performed": false,
+  "paid_plan_changed": false,
+  "local_test_mutations": "Disposable synthetic SQLite/Miniflare D1/CONTROL/R2 fixtures only, outside the application and repository implementation",
+  "review_methodology": [
+    "Read the five requested architecture/operator/candidate references before implementation review.",
+    "Inspect branch status, history and tested-source deltas.",
+    "Identify invariants and trace actual implementations across native, HTTP, DATA, CONTROL, R2 and operator boundaries.",
+    "Challenge crash ordering, independent commits, concurrent authority checks, stale identities, cache loss, retries, midnight rollover and budget underestimation.",
+    "Review representative test assertions and harness behavior rather than infer correctness from counts.",
+    "Audit retained execution logs, source/APK identity, evidence hashes and live scope.",
+    "Run only narrowly targeted disposable local experiments needed to establish findings.",
+    "Adjudicate suspected issues against existing guards, separate confirmed paths from missing evidence, recommend bounded corrections without implementing them."
+  ],
+  "primary_references": [
+    "doc/architecture/cloud-sync-v1.md",
+    "doc/architecture/cloud-budgets-v1.md",
+    "doc/architecture/cloud-operator-recovery.md",
+    "cloud/README.md",
+    "doc/validation/cloud-v1-candidate-20261021/README.md"
+  ],
+  "reviewed_subsystems": [
+    "Feature specification and overall architecture",
+    "Catalog capture, canonical model, portable identities, tags, categories, duplicates, Unavailable and sequence ordering",
+    "Native apply compiler, typed journal, Room witness, tag-store recovery and unrelated-record preservation",
+    "Native archive preparation, schema validation, runtime scrubbing, writer fences and file-swap recovery",
+    "Connection storage, Android Keystore, transfer outbox, disable/forget/reconnect",
+    "Sync policy, frozen previews, one-time restore, settings and lifecycle",
+    "WorkManager, offline edits, restart, retries and terminal errors",
+    "HTTPS transport, bounded parsing, token authorization and SQL admission",
+    "D1 staged uploads, publication, receipts, sequence high-water and concurrent devices",
+    "R2 backup slots, multipart transfer, verification, pinning, rotation, abort and uncertainty",
+    "Protected replacement grants, archive proof, stale attempts, cancellation and retries",
+    "External maintenance fence, operator authentication, exclusive actions, DATA restore/rebuild and fresh-generation reopening",
+    "DATA/CONTROL migrations and guarded upgrades",
+    "Daily read/write budget durability, estimates, metadata, SQL ceiling, UTC rollover and growth holds",
+    "Bounded housekeeping, retention, revocation cleanup, cursor progress and scheduled admission",
+    "Retained backend/JVM/native/UI/live/process-death/performance evidence"
+  ],
+  "inspected_source_provenance": {
+    "current_regression_source": "3f49b6acf7aef6905d07871f9bec679e707264fd",
+    "implementation_identical_to_current_regression_source": true,
+    "diff_to_implementation_commit": "Only documentation and retained validation evidence changed",
+    "live_android_source": "702f99f9f184261eb9540928597490ffcc14a1bc",
+    "reconnect_process_death_source": "ed4886a0d5abf64935e4e48b4ee9bed66d67542d",
+    "provenance_limitation": "Source association relies on retained build/test records and matching artifact hashes; no hermetic rebuild or replay of all suites was performed"
+  },
+  "retained_evidence_audit": {
+    "candidate_manifest_files_hashed": 22,
+    "candidate_hash_mismatches": 0,
+    "backend": {
+      "passed": 359,
+      "failed": 0,
+      "skipped": 0,
+      "level": "Retained local Node/workerd-Miniflare; mixed pure logic/fault adapters/real local D1/R2"
+    },
+    "android_jvm": {
+      "tests": 351,
+      "suites": 45,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "level": "Retained JVM aggregate; not Android instrumentation"
+    },
+    "native": {
+      "passed": 157,
+      "failed": 0,
+      "skipped": 0,
+      "level": "Retained Android instrumentation; actual native stores, some fake remote peers"
+    },
+    "ui": {
+      "passed": 3,
+      "level": "Retained Android main-preview/settings/credential scenarios across light/dark/black; not sibling-dialog or full touch/accessibility acceptance"
+    },
+    "live_android": {
+      "steps": 16,
+      "individual_log_hashes_checked": 16,
+      "hash_mismatches": 0,
+      "environment": "Two isolated packages on one Pixel 9 API 35 emulator",
+      "level": "Retained live HTTPS and Android behavior"
+    },
+    "reconnect_death": {
+      "scenarios": 5,
+      "log_hashes_checked": 15,
+      "hash_mismatches": 0,
+      "boundaries": [
+        "journal",
+        "archived-outbox",
+        "witness",
+        "metadata",
+        "connection"
+      ],
+      "level": "Retained actual host force-stop/restart, not power loss"
+    },
+    "apk_binaries": {
+      "independently_hashed": true,
+      "app": {
+        "sha256": "78c41acd01ef1ca5ee30b0b9746e5a340e7ed1e67ab8802095da7b2101e9825e",
+        "bytes": 35176192
+      },
+      "instrumentation": {
+        "sha256": "41515d76e19599f59f461917ef357ecdd156017c5ff84530c7bb58aa76c169c1",
+        "bytes": 2867567
+      },
+      "match_retained_metadata": true
+    },
+    "cpu": {
+      "sample_requests": 30,
+      "p50_ms": 2.843,
+      "p95_ms": 6.95,
+      "p99_ms": 8.208,
+      "worker_errors": 0,
+      "window_start_utc": "2026-10-21T08:41:29.100Z",
+      "window_end_utc": "2026-10-21T08:42:20.763Z",
+      "route_mix": {
+        "head": 26,
+        "connect": 1,
+        "upload_start": 1,
+        "upload_retire": 1,
+        "denied_upload_start": 1
+      },
+      "limitation": "Retained aggregate in microseconds; conversion verified, raw analytics observations not independently recomputed; no chunk/seal/publication/R2 mutation coverage in this public CPU window",
+      "earlier_failed_p95_ms": [
+        12.181,
+        8.692
+      ]
+    }
+  },
+  "commands_and_checks_actually_executed": [
+    {
+      "kind": "Repository inspection",
+      "commands": [
+        "git status --short --branch",
+        "git status --porcelain=v1",
+        "git rev-parse HEAD",
+        "git diff --name-only",
+        "git diff --cached --name-only",
+        "git diff --name-only 3f49b6acf7aef6905d07871f9bec679e707264fd HEAD -- app/src/main cloud/src cloud/operator",
+        "git diff --stat 3f49b6acf7aef6905d07871f9bec679e707264fd 1b7ab927a7840f3fc0e0b41cfd281199de77a6c8"
+      ],
+      "result": "Expected implementation and clean initial tree; only review directory appeared after writing"
+    },
+    {
+      "kind": "Source/history reads",
+      "method": "Primary NotCodex read_file and run_command; git history/show/diffs, rg/rg --files and numbered source extraction",
+      "result": "Implementation and relevant test/migration/operator/evidence paths inspected; exact finding references retained in findings.md"
+    },
+    {
+      "kind": "Evidence verification",
+      "method": "Python JSON/log parsing and hashlib SHA-256 recomputation over the candidate manifest, sixteen live Android logs and fifteen reconnect logs",
+      "result": "All inspected manifest/log hashes matched; counts and scope audited"
+    },
+    {
+      "kind": "Artifact identity",
+      "command": "sha256sum app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk",
+      "additional_command": "stat -c '%n %s bytes' app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk",
+      "result": "Both hash/size pairs match retained metadata"
+    },
+    {
+      "kind": "Review-executed local probe",
+      "command": "python3 /home/ritorhymes/tmp/newpipe-astra-review-20261021/forget-order-probe.py",
+      "cases": 2,
+      "result": "2/2 boundary checks confirmed surviving Room witness and missing tag baseline after child exit 17",
+      "environment": "Disposable SQLite WAL databases; no Android/Room execution"
+    },
+    {
+      "kind": "Review-executed local HTTP probe",
+      "command": "/home/ritorhymes/.volta/bin/node --test /home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-probe.mjs",
+      "cwd": "/home/ritorhymes/techstuff/NewPipe/cloud",
+      "log": "/home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-probe.log",
+      "cases": 2,
+      "first_response_assertions_passed": 0,
+      "first_response_assertions_failed": 2,
+      "exact_retry_successes": 2,
+      "result": "Both initial cancellations returned 503 RECOVERY_OUTCOME_UNKNOWN; identical retry returned 200 CANCELED",
+      "purpose": "Establish defect",
+      "environment": "Local current production router, Miniflare/workerd D1/CONTROL/R2; cf:false; disposable synthetic fixtures",
+      "production_source_modified": false
+    },
+    {
+      "kind": "Review-executed local HTTP probe",
+      "command": "/home/ritorhymes/.volta/bin/node --test /home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-counted.mjs",
+      "cwd": "/home/ritorhymes/techstuff/NewPipe/cloud",
+      "log": "/home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-counted.log",
+      "cases": 2,
+      "first_response_assertions_passed": 0,
+      "first_response_assertions_failed": 2,
+      "exact_retry_successes": 2,
+      "result": "Both initial cancellations returned 503 RECOVERY_OUTCOME_UNKNOWN; identical retry returned 200 CANCELED",
+      "purpose": "Count actual DATA statement dispatch in test adapter",
+      "environment": "Local current production router, Miniflare/workerd D1/CONTROL/R2; cf:false; disposable synthetic fixtures",
+      "production_source_modified": false
+    },
+    {
+      "kind": "Review-executed local HTTP probe",
+      "command": "/home/ritorhymes/.volta/bin/node --test /home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-all-migrations.mjs",
+      "cwd": "/home/ritorhymes/techstuff/NewPipe/cloud",
+      "log": "/home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-all-migrations.log",
+      "cases": 2,
+      "first_response_assertions_passed": 0,
+      "first_response_assertions_failed": 2,
+      "exact_retry_successes": 2,
+      "result": "Both initial cancellations returned 503 RECOVERY_OUTCOME_UNKNOWN; identical retry returned 200 CANCELED",
+      "purpose": "Verify with all six DATA and three CONTROL migrations",
+      "environment": "Local current production router, Miniflare/workerd D1/CONTROL/R2; cf:false; disposable synthetic fixtures",
+      "production_source_modified": false
+    },
+    {
+      "kind": "Probe evidence hashes",
+      "command": "sha256sum /home/ritorhymes/tmp/newpipe-astra-review-20261021/forget-order-probe.py /home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-probe.mjs /home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-probe.log /home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-counted.mjs /home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-counted.log /home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-all-migrations.mjs /home/ritorhymes/tmp/newpipe-astra-review-20261021/replacement-cancel-all-migrations.log",
+      "result": "SHA-256 identities retained below"
+    },
+    {
+      "kind": "Official documentation checks",
+      "method": "Public documentation reads only",
+      "result": "D1 transactional batch/metadata, R2 API, Android work scheduling and cache semantics checked; no live application endpoint contacted"
+    },
+    {
+      "kind": "Review document validation",
+      "method": "Read-only Python validation of exactly six files, JSON/count consistency, pinned source paths/line ranges, relative links/anchors, whitespace/code fences and device-token/private-operator-path patterns",
+      "result": "Passed: 169 links, 133 pinned source links, 8 findings, 5 blockers, zero reported errors"
+    },
+    {
+      "kind": "Remote branch verification",
+      "command": "git ls-remote --heads origin feature/cloud-sync-v1-20261019",
+      "result": "Remote branch still matches inspected implementation checkpoint before review commit"
+    }
+  ],
+  "local_probe_result_summary": {
+    "forget": {
+      "cases": 2,
+      "confirmed_inconsistent_states": 2,
+      "android_execution": false
+    },
+    "cancellation": {
+      "distinct_states": 2,
+      "invocations": 3,
+      "first_response_failures": 6,
+      "exact_retry_successes": 6,
+      "data_statements_dispatched_per_first_attempt": 27,
+      "accounting_positions_reserved": 5,
+      "public_limit": 32,
+      "statement_limit_bypassed": false,
+      "control_state": "ACTIVE",
+      "held_reads": 0,
+      "held_writes": 0,
+      "pending_tickets": 0,
+      "all_current_migrations_verified": true
+    },
+    "source_and_log_sha256": {
+      "forget-order-probe.py": "a69ade827fe2a6adee171100eb6039ef3b2c5dce3178f0c7c2d4952c2e7567c2",
+      "replacement-cancel-probe.mjs": "1f955e441e44e6e9b2b66f1dd2ceaa7138857fa2f5d015b223c591763f090c80",
+      "replacement-cancel-probe.log": "eb578b0f952d7bb56bd09158b6da27fd617da9ec3fcbd3dccac27f4184a8b6fa",
+      "replacement-cancel-counted.mjs": "bd4e922e9b5a98cdcc3b8f0f850e500e7b5759dac47cf8869abfde4a1147df54",
+      "replacement-cancel-counted.log": "aaf03473c0ac439d10e4f338a1ad279ed21db03bc1cff3105310ab5aceb8467b",
+      "replacement-cancel-all-migrations.mjs": "1ff62f41f06601b7f28ad31e3095d1dc7c5b934f57ddb3a816b429e07e889e50",
+      "replacement-cancel-all-migrations.log": "460aad6a14c3941ee30111baf20a18a70ff1fc842b1085fd7c21a61b35f94dda"
+    },
+    "durability_note": "Essential reproduction steps, observations and limitations are committed in findings.md; the temporary harness files are not implementation changes and are not part of the review commit."
+  },
+  "not_executed": [
+    "Full backend or JVM suite rerun",
+    "Build or APK installation",
+    "Android instrumentation or application force-stop",
+    "Live Cloudflare/QA/production HTTP verification",
+    "Live migration, deployment, provider restore, index rebuild or reopen",
+    "Credential creation/revocation",
+    "Budget policy change",
+    "Cron activation",
+    "R2 mutation",
+    "Physical phone interaction",
+    "Application data clearing",
+    "Implementation fixes",
+    "Merge"
+  ],
+  "last_retained_operational_state": {
+    "verified_by": "Retained candidate final state/preflight; not queried live during review",
+    "fence": "HELD",
+    "revision": 15,
+    "pending_tickets": 0,
+    "running_actions": 0,
+    "budget_holds": 0,
+    "public_api_flags": false,
+    "housekeeping_enabled": false,
+    "revoked_qa_credentials": 6,
+    "ready_archives": 3,
+    "ready_archive_total_bytes": 4995,
+    "production_enabled": false,
+    "reviewer_modified_state": false
+  },
+  "results": {
+    "release_recommendation": "HOLD RELEASE",
+    "finding_counts_by_severity": {
+      "Critical": 0,
+      "High": 3,
+      "Medium": 3,
+      "Low": 2
+    },
+    "total_actionable_findings": 8,
+    "finding_counts_by_confidence": {
+      "Confirmed": 7,
+      "High-confidence": 1,
+      "Suspected": 0
+    },
+    "release_blockers": 5,
+    "blocking_ids": [
+      "ASTRA-CS-001",
+      "ASTRA-CS-002",
+      "ASTRA-CS-003",
+      "ASTRA-CS-004",
+      "ASTRA-CS-006"
+    ],
+    "architecture": {
+      "foundational_redesign_required": false,
+      "significant_cross_component_recovery_defects_found": true,
+      "assessment": "Bounded corrections to cleanup ordering, historical provenance, prepared candidate inventory and mode/lifecycle transitions are indicated."
+    },
+    "findings": [
+      {
+        "id": "ASTRA-CS-001",
+        "severity": "High",
+        "confidence": "Confirmed",
+        "release_blocker": true,
+        "subsystem": "Android Forget / native cross-database recovery",
+        "evidence": [
+          "Code inspection",
+          "Review-executed isolated two-database SQLite process-exit probe"
+        ],
+        "native_reproduction_executed_by_reviewer": false
+      },
+      {
+        "id": "ASTRA-CS-002",
+        "severity": "High",
+        "confidence": "Confirmed",
+        "release_blocker": true,
+        "subsystem": "Historical archive import after operator generation recovery",
+        "evidence": [
+          "Code inspection across producer, reconnect and consumer",
+          "Retained operator/reconnection evidence reviewed"
+        ],
+        "native_reproduction_executed_by_reviewer": false
+      },
+      {
+        "id": "ASTRA-CS-003",
+        "severity": "High",
+        "confidence": "High-confidence",
+        "release_blocker": true,
+        "subsystem": "Prepared native restore file inventory / cache eviction",
+        "evidence": [
+          "Code inspection",
+          "Official Android cache semantics"
+        ],
+        "native_reproduction_executed_by_reviewer": false
+      },
+      {
+        "id": "ASTRA-CS-004",
+        "severity": "Medium",
+        "confidence": "Confirmed",
+        "release_blocker": true,
+        "subsystem": "One-time restore ON-to-OFF transition",
+        "evidence": [
+          "UI-to-controller code trace",
+          "Existing test initial-state audit"
+        ],
+        "native_reproduction_executed_by_reviewer": false
+      },
+      {
+        "id": "ASTRA-CS-005",
+        "severity": "Medium",
+        "confidence": "Confirmed",
+        "release_blocker": false,
+        "subsystem": "Replacement cancellation / public SQL request allowance",
+        "evidence": [
+          "Review-executed current HTTP router with real local Miniflare D1/R2",
+          "Diagnostic DATA statement counting",
+          "Rerun with all current migrations"
+        ],
+        "workaround": "Exact retry of the same pending cancellation completed both tested states; not a blanket guarantee for other unknown/rotation states."
+      },
+      {
+        "id": "ASTRA-CS-006",
+        "severity": "Medium",
+        "confidence": "Confirmed",
+        "release_blocker": true,
+        "subsystem": "Android terminal authorization error / automatic scheduler",
+        "evidence": [
+          "Controller and scheduler code trace",
+          "Server versus client revocation coverage audit"
+        ],
+        "native_reproduction_executed_by_reviewer": false
+      },
+      {
+        "id": "ASTRA-CS-007",
+        "severity": "Low",
+        "confidence": "Confirmed",
+        "release_blocker": false,
+        "subsystem": "Unavailable ordering in exact preview",
+        "evidence": [
+          "Catalog fingerprint/diff/explorer code trace"
+        ],
+        "native_reproduction_executed_by_reviewer": false
+      },
+      {
+        "id": "ASTRA-CS-008",
+        "severity": "Low",
+        "confidence": "Confirmed",
+        "release_blocker": false,
+        "subsystem": "Recovery preview retained query after rotation",
+        "evidence": [
+          "Retained model / recreated editor code trace",
+          "UI harness scope audit"
+        ],
+        "native_reproduction_executed_by_reviewer": false
+      }
+    ]
+  },
+  "limitations": [
+    "No new native reproduction of the prepared-cache eviction scenario; ASTRA-CS-003 is High-confidence, not Confirmed.",
+    "Confirmed source findings do not imply Android or deployed reproduction; per-finding evidence levels are explicit.",
+    "Historical archive restoration after a generation transition has no retained composed acceptance test.",
+    "Final integrated budget-enabled live backup/restore/replacement paths remain unverified on the selected candidate.",
+    "Thirty-request CPU evidence is head-heavy and aggregate-only; it is not a full-route or provider-billing guarantee.",
+    "Two emulator packages are not two independent devices; broad Doze/OEM/power-loss behavior is not established.",
+    "Three UI scenarios cover main preview/settings/credential behavior, not every recovery/replacement view or full accessibility.",
+    "Retained hashes and build metadata establish consistency, not independent reproducibility of all historical binaries/executions.",
+    "The review was systematic but not formal verification or exhaustive parser fuzzing."
+  ],
+  "external_primary_references": [
+    "https://developers.cloudflare.com/d1/worker-api/d1-database/",
+    "https://developers.cloudflare.com/d1/worker-api/return-object/",
+    "https://developers.cloudflare.com/r2/api/workers/workers-api-reference/",
+    "https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work",
+    "https://developer.android.com/training/data-storage/app-specific#cache-files"
+  ],
+  "report_files": [
+    "README.md",
+    "findings.md",
+    "coverage-matrix.md",
+    "architecture-assessment.md",
+    "release-gates.md",
+    "review-metadata.json"
+  ],
+  "report_validation": {
+    "files": 6,
+    "links_checked": 169,
+    "pinned_source_links": 133,
+    "invalid_links_or_source_ranges": 0,
+    "findings_register_ids_verified": 8,
+    "blocking_findings_verified": 5,
+    "trailing_whitespace": 0,
+    "unbalanced_code_fences": 0,
+    "device_token_pattern_matches": 0,
+    "private_operator_plan_paths_in_report": 0,
+    "result": "Passed"
+  },
+  "remote_branch_before_review_commit": {
+    "command": "git ls-remote --heads origin feature/cloud-sync-v1-20261019",
+    "commit": "1b7ab927a7840f3fc0e0b41cfd281199de77a6c8",
+    "matches_inspected_implementation": true
+  }
+}
