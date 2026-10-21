@@ -1,0 +1,64 @@
+# Implementer adjudication — NewPipe Cloud & Sync v1
+
+**Date:** 2026-10-21
+**Reviewed implementation:** `1b7ab927a7840f3fc0e0b41cfd281199de77a6c8`
+**Independent review:** `242f9202287d9e7c72b9a60855a67f7480ca99c0`
+**Decision:** **HOLD**. All eight Astra findings are accepted for correction. No finding is dismissed. No application implementation, Android installation, or cloud resource was changed as part of this adjudication.
+
+This is a source-level adjudication of the independent review, **not** a new native/live defect reproduction, independent rerun of its test harness, release approval, or authorization to deploy. Keep the independent `findings.md`, `release-gates.md`, `coverage-matrix.md`, and original evidence intact. Astra's formal release-blocker count remains five; the implementing recommendation is to fix all eight before the first normal-use release, rather than ship a knowingly misleading preview or broken cancellation flow.
+
+## Findings and dispositions
+
+| Finding | Decision | Priority | Why / expected outcome |
+| --- | --- | --- | --- |
+| `ASTRA-CS-001` Forget journal mismatch | **Accept, blocker** | P0 | Independent tag-side commit currently precedes durable deletion of its corresponding Room witness. A crash in between leaves a witness without a baseline and blocks guarded native operations. Preserve native data and retain the recovery guard. |
+| `ASTRA-CS-002` Old-generation archive restore | **Accept, blocker** | P0 | Operator retains genuine generation-A archives while the Android historical restore demands generation B, including downstream compiler and plan guards. Valid disaster-recovery copies cannot be restored through the intended new-generation UI. |
+| `ASTRA-CS-003` Prepared native staging eviction | **Accept, blocker; High-confidence pending Android reproduction** | P0 | Preparation records only a directory/generation, while subsequent `Files.exists` chooses whether tags/preferences/binding were present in the *original* archive. Loss of one staged entry may silently substitute live tags or empty settings. Treat exact candidate integrity as mandatory. |
+| `ASTRA-CS-004` One-time restore remains ON | **Accept, blocker** | P1 | `enabled = if (preview.enableAfter) true else it.enabled` cannot turn ON into OFF for a one-time operation. Persist OFF/new generation before destructive confirmation, not merely in view state. |
+| `ASTRA-CS-005` Replacement cancellation budget | **Accept, repair before release** | P1 | Astra reproduced a first cancellation returning 503 from RESERVED/UPLOADING and an exact retry succeeding. The 32-statement budget correctly refuses extra work; the composed endpoint fails to fit and masks a known pre-dispatch refusal as uncertainty. Keep the limit. |
+| `ASTRA-CS-006` Permanent authorization rejection scheduling | **Accept, blocker** | P1 | A terminal 401 records a message but leaves enabled=true and periodic/native-change jobs eligible indefinitely. The server remains secure; client admission and lifecycle are incorrect. |
+| `ASTRA-CS-007` Unavailable ordering preview | **Accept, fix before release** | P2 | Semantic diff detects an Unavailable-only reorder; `CloudChangeExplorer` renders no group for it, conflicting with the exact/discoverable-change requirement. |
+| `ASTRA-CS-008` Hidden recovery filter after rotation | **Accept, fix before release** | P2 | Activity-scoped model retains query after the newly created editor is blank; rows remain filtered with no visible explanation during a destructive preview. |
+
+**Severity judgment:** Retain Astra's reported severities (3 High / 3 Medium / 2 Low) for traceability. The five originally marked blockers remain mandatory. Classifying the other three as fixes-before-normal-release is a deliberate product-quality choice, **not** a claim they independently cause data loss or override their evidence/confidence levels.
+
+## Minimum safe corrections
+
+### P0: Protect native data and recoverability
+
+**001 — Forget ordering:** First durably turn sync OFF and invalidate the current local connection generation, so no new automatic request can enter while cleanup is interrupted. Under the native writer barrier, ensure there is no unresolved journal and commit Room witness deletion **before** tag-side context/baseline deletion, as the existing reconnection logic already does. Clean binding/cloud markers and credentials last. Every boundary must be idempotently resumable or safely re-invokable after process death; preserve pending transfer identities and refuse Forget while unresolved cloud operations exist. Audit the effect of changing generation on the final `connection.forget(expected)` call. **Do not** bypass the witness-without-baseline guard or erase unrelated tags/playlists.
+
+**002 — Historical archives:** Separate immutable *source provenance* (generation-A archive head, digest and library) from *receiving authorization/context* (generation-B device, service identity, latest counters). Allow a verified **same-library** historical archive to be imported only through explicit, OFF, local-only recovery. Carry the distinction through plan compilation, encoded journal, decode, recovery and post-apply baseline; don't simply remove the service-scope comparisons. In particular **do not record an A-generation head as a freshly acknowledged B-generation cloud head**, fabricate a B server acknowledgement, drop B's highest-observed counter, adopt A credentials or weaken ordinary sync cross-service guards. Handle older journal versions deliberately. Subsequent enable/reconciliation must see a detached local branch, not silently publish or assume it's already synchronized.
+
+**003 — Native staging:** Preserve the *original ZIP entry inventory* independently of the staging filesystem, including whether tag database, binding, JSON settings and legacy settings were present. Track final validated/migrated staged file identities (at least sizes and cryptographic digests). Keep critical prepared inputs in controlled persistent staging rather than cache susceptible to eviction, or re-prepare/reverify the **same immutable archive** on loss. Recheck the exact candidate before AI shutdown, runtime freeze, preference clearing and native file swap; fail before destructive effects if expected files are absent/changed. Stock ZIPs genuinely missing tag metadata must continue to preserve current sanitized tags, while a complete ZIP that **later loses** its staged tag file must never take that branch. The optional-settings path must not silently turn missing staged settings into `emptyMap()` followed by `SharedPreferences.clear()`.
+
+### P1: Correct mode, cancellation and scheduling
+
+**004 — One-time semantics:** For `Use cloud library once`, successful confirmation must persist **OFF and a new generation** under the same writer barrier as native apply, and stale periodic/immediate work must no longer be admitted. Revalidate the exact approved local/remote candidate at the transition; a generation change cannot make the application silently substitute a new preview. Preserve the explicitly enabled-sync workflow as a different choice. Specify cancellation behavior before implementation (preferred: cancellation without a completed restore does not unexpectedly disable an already-enabled connection, if achievable while maintaining the admission barrier); test it. Already-sent cloud operations still require exact pending-outcome reconciliation.
+
+**005 — Bounded cancellation:** Make RESERVED/UPLOADING/READY cancellation complete within the 32-statement request envelope, e.g. consolidate redundant reads while preserving final transactional auth, or expose a deliberate resumable multi-request progress protocol and teach Android to continue it. Report `REQUEST_STATEMENT_BUDGET_EXCEEDED` as a **known pre-dispatch refusal**, not a fabricated unknown DATA outcome; preserve genuinely uncertain outcomes. Do not raise/bypass the 32-statement cap or erase outstanding holds to turn the test green. Test exact retries and DATA/CONTROL accounting.
+
+**006 — Terminal credential failures:** Identify permanent revocation/credential rejection and unexpected authority changes specifically, rather than treating all 403/503/network failures as permanent. Compare-and-update the *generation that actually failed*; persist OFF/paused and a new generation under writer synchronization, and reconcile WorkManager plus observers. Do not let an old failing request disable an already reconnected new generation. Keep credentials, unresolved receipts and upload identities required for explicit recovery. Transient offline/429/503 must continue retrying under existing backoff and not switch OFF.
+
+### P2: Make reviewed changes visible
+
+**007:** Render an Unavailable ordering group using the existing occurrence/order identity utilities; changes must be searchable and identify affected videos. Include pure reorder, combined membership/order, duplicates where applicable, and zero-change assertions.
+
+**008:** Bind the recreated recovery-dialog search editor to the retained model query (or reset both together with an explicit user-visible transition). Ensure rotation, paging, preview cancellation, and preparation of another archive don't leave an invisible filter. Test with multiple groups and filtered nonempty results on the actual UI.
+
+## Regression and acceptance plan
+
+1. **Local native first (P0):** Isolated Android fixtures with real Room/tag stores, no user data clears. Host-process-kill Forget after each independent durable commit; verify native content, local actions, OFF, no automatic requests, repeatability. For 003 inject loss of *only* staged tag, binding and optional settings between preparation and confirm, verifying failure **before** shutdown/swap or exact restored candidate; test genuine stock ZIP. For 002 create A and B using native/test reconstruction, verify archive A can be imported with B authority, preserved unrelated data, detached baseline/high-water, journal restart/recovery and wrong-library rejection.
+2. **Android lifecycle (P1):** ON -> one-time confirmed -> OFF; queued old-generation WorkManager never contacts server; cancellation/rotation/restart semantics; terminal 401 pauses only its generation and transient failures continue correctly. Test native edits after each transition. Assert actual work state, not merely a UI label.
+3. **Local backend (P1):** Production-router HTTP tests using real local D1/R2 and full migrations, including RESERVED, UPLOADING, READY, three-slot rotation, retries and concurrent publication. Assert correct output and per-request statement count, unchanged archive identity, intact receipts, and no false release of CONTROL holds/tickets. Reuse full backend budget/fence suite where affected.
+4. **Exact UI (P2):** Pure Unavailable reorder produces detail rows and query matches; recovery filter remains visible/correct through rotation and fresh previews. Include main/recovery/replacement dialog theme/landscape/large-list cases in broader acceptance.
+5. **Integration after corrections:** Repeat the **selected corrected candidate's** native full backup/restore and protected whole-cloud replacement with budget active; A -> B archive restoration across recovery; two separate-device/background/Doze acceptance; representative Worker mutation/cancellation/backup workload for the declared small profile and measured CPU/limits. Retain build/APK/worker identities and original evidence. Do not generalize an eight-page/64KiB benchmark to large libraries.
+6. **Final independent verification:** Review changed code and exact new test evidence, then reassess technical release gates. Do not merge or activate production merely because tests pass.
+
+### Required operational restrictions
+
+QA was last evidenced as HELD, public/housekeeping flags OFF, six test credentials revoked, three preserved READY archives. **Do not reopen or mutate the isolated live QA environment, production, saved R2 copies or private operator budgets without a separately authorized test cycle.** Preserve credentials, recovery plans and user data; no physical-phone install, clearing app data, other-project edits, production merge/deployment or paid upgrade. Coding is performed directly through NotCodex; no Astra/Claude/coding subagents unless newly authorized. The independent reviewer remains review-only.
+
+## Next engineering milestone
+
+Implement **001 + 003** and their real native process-boundary regressions first; then **002** with cross-generation protocol/journal tests. Those are the highest-integrity risks. Next address **004 + 006** (shared OFF/generation semantics) and **005** (budget-safe cancellation), then **007 + 008**. Commit/push coherent, tested checkpoints; recheck available storage and avoid keeping redundant APKs/test evidence beyond a minimal source-revision-linked validation package.
