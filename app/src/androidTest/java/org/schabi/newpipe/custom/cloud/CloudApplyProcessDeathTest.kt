@@ -21,13 +21,19 @@ import org.schabi.newpipe.custom.tagging.TagRuntime
 /** Explicit host-only probes: real process death before Room commit, after it, and before tag completion. */
 class CloudApplyProcessDeathTest {
     private var fixture: CloudApplyFixture? = null
+    private fun historical(): Boolean = InstrumentationRegistry.getArguments().getString("cloudHistorical") == "true"
+    private fun sourceHead(f: CloudApplyFixture, target: CloudCatalog): CloudHead = if (historical()) {
+        f.head(target, 900).copy(serviceGeneration = "archive-generation-a")
+    } else {
+        f.head(target)
+    }
     private fun directory(): File {
         val args = InstrumentationRegistry.getArguments()
         val token = args.getString("cloudProbe")
         assumeTrue("Requires the committed explicit host driver", token != null)
         require(token!!.matches(Regex("[a-z0-9-]{1,48}")))
         val context = ApplicationProvider.getApplicationContext<Context>()
-        return File(context.cacheDir, "cloud-apply-probe-$token").also { it.mkdirs() }
+        return File(if (historical()) context.noBackupFilesDir else context.cacheDir, "cloud-apply-probe-$token").also { it.mkdirs() }
     }
     private fun phase(): CloudNativeApply.Phase {
         val name = InstrumentationRegistry.getArguments().getString("cloudPhase")
@@ -88,7 +94,13 @@ class CloudApplyProcessDeathTest {
                 Thread.sleep(60_000)
                 error("Host did not terminate the isolated cloud apply process")
             }
-        }.apply(before, f.head(target), target, listOf(f.hint(key)))
+        }.let { apply ->
+            if (historical()) {
+                apply.restoreHistorical(before, sourceHead(f, target), target, listOf(f.hint(key))) {}
+            } else {
+                apply.apply(before, sourceHead(f, target), target, listOf(f.hint(key)))
+            }
+        }
     }
 
     @Test fun verifyRollbackAfterActualProcessDeath() {
@@ -103,6 +115,11 @@ class CloudApplyProcessDeathTest {
         val before = CloudCatalogCodec.read(File(dir, "before.json").readText())
         val target = CloudCatalogCodec.read(File(dir, "target.json").readText())
         val oldRevision = File(dir, "before-revision").readText().toLong()
+        val encoded = CloudApplyStore.payload(f.repo.store.readableDatabase, pending)
+        val plan = CloudApplyPlanJson.decode(encoded)
+        assertEquals(historical(), plan.historicalRestore)
+        assertEquals(f.scope, plan.context.scope)
+        assertEquals(sourceHead(f, target), plan.targetHead)
         val committed = expectedPhase != CloudNativeApply.Phase.BEFORE_ROOM_COMMIT
         if (committed) {
             assertEquals(pending.operation, f.db.cloudApplyReceiptDao().current()!!.operationId)
@@ -116,7 +133,11 @@ class CloudApplyProcessDeathTest {
         assertEquals(oldRevision + if (committed) 1 else 0, f.repo.store.version())
         assertNull(CloudApplyStore.pending(f.repo.store.readableDatabase))
         if (committed) {
-            assertEquals(f.head(target), CloudApplyStore.baseline(f.repo.store.readableDatabase)!!.head)
+            val baseline = CloudApplyStore.baseline(f.repo.store.readableDatabase)!!
+            assertEquals(sourceHead(f, target), baseline.head)
+            assertEquals(historical(), baseline.historical)
+            assertEquals(f.scope, baseline.receivingScope)
+            if (historical()) assertNull(baseline.acknowledgedHead)
         } else {
             assertNull(CloudApplyStore.baseline(f.repo.store.readableDatabase))
         }

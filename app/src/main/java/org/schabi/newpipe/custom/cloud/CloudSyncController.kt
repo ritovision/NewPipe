@@ -535,6 +535,8 @@ internal object CloudUserMessages {
         "CLOUD_FRESH_RECOVERY_TOKEN_REQUIRED" -> "This token is not a fresh enrollment for an initialized recovered library. Ask the operator for a new token."
         "CLOUD_RECONNECT_LOCAL_IDENTITY_CHANGED", "CLOUD_RECONNECT_RECORD_INVALID", "CLOUD_RECONNECT_ARCHIVE_CONFLICT" -> "The saved reconnection no longer matches this installation. Local content and pending files have been kept for recovery."
         "CLOUD_RECONNECT_STORAGE_UNAVAILABLE" -> "Reconnection could not preserve the old pending files. Free local storage and resume reconnecting."
+        "REPLACEMENT_CLEANUP_PENDING" -> "Cleanup is still pending. Continue the same cancellation; its identity and local edits are retained."
+        "PREPARED_IMPORT_CHANGED" -> "The prepared backup changed or is missing. Prepare a fresh restore preview; installed data was not replaced."
         "CLOUD_REPLACEMENT_PENDING", "REPLACEMENT_PENDING_OR_NOT_AUTHORIZED" -> "Resolve the current cloud replacement before starting another catalog action."
         "REPLACEMENT_NOT_AUTHORIZED", "REPLACEMENT_API_DISABLED" -> "Cloud replacement is not enabled for this connection."
         "RESOLVE_PENDING_UPLOAD_BEFORE_REPLACEMENT" -> "Resolve the existing catalog or backup upload before replacing the cloud."
