@@ -16,6 +16,9 @@ CLASSES = {"identity": "CloudIdentityProcessDeathTest", "enrollment": "CloudEnro
            "apply-before-room": "CloudApplyProcessDeathTest", "apply-after-room": "CloudApplyProcessDeathTest",
            "apply-before-tags": "CloudApplyProcessDeathTest"}
 APPLY_PHASES = {"apply-before-room": "BEFORE_ROOM_COMMIT", "apply-after-room": "ROOM_COMMITTED", "apply-before-tags": "BEFORE_TAG_COMMIT"}
+RECONNECT_PHASES = {"reconnect-" + p: p for p in ("journal", "archived-outbox", "witness", "metadata", "connection")}
+CLASSES.update({name: "CloudReconnectProcessDeathTest" for name in RECONNECT_PHASES})
+PHASES = {**APPLY_PHASES, **RECONNECT_PHASES}
 
 
 def main() -> None:
@@ -54,12 +57,13 @@ def main() -> None:
         raise RuntimeError("Expected isolated QA instrumentation is not installed")
     run("shell", "run-as", args.package, "--user", str(args.user), "pwd")
     token = "probe-" + uuid.uuid4().hex[:20]
-    directory = f"cache/cloud-{'apply' if args.suite in APPLY_PHASES else args.suite}-probe-{token}"
+    kind = "reconnect" if args.suite in RECONNECT_PHASES else "apply" if args.suite in APPLY_PHASES else args.suite
+    directory = f"cache/cloud-{kind}-probe-{token}"
     klass = "org.schabi.newpipe.custom.cloud." + CLASSES[args.suite]
     base_command = adb + ["shell", "am", "instrument", "--user", str(args.user), "-w", "-r"]
 
     def command(method: str) -> list[str]:
-        extra = ["-e", "cloudPhase", APPLY_PHASES[args.suite]] if args.suite in APPLY_PHASES else []
+        extra = ["-e", "cloudPhase", PHASES[args.suite]] if args.suite in PHASES else []
         return base_command + ["-e", "class", klass + "#" + method, "-e", "cloudProbe", token] + extra + [runner]
 
     def phase(method: str, name: str) -> None:
@@ -99,15 +103,17 @@ def main() -> None:
         raise RuntimeError("Old QA process still alive after force-stop")
     phase("verifyRollbackAfterActualProcessDeath", "verify.log")
     verified = run("shell", "run-as", args.package, "--user", str(args.user), "cat", directory + "/verified").stdout.strip()
-    if verified != "rollback-restored-original-identities":
+    expected_marker = "reconnect-preserved-local-content" if args.suite in RECONNECT_PHASES else "rollback-restored-original-identities"
+    if verified != expected_marker:
         raise RuntimeError("Fresh-process verification marker mismatch")
     result = {
         "status": "PASS", "source_commit": args.source_commit, "suite": args.suite,
         "serial": args.serial, "avd": args.avd, "android_user": args.user,
         "package": args.package, "probe": token, "killed_pid": killed_pid,
         "actual_host_force_stop": True, "verified_marker": verified,
-        "scope": APPLY_PHASES.get(args.suite, "single tag-map transaction" if args.suite == "identity" else "binding durable before tag enrollment commit"),
+        "scope": PHASES.get(args.suite, "single tag-map transaction" if args.suite == "identity" else "binding durable before tag enrollment commit"),
         "native_apply_recovery_tested": args.suite in APPLY_PHASES,
+        "native_reconnection_recovery_tested": args.suite in RECONNECT_PHASES,
         "not_network_or_power_loss_recovery": True,
         "logs": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in args.output.glob("*.log")},
     }
