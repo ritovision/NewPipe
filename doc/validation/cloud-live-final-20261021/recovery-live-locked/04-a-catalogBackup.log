@@ -1,0 +1,44 @@
+INSTRUMENTATION_STATUS: class=org.schabi.newpipe.custom.cloud.CloudLiveRecoveryTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+org.schabi.newpipe.custom.cloud.CloudLiveRecoveryTest:
+INSTRUMENTATION_STATUS: test=explicitStep
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=org.schabi.newpipe.custom.cloud.CloudLiveRecoveryTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stack=java.lang.IllegalStateException: CLOUD_OPERATION_BUSY
+	at org.schabi.newpipe.custom.cloud.CloudRecoveryController.operation(CloudRecoveryController.kt:66)
+	at org.schabi.newpipe.custom.cloud.CloudRecoveryController.inspect(CloudRecoveryController.kt:111)
+	at org.schabi.newpipe.custom.cloud.CloudLiveRecoveryTest.explicitStep$backup(CloudLiveRecoveryTest.kt:66)
+	at org.schabi.newpipe.custom.cloud.CloudLiveRecoveryTest.explicitStep(CloudLiveRecoveryTest.kt:120)
+
+INSTRUMENTATION_STATUS: stream=
+Error in explicitStep(org.schabi.newpipe.custom.cloud.CloudLiveRecoveryTest):
+java.lang.IllegalStateException: CLOUD_OPERATION_BUSY
+	at org.schabi.newpipe.custom.cloud.CloudRecoveryController.operation(CloudRecoveryController.kt:66)
+	at org.schabi.newpipe.custom.cloud.CloudRecoveryController.inspect(CloudRecoveryController.kt:111)
+	at org.schabi.newpipe.custom.cloud.CloudLiveRecoveryTest.explicitStep$backup(CloudLiveRecoveryTest.kt:66)
+	at org.schabi.newpipe.custom.cloud.CloudLiveRecoveryTest.explicitStep(CloudLiveRecoveryTest.kt:120)
+
+INSTRUMENTATION_STATUS: test=explicitStep
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 0.588
+There was 1 failure:
+1) explicitStep(org.schabi.newpipe.custom.cloud.CloudLiveRecoveryTest)
+java.lang.IllegalStateException: CLOUD_OPERATION_BUSY
+	at org.schabi.newpipe.custom.cloud.CloudRecoveryController.operation(CloudRecoveryController.kt:66)
+	at org.schabi.newpipe.custom.cloud.CloudRecoveryController.inspect(CloudRecoveryController.kt:111)
+	at org.schabi.newpipe.custom.cloud.CloudLiveRecoveryTest.explicitStep$backup(CloudLiveRecoveryTest.kt:66)
+	at org.schabi.newpipe.custom.cloud.CloudLiveRecoveryTest.explicitStep(CloudLiveRecoveryTest.kt:120)
+
+FAILURES!!!
+Tests run: 1,  Failures: 1
+
+
+INSTRUMENTATION_CODE: -1

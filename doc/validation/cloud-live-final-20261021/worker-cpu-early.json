@@ -1,0 +1,31 @@
+{
+  "at": "2026-10-21T16:53:18.630228+00:00",
+  "start": "2026-10-21T16:26:00Z",
+  "end": "2026-10-21T17:10:00Z",
+  "scriptName": "newpipe-accept-20261021a",
+  "graphql": {
+    "data": {
+      "viewer": {
+        "accounts": [
+          {
+            "workersInvocationsAdaptive": [
+              {
+                "quantiles": {
+                  "cpuTimeP50": 7065,
+                  "cpuTimeP95": 16616,
+                  "cpuTimeP99": 21725
+                },
+                "sum": {
+                  "errors": 0,
+                  "requests": 43,
+                  "subrequests": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "errors": null
+  }
+}

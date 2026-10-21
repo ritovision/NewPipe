@@ -1,0 +1,27 @@
+{
+  "readAt": "2026-10-21T19:13:40.766061+00:00",
+  "scope": "isolated newpipe-accept-20261021a only",
+  "publicWorkerAppHttpCode": 503,
+  "oldClosedQAAppHttpCode": 503,
+  "publicApiSwitches": {
+    "catalog": false,
+    "recovery": false,
+    "replacement": false,
+    "housekeeping": false
+  },
+  "externalFence": "OPEN",
+  "pendingTickets": 0,
+  "runningActionsAtFirstCloseInspection": 0,
+  "budgetState": "ACTIVE",
+  "spentReads": 29895,
+  "spentWrites": 6878,
+  "heldReads": 0,
+  "heldWrites": 0,
+  "heldGrowth": 0,
+  "physicalRecoverySlots": 3,
+  "readyRecoverySlots": 3,
+  "syntheticDevices": 4,
+  "formalFenceClosed": false,
+  "productionAffected": false,
+  "lastDisableDeploymentVersion": "d8b75b0b-6bd7-44f5-9863-1b3b2ee53684"
+}

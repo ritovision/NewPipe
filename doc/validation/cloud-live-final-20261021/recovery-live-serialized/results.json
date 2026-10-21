@@ -1,0 +1,65 @@
+{
+  "status": "FAIL",
+  "sourceCommit": "4871f3d8bf75f356a4b83b97cbbc3eef2d110b63",
+  "origin": "https://newpipe-accept-20261021a.ritorhymes.workers.dev",
+  "serial": "emulator-5576",
+  "avd": "Pixel_9_API_35",
+  "androidUser": 0,
+  "physicalPhone": false,
+  "appDataCleared": false,
+  "steps": [
+    {
+      "step": "connect",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "fingerprint": "3e1b014ddb2182779b264b72d65d3d7a46b74ceae18792574ff2aa85233a3cca",
+      "enabled": false,
+      "seconds": 23.177,
+      "logSha256": "9079535f0f1845b9961f14d660ef57266f01d142707b4816c1d5e68e69d60da2"
+    },
+    {
+      "step": "enable",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "fingerprint": "c933b33381b24adb05b422c748a98af3b19d765ea8bd158e48497a8097fbec5a",
+      "enabled": true,
+      "seconds": 17.527,
+      "logSha256": "80a3b077bbf283e01e6cdb1997e0fec5cc57814a64f203fd14be44391712ed88"
+    },
+    {
+      "step": "deviceBackup",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "archiveId": "b811a7f1-17c2-471b-8b26-ad46f11b6f9a",
+      "evicted": null,
+      "bytes": 6892,
+      "kind": "device-zip",
+      "retained": [
+        "b811a7f1-17c2-471b-8b26-ad46f11b6f9a"
+      ],
+      "content": "506707e067ef394c6d4359f08b5347986af11cf970de88d97ca9306722f9f6a7",
+      "fingerprint": "c933b33381b24adb05b422c748a98af3b19d765ea8bd158e48497a8097fbec5a",
+      "enabled": true,
+      "seconds": 27.535,
+      "logSha256": "158f16d8e243195f1243b704bc783ddbd122e51d694c1e89fc65d7cc81311926"
+    },
+    {
+      "step": "catalogBackup",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "archiveId": "5f261747-4bc2-4aaf-8f05-331397c62baa",
+      "evicted": null,
+      "bytes": 2657,
+      "kind": "cloud-catalog",
+      "retained": [
+        "b811a7f1-17c2-471b-8b26-ad46f11b6f9a",
+        "5f261747-4bc2-4aaf-8f05-331397c62baa"
+      ],
+      "content": "506707e067ef394c6d4359f08b5347986af11cf970de88d97ca9306722f9f6a7",
+      "fingerprint": "c933b33381b24adb05b422c748a98af3b19d765ea8bd158e48497a8097fbec5a",
+      "enabled": true,
+      "seconds": 19.955,
+      "logSha256": "143bdadd9c16757646119ad28abf420e8bb16448e47272815920b0d69caaef99"
+    }
+  ]
+}

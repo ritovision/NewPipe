@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "date": "2026-10-21T18:56:21.355023+00:00",
+  "model": "Pixel 7",
+  "androidSdk": 37,
+  "serialScope": "authorized Tailscale-connected physical phone",
+  "testClass": "CloudSyncControllerTest",
+  "testsPassed": 52,
+  "testFailures": 0,
+  "realCloudflareCalls": false,
+  "syntheticIsolatedData": true,
+  "personalNewPipeUnchanged": true,
+  "appDataCleared": false,
+  "logSha256": "2c82cd7d79b60b4e5b78ffa45ddc27787c935bdcbf17e4e61533566023dbd833"
+}

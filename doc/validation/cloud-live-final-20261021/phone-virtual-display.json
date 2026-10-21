@@ -1,0 +1,18 @@
+{
+  "recordedAt": "2026-10-21T18:47:18.187792+00:00",
+  "phoneModel": "Pixel 7",
+  "androidVersion": 17,
+  "scrcpyVersion": "4.1",
+  "scrcpyMode": "new virtual display (not physical screen mirror)",
+  "virtualDisplayId": 8,
+  "virtualDisplaySize": "1080x2160/420dpi",
+  "qaPackage": "org.schabi.newpipe.debug.qacloudaccept20261021",
+  "qaApkSha256": "20873d4f708012bdf2f7143555da2312ef5169635dd1daddb69c008d5d2339cf",
+  "sourceCommit": "4871f3d8bf75f356a4b83b97cbbc3eef2d110b63",
+  "qaScreenVerified": "Settings > Cloud & Sync; Not connected",
+  "existingNewPipeApksUnchanged": true,
+  "appDataCleared": false,
+  "physicalScreenMirrored": false,
+  "liveQaEnabled": false,
+  "scrcpyWindowRunning": true
+}

@@ -1,0 +1,48 @@
+{
+  "originalSourceCommit": "4871f3d8bf75f356a4b83b97cbbc3eef2d110b63",
+  "date": "2026-10-21",
+  "finalVerdict": "HOLD (performance and remaining acceptance)",
+  "liveCatalogMode": 8,
+  "liveCatalogInitialStepsPassed": 8,
+  "liveRecoveryNativeStepsPassed": 20,
+  "phoneHardwareControllerTestsPassed": 52,
+  "phoneHardwareNativeIntegrationTestsPassed": 161,
+  "phoneHardwareTotalPassed": 213,
+  "liveNetworkReconcilePassed": true,
+  "liveConflict": {
+    "status": "INCOMPLETE",
+    "cause": "Android emulator startup ANR before conflict assertion; do not label a product defect without thread evidence"
+  },
+  "productionCloudEnabled": false,
+  "freshQaApiEnabled": false,
+  "priorQaApiEnabled": false,
+  "freshQaFence": "OPEN",
+  "freshQaOutstandingTickets": 0,
+  "freshQaHeldReads": 0,
+  "freshQaHeldWrites": 0,
+  "freshQaRecoveryArchivesReady": 3,
+  "freshQaSyntheticDevices": 4,
+  "performance": {
+    "observedRequests": 198,
+    "observedCpuP50ms": 8.041,
+    "observedCpuP95ms": 20.263,
+    "targetCpuP95ms": 8,
+    "status": "FAIL",
+    "mixedRouteSample": true
+  },
+  "resourceBudgets": {
+    "reads": 29895,
+    "writes": 6878,
+    "heldReads": 0,
+    "heldWrites": 0,
+    "source": "Cloudflare D1 CONTROL read-only check"
+  },
+  "liveOperatorMaintenanceClosed": false,
+  "physicalPhoneMainNewPipeUntouched": true,
+  "physicalPhoneQAAppInstalled": true,
+  "physicalPhoneQADataCleared": false,
+  "phoneScrcpyVirtualDisplayId": 8,
+  "phoneVirtualOnly": true,
+  "qaTestHarnessPatchIncluded": true,
+  "separatePhoneVsEmulatorLiveConflictStatus": "NOT EXECUTED: authenticated check denied by tool safety control; catalog-only QA redeployed OFF immediately"
+}

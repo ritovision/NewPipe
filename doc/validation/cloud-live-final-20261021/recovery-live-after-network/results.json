@@ -1,0 +1,242 @@
+{
+  "status": "PASS",
+  "sourceCommit": "4871f3d8bf75f356a4b83b97cbbc3eef2d110b63",
+  "origin": "https://newpipe-accept-20261021a.ritorhymes.workers.dev",
+  "serial": "emulator-5576",
+  "avd": "Pixel_9_API_35",
+  "androidUser": 0,
+  "physicalPhone": false,
+  "appDataCleared": false,
+  "steps": [
+    {
+      "step": "connect",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "fingerprint": "3e1b014ddb2182779b264b72d65d3d7a46b74ceae18792574ff2aa85233a3cca",
+      "enabled": false,
+      "seconds": 23.177,
+      "logSha256": "9079535f0f1845b9961f14d660ef57266f01d142707b4816c1d5e68e69d60da2"
+    },
+    {
+      "step": "enable",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "fingerprint": "c933b33381b24adb05b422c748a98af3b19d765ea8bd158e48497a8097fbec5a",
+      "enabled": true,
+      "seconds": 17.527,
+      "logSha256": "80a3b077bbf283e01e6cdb1997e0fec5cc57814a64f203fd14be44391712ed88"
+    },
+    {
+      "step": "deviceBackup",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "archiveId": "b811a7f1-17c2-471b-8b26-ad46f11b6f9a",
+      "evicted": null,
+      "bytes": 6892,
+      "kind": "device-zip",
+      "retained": [
+        "b811a7f1-17c2-471b-8b26-ad46f11b6f9a"
+      ],
+      "content": "506707e067ef394c6d4359f08b5347986af11cf970de88d97ca9306722f9f6a7",
+      "fingerprint": "c933b33381b24adb05b422c748a98af3b19d765ea8bd158e48497a8097fbec5a",
+      "enabled": true,
+      "seconds": 27.535,
+      "logSha256": "158f16d8e243195f1243b704bc783ddbd122e51d694c1e89fc65d7cc81311926"
+    },
+    {
+      "step": "catalogBackup",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "archiveId": "5f261747-4bc2-4aaf-8f05-331397c62baa",
+      "evicted": null,
+      "bytes": 2657,
+      "kind": "cloud-catalog",
+      "retained": [
+        "b811a7f1-17c2-471b-8b26-ad46f11b6f9a",
+        "5f261747-4bc2-4aaf-8f05-331397c62baa"
+      ],
+      "content": "506707e067ef394c6d4359f08b5347986af11cf970de88d97ca9306722f9f6a7",
+      "fingerprint": "c933b33381b24adb05b422c748a98af3b19d765ea8bd158e48497a8097fbec5a",
+      "enabled": true,
+      "seconds": 19.955,
+      "logSha256": "143bdadd9c16757646119ad28abf420e8bb16448e47272815920b0d69caaef99"
+    },
+    {
+      "step": "changeCloudRecovered",
+      "fingerprint": "4ee4b16d7562790884d7f6d4b59c6a4189b4f881b0ebbb7e0fccf6188daf6865",
+      "logSha256": "5cfcbf29c4a2b5f95aa5d80f74357fd4706aefaf1e7824ccb39d2b0e62700497",
+      "source": "real frozen outbox recovery over HTTPS"
+    },
+    {
+      "step": "stop",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "enabled": false,
+      "seconds": 8.018,
+      "logSha256": "accc38e4d37b61f97740b23d6bea690aad5b718c4267a3efc6df1d3ad05f306e"
+    },
+    {
+      "step": "connect",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "fingerprint": "7293be31669262500a3f959d2d805126dba090af3ba44e5d060f455adad85911",
+      "enabled": false,
+      "seconds": 12.063,
+      "logSha256": "ae7a40c460ed6627cb6f3ab393d23f3b89f17c37a3f3a3db827dcdd83e253266"
+    },
+    {
+      "step": "join",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "fingerprint": "4ee4b16d7562790884d7f6d4b59c6a4189b4f881b0ebbb7e0fccf6188daf6865",
+      "enabled": false,
+      "seconds": 12.839,
+      "logSha256": "6469a0186999c1b4c4e45ae41d1dfe8f39094ecb30f732b78fa40cc9ed80ed95"
+    },
+    {
+      "step": "restoreCatalog",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "fingerprint": "c933b33381b24adb05b422c748a98af3b19d765ea8bd158e48497a8097fbec5a",
+      "cloudFingerprint": "4ee4b16d7562790884d7f6d4b59c6a4189b4f881b0ebbb7e0fccf6188daf6865",
+      "enabled": false,
+      "seconds": 13.206,
+      "logSha256": "34632fff70af403643395c855adb3523d8c8c4861c8289ce7996a2fdce480bb9"
+    },
+    {
+      "step": "deviceBackup",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "archiveId": "b50801e8-f6ce-47d9-a078-bbe754a78bdc",
+      "evicted": null,
+      "bytes": 6972,
+      "kind": "device-zip",
+      "retained": [
+        "b811a7f1-17c2-471b-8b26-ad46f11b6f9a",
+        "5f261747-4bc2-4aaf-8f05-331397c62baa",
+        "b50801e8-f6ce-47d9-a078-bbe754a78bdc"
+      ],
+      "content": "506707e067ef394c6d4359f08b5347986af11cf970de88d97ca9306722f9f6a7",
+      "fingerprint": "c933b33381b24adb05b422c748a98af3b19d765ea8bd158e48497a8097fbec5a",
+      "enabled": false,
+      "seconds": 17.006,
+      "logSha256": "d7fd6cc741d9c46ef813eb8373fb75f3bf0fe21b4fe36cbf626c003669c5e9b8"
+    },
+    {
+      "step": "deviceBackup",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "archiveId": "6653e421-c97f-4935-b537-8f3b10290c09",
+      "evicted": "b811a7f1-17c2-471b-8b26-ad46f11b6f9a",
+      "bytes": 6892,
+      "kind": "device-zip",
+      "retained": [
+        "5f261747-4bc2-4aaf-8f05-331397c62baa",
+        "b50801e8-f6ce-47d9-a078-bbe754a78bdc",
+        "6653e421-c97f-4935-b537-8f3b10290c09"
+      ],
+      "content": "5824fa132b6b69572f1ac6d2521198a61631594a048b7cd717ed802e148aedb7",
+      "fingerprint": "4ee4b16d7562790884d7f6d4b59c6a4189b4f881b0ebbb7e0fccf6188daf6865",
+      "enabled": false,
+      "seconds": 19.187,
+      "logSha256": "40b8599ee462aaddc247d1104ef750d9bcf2927043080ae167b32f71c7add3ce"
+    },
+    {
+      "step": "enable",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "fingerprint": "4ee4b16d7562790884d7f6d4b59c6a4189b4f881b0ebbb7e0fccf6188daf6865",
+      "enabled": true,
+      "seconds": 11.512,
+      "logSha256": "d0c7d17dd313b3e4e0428d911644b872087e260ccfb87285eb9de418ca27d866"
+    },
+    {
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "before": "4ee4b16d7562790884d7f6d4b59c6a4189b4f881b0ebbb7e0fccf6188daf6865",
+      "after": "86d3f303513f5974ab083578e4cd579f0c406f051986f6f421b545e77afabc33",
+      "enabled": true,
+      "step": "holdDirtyReplacement",
+      "logSha256": "b9a1d3f48e27f33efe3914fa3f885e69616cf7a67b424a47b7b94cc00e901c41",
+      "actualHostStop": true
+    },
+    {
+      "step": "replaceCloud",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "archiveId": "cf74cfc9-8984-4ad3-a6ec-f623ad05027f",
+      "evicted": "5f261747-4bc2-4aaf-8f05-331397c62baa",
+      "retained": [
+        "b50801e8-f6ce-47d9-a078-bbe754a78bdc",
+        "6653e421-c97f-4935-b537-8f3b10290c09",
+        "cf74cfc9-8984-4ad3-a6ec-f623ad05027f"
+      ],
+      "outgoingFingerprint": "4ee4b16d7562790884d7f6d4b59c6a4189b4f881b0ebbb7e0fccf6188daf6865",
+      "oldEpoch": "8730b0f8-112b-4044-9d39-dc0a3d4d8bf8",
+      "epoch": "4bcd5f9e-5a53-46d3-8c75-d83e695aa45a",
+      "headCounter": "5",
+      "fingerprint": "5f0946ec8c71135459f2e95902d6522d4933eb252055b93194467ca8c0fe49d2",
+      "enabled": false,
+      "seconds": 26.289,
+      "logSha256": "36996b475e006c1a445a38a6d0a99593617e01e6b00d309f351c88ec88090da5"
+    },
+    {
+      "step": "verifyDirtyEpoch",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "pauseReason": "CLOUD_CONFLICT_REVIEW_REQUIRED",
+      "localFingerprint": "86d3f303513f5974ab083578e4cd579f0c406f051986f6f421b545e77afabc33",
+      "cloudFingerprint": "5f0946ec8c71135459f2e95902d6522d4933eb252055b93194467ca8c0fe49d2",
+      "epoch": "4bcd5f9e-5a53-46d3-8c75-d83e695aa45a",
+      "enabled": false,
+      "seconds": 9.601,
+      "logSha256": "b1a52637de96233865efbbef82ff47e9ac25743a547aca7ef9928a3eda63daef"
+    },
+    {
+      "step": "restoreCatalog",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "fingerprint": "4ee4b16d7562790884d7f6d4b59c6a4189b4f881b0ebbb7e0fccf6188daf6865",
+      "cloudFingerprint": "5f0946ec8c71135459f2e95902d6522d4933eb252055b93194467ca8c0fe49d2",
+      "enabled": false,
+      "seconds": 14.387,
+      "logSha256": "6dc283f7aebd238ffb7d25f01aba0e458b237f971a2bc1a7211a76efe05883f0"
+    },
+    {
+      "step": "restoreNative",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "restartRequired": true,
+      "marker": "337a36af-8dcc-4d2c-814d-d0b748ca8c81",
+      "seconds": 13.018,
+      "logSha256": "6909d344d14afba533f738afc028d9d6ec4cc981ea87b5a016c020a95c20e628"
+    },
+    {
+      "step": "verifyNativeAfterRestart",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "content": "5824fa132b6b69572f1ac6d2521198a61631594a048b7cd717ed802e148aedb7",
+      "marker": "337a36af-8dcc-4d2c-814d-d0b748ca8c81",
+      "restartVerified": true,
+      "enabled": false,
+      "seconds": 8.674,
+      "logSha256": "5e75fead8b63b5593f54d59189a67c3c65b706bc3c21966ed6c12fd2ea129b54"
+    },
+    {
+      "step": "stop",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "syntheticOnly": true,
+      "enabled": false,
+      "seconds": 7.626,
+      "logSha256": "8665dc285034b5b73f2aa36bc7f7023cb12e4fb2603b2c62c5ed199d2c9249de"
+    },
+    {
+      "step": "stop",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "enabled": false,
+      "seconds": 7.017,
+      "logSha256": "a79debb53be72dabdf5103f76f1da7f96eaab240f404b8601ab38bc177c136a9"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "archiveCount": 3,
+  "totalBytes": 16523,
+  "archives": [
+    {
+      "archiveId": "b50801e8-f6ce-47d9-a078-bbe754a78bdc",
+      "kind": "device-zip",
+      "bytes": 6972,
+      "digest": "f06245c7f2cd152953df993e43717c9fb8ff6ca5f94ad6d260e88fc69dddf118",
+      "state": "READY",
+      "usable": true
+    },
+    {
+      "archiveId": "6653e421-c97f-4935-b537-8f3b10290c09",
+      "kind": "device-zip",
+      "bytes": 6892,
+      "digest": "e9df7215c5e027e028c3124dc970fcb9c394afff3d9361868d472697663a1d0a",
+      "state": "READY",
+      "usable": true
+    },
+    {
+      "archiveId": "cf74cfc9-8984-4ad3-a6ec-f623ad05027f",
+      "kind": "cloud-catalog",
+      "bytes": 2659,
+      "digest": "20b91b0fcfb10257b2591f8a63abf4b6944d70907afa2e6a418e2faf79230186",
+      "state": "READY",
+      "usable": true
+    }
+  ]
+}

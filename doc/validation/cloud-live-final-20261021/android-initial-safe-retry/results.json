@@ -1,0 +1,108 @@
+{
+  "status": "PASS",
+  "scenario": "initial",
+  "serial": "emulator-5576",
+  "twoIndependentPackages": true,
+  "twoPhysicalDevices": false,
+  "syntheticOnly": true,
+  "steps": [
+    {
+      "step": "initialize",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "fingerprint": "191c8d79e415a56ada14f2986178eeabe837d6bb2f4d5b2489c76f4b39af123a",
+      "videos": 3,
+      "playlists": 1,
+      "tags": 1,
+      "enabled": true,
+      "syntheticOnly": true,
+      "seconds": 22.643,
+      "logSha256": "a7c9258f6c1087a0b6637b560e7431325cdff9766d3bf4ae54432cd9ac28a0a0"
+    },
+    {
+      "step": "join",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "fingerprint": "191c8d79e415a56ada14f2986178eeabe837d6bb2f4d5b2489c76f4b39af123a",
+      "videos": 3,
+      "playlists": 1,
+      "tags": 1,
+      "enabled": true,
+      "syntheticOnly": true,
+      "seconds": 15.952,
+      "logSha256": "b1d8b71cc41764f30d2628136f7b528c482c4db705ebbb3db873d80a493ffca2"
+    },
+    {
+      "step": "automaticEdit",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "fingerprint": "66af556a15b4ac4fc6e9d872860c447f259794e00d70026e70a9a5910d854507",
+      "videos": 3,
+      "playlists": 1,
+      "tags": 1,
+      "enabled": true,
+      "syntheticOnly": true,
+      "seconds": 12.793,
+      "logSha256": "cc6ee0d9ce8419e0d1c6133b939c86dc2340a77a342056ca3b9e636d3b2fc7f1"
+    },
+    {
+      "step": "automaticPull",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "fingerprint": "66af556a15b4ac4fc6e9d872860c447f259794e00d70026e70a9a5910d854507",
+      "videos": 3,
+      "playlists": 1,
+      "tags": 1,
+      "enabled": true,
+      "syntheticOnly": true,
+      "seconds": 10.051,
+      "logSha256": "0e4cc12efef14b40a998288f2c42f5ff201b9b54e1d675f7f02fcd6cc275d07a"
+    },
+    {
+      "step": "disableAndEdit",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "fingerprint": "3ac2726c149453385c756c3e872279f838e15602ed5e4459e498f1859285466f",
+      "videos": 4,
+      "playlists": 1,
+      "tags": 1,
+      "enabled": false,
+      "syntheticOnly": true,
+      "seconds": 9.796,
+      "logSha256": "d23ece840a47c516b017107954d82da842d9da55448a2939dca73ac18e37e741"
+    },
+    {
+      "step": "oneTimeRestore",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "fingerprint": "66af556a15b4ac4fc6e9d872860c447f259794e00d70026e70a9a5910d854507",
+      "videos": 3,
+      "playlists": 1,
+      "tags": 1,
+      "enabled": false,
+      "syntheticOnly": true,
+      "seconds": 13.481,
+      "logSha256": "4f951d54f5ec82718d354c51875decd163a555064b3a33537478b556a1a15705"
+    },
+    {
+      "step": "stop",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "fingerprint": "66af556a15b4ac4fc6e9d872860c447f259794e00d70026e70a9a5910d854507",
+      "videos": 3,
+      "playlists": 1,
+      "tags": 1,
+      "enabled": false,
+      "syntheticOnly": true,
+      "seconds": 7.361,
+      "logSha256": "09ec3ea39cc53e98a30460d297b4327b04d6efdf41774dd61d547bade432b70a"
+    },
+    {
+      "step": "stop",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "fingerprint": "66af556a15b4ac4fc6e9d872860c447f259794e00d70026e70a9a5910d854507",
+      "videos": 3,
+      "playlists": 1,
+      "tags": 1,
+      "enabled": false,
+      "syntheticOnly": true,
+      "seconds": 7.62,
+      "logSha256": "8bda316e707c05957822c4c782708025aa85bec9f0598d0647cce423ea3ce837"
+    }
+  ],
+  "releaseAcceptance": false,
+  "r2RecoveryTested": false
+}

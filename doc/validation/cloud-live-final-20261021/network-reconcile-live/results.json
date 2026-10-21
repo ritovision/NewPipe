@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "sourceRevision": "4871f3d8bf75f356a4b83b97cbbc3eef2d110b63",
+  "step": "continuationResume",
+  "targetFingerprint": "4ee4b16d7562790884d7f6d4b59c6a4189b4f881b0ebbb7e0fccf6188daf6865",
+  "enabled": true,
+  "appDataCleared": false,
+  "logSha256": "5cfcbf29c4a2b5f95aa5d80f74357fd4706aefaf1e7824ccb39d2b0e62700497",
+  "originalHostPostcheckFailure": "expected nonzero ls because outbox absent",
+  "originalDriverLogPreserved": true,
+  "verifiedAt": "2026-10-21T17:19:05.257372+00:00"
+}

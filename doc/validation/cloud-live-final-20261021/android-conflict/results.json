@@ -1,0 +1,54 @@
+{
+  "status": "FAIL",
+  "scenario": "conflict",
+  "steps": [
+    {
+      "step": "resumeForConflict",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "fingerprint": "66af556a15b4ac4fc6e9d872860c447f259794e00d70026e70a9a5910d854507",
+      "videos": 3,
+      "playlists": 1,
+      "tags": 1,
+      "enabled": true,
+      "syntheticOnly": true,
+      "seconds": 12.883,
+      "logSha256": "3a6baf30389c6da1f438be362eb439c5138719eeeeafa2bab92aa7efc5b39d02"
+    },
+    {
+      "step": "resumeForConflict",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "fingerprint": "66af556a15b4ac4fc6e9d872860c447f259794e00d70026e70a9a5910d854507",
+      "videos": 3,
+      "playlists": 1,
+      "tags": 1,
+      "enabled": true,
+      "syntheticOnly": true,
+      "seconds": 14.472,
+      "logSha256": "7a879f653c99261884fb5de919dbf493fba248077b630ade5b81b872a2066b35"
+    },
+    {
+      "step": "holdOfflineEdit",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021.peerb",
+      "syntheticOnly": true,
+      "fingerprint": "2373b74a56eb4326bd6906cb441d198737946afc6f5a8f3a4809163f5d8950c9",
+      "previousFingerprint": "66af556a15b4ac4fc6e9d872860c447f259794e00d70026e70a9a5910d854507",
+      "actualProcessStop": true,
+      "networkDisabledGlobally": false,
+      "logSha256": "3decc7a185d0069e65d888dc7f5330599cbdc9bb2f7ab0d8835ed68819808f83"
+    },
+    {
+      "step": "automaticRemoteEdit",
+      "package": "org.schabi.newpipe.debug.qacloudaccept20261021",
+      "fingerprint": "c933b33381b24adb05b422c748a98af3b19d765ea8bd158e48497a8097fbec5a",
+      "videos": 3,
+      "playlists": 1,
+      "tags": 1,
+      "enabled": true,
+      "syntheticOnly": true,
+      "seconds": 41.187,
+      "logSha256": "d5d9545a47201b61b4639af9998443f61b887cb526c8c3bb9c78cd09d24144f5"
+    }
+  ],
+  "syntheticOnly": true,
+  "releaseAcceptance": false
+}
