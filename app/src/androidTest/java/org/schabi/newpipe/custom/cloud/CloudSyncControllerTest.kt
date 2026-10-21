@@ -439,6 +439,38 @@ class CloudSyncControllerTest {
         assertEquals(null, connection.read())
     }
 
+    @Test fun interruptedForgetKeepsLocalContentUsableAndCanBeRepeated() {
+        val initial = f.seed()
+        peer.external(f.target(initial))
+        connect()
+        controller.confirm(controller.prepare(true))
+        assertNotNull(f.db.cloudApplyReceiptDao().current())
+        val digest = CloudRoomContentDigest.withoutCloudWitness(f.db.openHelper.readableDatabase)
+        val definitions = f.repo.definitions()
+        val old = connection.read()!!.generation
+        for (boundary in listOf("off", "before-witness-commit", "witness", "metadata", "binding", "connection")) {
+            if (connection.read() == null) break
+            val interrupted = CloudSyncController(
+                f.context,
+                connection,
+                { f.repo },
+                peer::client,
+                { _: CloudNativeSnapshot -> },
+                forgetCheckpoint = { if (it == boundary) throw AssertionError("interrupted") }
+            )
+            assertThrows(AssertionError::class.java) { interrupted.forget() }
+            f.reopen()
+            assertFalse(connection.read()?.enabled == true)
+            if (connection.read() != null) assertNotEquals(old, connection.read()!!.generation)
+            f.repo.definitions() // Normal guarded operations must not report journal loss.
+            assertEquals(definitions, f.repo.definitions())
+            assertEquals(digest, CloudRoomContentDigest.withoutCloudWitness(f.db.openHelper.readableDatabase))
+        }
+        newController().forget()
+        assertEquals(null, connection.read())
+        assertEquals(null, f.db.cloudApplyReceiptDao().current())
+    }
+
     @Test fun serverLimitsRejectBeforeCreatingOutboxOrPublishing() {
         val a = f.media("A")
         f.playlist("Big", List(700) { a })

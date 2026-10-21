@@ -20,6 +20,14 @@ public final class CloudRoomContentDigest {
     }
 
     public static String of(final SupportSQLiteDatabase database) {
+        return of(database, false);
+    }
+
+    public static String withoutCloudWitness(final SupportSQLiteDatabase database) {
+        return of(database, true);
+    }
+
+    private static String of(final SupportSQLiteDatabase database, final boolean omitWitness) {
         final MessageDigest digest;
         try {
             digest = MessageDigest.getInstance("SHA-256");
@@ -30,7 +38,9 @@ public final class CloudRoomContentDigest {
         try (Cursor names = database.query(
                 "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")) {
             while (names.moveToNext()) {
-                tables.add(names.getString(0));
+                if (!omitWitness || !"rv_cloud_apply_receipt".equals(names.getString(0))) {
+                    tables.add(names.getString(0));
+                }
             }
         }
         for (final String table : tables) {

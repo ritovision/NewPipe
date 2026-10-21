@@ -16,7 +16,9 @@ import com.grack.nanojson.JsonWriter
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.Path
+import java.security.MessageDigest
 import java.util.Properties
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipEntry
@@ -46,10 +48,50 @@ object TagBackupCoordinator {
     private const val MAX_ZIP = 1024L * 1024 * 1024
     private val inProgress = AtomicBoolean(false)
 
+    private val recognizedEntries = setOf(DB, TagStore.FILE_NAME, BINDING, PREFS, LEGACY_PREFS)
+    private data class PreparedIdentity(val bytes: Long, val digest: String)
+    private fun preparedIdentity(path: Path): PreparedIdentity {
+        check(Files.isRegularFile(path, NOFOLLOW_LINKS)) { "PREPARED_IMPORT_CHANGED" }
+        val digest = MessageDigest.getInstance("SHA-256")
+        var size = 0L
+        Files.newInputStream(path).use { input ->
+            val buffer = ByteArray(65536)
+            while (true) {
+                val n = input.read(buffer)
+                if (n < 0) break
+                size += n
+                check(size <= MAX_DB) { "PREPARED_IMPORT_CHANGED" }
+                digest.update(buffer, 0, n)
+            }
+        }
+        return PreparedIdentity(size, digest.digest().joinToString("") { "%02x".format(it) })
+    }
     class Prepared internal constructor(internal val directory: Path, internal val generation: Long) : AutoCloseable {
         private val consumed = AtomicBoolean(false)
-        val hasJsonPreferences: Boolean get() = Files.exists(directory.resolve(PREFS))
-        val hasLegacyPreferences: Boolean get() = Files.exists(directory.resolve(LEGACY_PREFS))
+
+        // Original inventory, after validated migration/sanitization. Absence later
+        // must never be reinterpreted as an intentionally tagless stock archive.
+        private var inventory: Map<String, PreparedIdentity>? = null
+        val hasJsonPreferences: Boolean get() = expected(PREFS)
+        val hasLegacyPreferences: Boolean get() = expected(LEGACY_PREFS)
+        internal fun expected(name: String): Boolean = checkNotNull(inventory) { "PREPARED_IMPORT_UNSEALED" }.containsKey(name)
+        internal fun seal(original: Set<String>) {
+            check(inventory == null && DB in original && recognizedEntries.containsAll(original))
+            inventory = original.associateWith { preparedIdentity(directory.resolve(it)) }.toMap()
+        }
+        internal fun verify() {
+            val sealed = checkNotNull(inventory) { "PREPARED_IMPORT_UNSEALED" }
+            check(Files.isDirectory(directory, NOFOLLOW_LINKS)) { "PREPARED_IMPORT_CHANGED" }
+            for (name in recognizedEntries) {
+                val expected = sealed[name]
+                val file = directory.resolve(name)
+                if (expected == null) {
+                    check(!Files.exists(file, NOFOLLOW_LINKS)) { "PREPARED_IMPORT_CHANGED" }
+                } else {
+                    check(expected == preparedIdentity(file)) { "PREPARED_IMPORT_CHANGED" }
+                }
+            }
+        }
         internal fun consume() {
             check(consumed.compareAndSet(false, true)) { "This prepared import was already used" }
         }
@@ -67,9 +109,9 @@ object TagBackupCoordinator {
     fun prepare(context: Context, file: StoredFileHelper): Prepared {
         requireIo()
         TagRuntime.assertAvailable()
-        val prepared = Prepared(Files.createTempDirectory(context.cacheDir.toPath(), "tag-import-"), TagRuntime.generation)
+        val prepared = Prepared(Files.createTempDirectory(context.noBackupFilesDir.toPath(), "tag-import-"), TagRuntime.generation)
         try {
-            val recognized = setOf(DB, TagStore.FILE_NAME, BINDING, PREFS, LEGACY_PREFS)
+            val recognized = recognizedEntries
             val seen = HashSet<String>()
             var total = 0L
             var entries = 0
@@ -107,6 +149,7 @@ object TagBackupCoordinator {
             validateBinding(prepared.directory.resolve(BINDING), prepared.directory.resolve(DB))
             LibraryBindingStore.stripCloudMarkerFromCopy(prepared.directory.resolve(BINDING))
             if (TagStore.FILE_NAME in seen) sanitizeTagCopy(context, prepared.directory.resolve(TagStore.FILE_NAME))
+            prepared.seal(seen)
             preflightInstall(context, prepared)
             return prepared
         } catch (error: Throwable) {
@@ -119,6 +162,7 @@ object TagBackupCoordinator {
     @JvmStatic
     fun readPreferences(prepared: Prepared): Map<String, Any?> {
         requireIo()
+        prepared.verify()
         val entries: Map<*, *> = when {
             prepared.hasJsonPreferences -> Files.newInputStream(prepared.directory.resolve(PREFS)).use { JsonParser.`object`().from(it) }
 
@@ -128,6 +172,7 @@ object TagBackupCoordinator {
 
             else -> emptyMap<String, Any>()
         }
+        prepared.verify()
         check(entries.size <= 10000) { "Too many preference entries" }
         return entries.entries.associate { (key, value) ->
             check(key is String && key.length <= 1024) { "Invalid preference key" }
@@ -168,6 +213,7 @@ object TagBackupCoordinator {
             check(prepared.generation == TagRuntime.generation) { "The Library changed since import preparation" }
             preflightInstall(context, prepared)
             TagRuntime.lock.withLock { admit() }
+            prepared.verify()
             prepared.consume()
             // No TagRuntime lock while waiting for the authorization writer/command drain.
             shutdown()
@@ -177,20 +223,22 @@ object TagBackupCoordinator {
                 val repository = TagRuntime.get(context)
                 // Complete same-catalog recovery before retaining missing tag metadata.
                 // If identity itself needs repair, only receipt-backed AI cleanup is safe.
-                val tags = prepared.directory.resolve(TagStore.FILE_NAME)
+                prepared.verify()
+                val originalTags = prepared.expected(TagStore.FILE_NAME)
+                val tags = prepared.directory.resolve(if (originalTags) TagStore.FILE_NAME else "retained-tags.db")
                 try {
                     repository.beforeLibraryMutation()
                 } catch (blocked: TagRepository.NativeBulkRecoveryBlockedException) {
                     // A verified complete backup replaces BOTH stores. No old
                     // intent is executed or discarded in the live database here.
                     // Stock backups retaining current tags may not bypass recovery.
-                    if (!Files.exists(tags)) throw blocked
+                    if (!originalTags) throw blocked
                 } catch (blocked: org.schabi.newpipe.custom.cloud.CloudRecoveryBlockedException) {
                     // A user-selected complete validated backup is the recovery escape
                     // hatch for a damaged cloud journal. Never retain its live tag store.
-                    if (!Files.exists(tags)) throw blocked
+                    if (!originalTags) throw blocked
                 }
-                if (!Files.exists(tags)) {
+                if (!originalTags) {
                     // A stock backup does not authorize deleting recoverable unmatched tags.
                     // Snapshot them now, after draining writers, then discard obsolete runtime intents.
                     snapshotTag(repository.store, tags)
@@ -199,6 +247,7 @@ object TagBackupCoordinator {
                 val directory = context.getDatabasePath(DB).toPath().parent
                 Files.createDirectories(directory)
                 admit()
+                prepared.verify()
                 org.schabi.newpipe.custom.cloud.CloudScheduler.beforeImport(context)
                 TagRuntime.freezeForRestore()
                 CatalogOpenHelperFactory.drain(repository.library.openHelper)
@@ -208,7 +257,7 @@ object TagBackupCoordinator {
                 NewPipeDatabase.close()
                 awaitClosedCheckpoint(context.getDatabasePath(DB).toPath())
                 LibraryRepository.suspendForRestore()
-                val files = linkedMapOf<String, Path?>(DB to prepared.directory.resolve(DB), TagStore.FILE_NAME to tags, BINDING to prepared.directory.resolve(BINDING).takeIf { Files.exists(it) })
+                val files = linkedMapOf<String, Path?>(DB to prepared.directory.resolve(DB), TagStore.FILE_NAME to tags, BINDING to prepared.directory.resolve(BINDING).takeIf { prepared.expected(BINDING) })
                 for (name in listOf(DB, TagStore.FILE_NAME)) {
                     for (suffix in listOf("-wal", "-shm", "-journal")) files[name + suffix] = null
                 }
@@ -410,7 +459,8 @@ object TagBackupCoordinator {
     }
 
     private fun preflightInstall(context: Context, prepared: Prepared) {
-        if (!Files.exists(prepared.directory.resolve(TagStore.FILE_NAME))) {
+        prepared.verify()
+        if (!prepared.expected(TagStore.FILE_NAME)) {
             SQLiteDatabase.create(null).use { db ->
                 requireSnapshotSupport(
                     db.rawQuery("SELECT sqlite_version()", null).use {

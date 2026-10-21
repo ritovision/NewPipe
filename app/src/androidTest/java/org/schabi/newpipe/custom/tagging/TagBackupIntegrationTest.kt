@@ -35,7 +35,7 @@ import org.schabi.newpipe.database.stream.model.StreamEntity
 import org.schabi.newpipe.extractor.stream.StreamType
 import org.schabi.newpipe.streams.io.StoredFileHelper
 
-/** File-backed Android SQLite tests in per-test private cache directories; never user databases. */
+/** File-backed Android SQLite tests in per-test private no-backup directories; never user databases. */
 class TagBackupIntegrationTest {
     @get:Rule val migration = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
     private lateinit var directory: Path
@@ -48,11 +48,12 @@ class TagBackupIntegrationTest {
         TagRuntime.restoring = false
         NewPipeDatabase.close()
         LibraryRepository.forgetSessionForTest()
-        directory = Files.createTempDirectory(app.cacheDir.toPath(), "tag-backup-native-")
+        directory = Files.createTempDirectory(app.noBackupFilesDir.toPath(), "tag-backup-native-")
         context = object : ContextWrapper(app) {
             override fun getApplicationContext(): Context = this
             override fun getDatabasePath(name: String): File = if (name.startsWith("/")) File(name) else directory.resolve(name).toFile()
             override fun getCacheDir(): File = directory.toFile()
+            override fun getNoBackupFilesDir(): File = directory.resolve("private").toFile().also { it.mkdirs() }
         }
         db = NewPipeDatabase.getInstance(context)
         repository = TagRuntime.get(context)
@@ -154,6 +155,73 @@ class TagBackupIntegrationTest {
         assertEquals(1, repository.snapshot().orphanedAssignments)
         assertTrue(repository.store.pendingRemovals().isEmpty())
         assertTrue(repository.store.pendingAiRemovals().isEmpty())
+    }
+
+    @Test fun lostPreparedTagBindingRoomOrSettingsRefusesBeforeShutdownAndPreservesInstalledData() {
+        val tag = repository.createTag("Archived", null)
+        val media = item("archive", tag)
+        val backup = exported()
+        repository.editTag(tag, "Current must survive refusal", null)
+        val current = repository.definitions()
+        val digest = org.schabi.newpipe.custom.cloud.CloudRoomContentDigest.of(db.openHelper.readableDatabase)
+        for (entry in listOf("newpipe.db", TagStore.FILE_NAME, LibraryBindingStore.FILE_NAME, org.schabi.newpipe.settings.export.BackupFileLocator.FILE_NAME_JSON_PREFS)) {
+            TagBackupCoordinator.prepare(context, file(backup)).use { prepared ->
+                assertTrue(prepared.directory.startsWith(context.noBackupFilesDir.toPath()))
+                assertTrue(Files.isRegularFile(prepared.directory.resolve(entry)))
+                Files.delete(prepared.directory.resolve(entry))
+                assertTrue(prepared.hasJsonPreferences) // Original presence is immutable.
+                var shutdown = false
+                val failure = assertThrows(IllegalStateException::class.java) {
+                    TagBackupCoordinator.installWithShutdown(context, prepared) { shutdown = true }
+                }
+                assertEquals("PREPARED_IMPORT_CHANGED", failure.message)
+                assertFalse(shutdown)
+                assertFalse(TagRuntime.restoring)
+                assertEquals(current, repository.definitions())
+                assertEquals(setOf(tag), repository.editor(key(media)).assigned)
+                assertEquals(digest, org.schabi.newpipe.custom.cloud.CloudRoomContentDigest.of(db.openHelper.readableDatabase))
+                assertThrows(IllegalStateException::class.java) { TagBackupCoordinator.readPreferences(prepared) }
+            }
+        }
+    }
+
+    @Test fun changedPreparedBytesOfTheSameLengthCannotPassAdmission() {
+        val tag = repository.createTag("Keep", null)
+        item("integrity", tag)
+        TagBackupCoordinator.prepare(context, file(exported())).use { prepared ->
+            val file = prepared.directory.resolve(TagStore.FILE_NAME)
+            val bytes = Files.readAllBytes(file)
+            bytes[bytes.lastIndex] = (bytes.last().toInt() xor 1).toByte()
+            Files.write(file, bytes)
+            var shutdown = false
+            assertThrows(IllegalStateException::class.java) {
+                TagBackupCoordinator.installWithShutdown(context, prepared) { shutdown = true }
+            }
+            assertFalse(shutdown)
+            assertFalse(TagRuntime.restoring)
+        }
+    }
+
+    @Test fun lostPreparedSettingsNeverBecomesAnEmptySelectedPreferenceMap() {
+        TagBackupCoordinator.prepare(context, file(exported())).use { prepared ->
+            assertTrue(prepared.hasJsonPreferences)
+            Files.delete(prepared.directory.resolve(org.schabi.newpipe.settings.export.BackupFileLocator.FILE_NAME_JSON_PREFS))
+            assertTrue(prepared.hasJsonPreferences)
+            assertEquals("PREPARED_IMPORT_CHANGED", assertThrows(IllegalStateException::class.java) { TagBackupCoordinator.readPreferences(prepared) }.message)
+        }
+    }
+
+    @Test fun originallyAbsentTagEntryCannotBeInjectedAfterPreparation() {
+        val tag = repository.createTag("Keep", null)
+        item("stock", tag)
+        TagBackupCoordinator.prepare(context, file(zipWithoutTags(exported()))).use { prepared ->
+            Files.write(prepared.directory.resolve(TagStore.FILE_NAME), byteArrayOf(1, 2, 3))
+            var shutdown = false
+            assertThrows(IllegalStateException::class.java) {
+                TagBackupCoordinator.installWithShutdown(context, prepared) { shutdown = true }
+            }
+            assertFalse(shutdown)
+        }
     }
 
     @Test fun malformedDatabaseDoesNotFenceOrAlterExistingCatalog() {

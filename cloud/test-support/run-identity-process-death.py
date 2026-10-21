@@ -18,7 +18,9 @@ CLASSES = {"identity": "CloudIdentityProcessDeathTest", "enrollment": "CloudEnro
 APPLY_PHASES = {"apply-before-room": "BEFORE_ROOM_COMMIT", "apply-after-room": "ROOM_COMMITTED", "apply-before-tags": "BEFORE_TAG_COMMIT"}
 RECONNECT_PHASES = {"reconnect-" + p: p for p in ("journal", "archived-outbox", "witness", "metadata", "connection")}
 CLASSES.update({name: "CloudReconnectProcessDeathTest" for name in RECONNECT_PHASES})
-PHASES = {**APPLY_PHASES, **RECONNECT_PHASES}
+FORGET_PHASES = {"forget-" + p: p for p in ("off", "before-witness-commit", "witness", "metadata", "binding", "connection")}
+CLASSES.update({name: "CloudForgetProcessDeathTest" for name in FORGET_PHASES})
+PHASES = {**APPLY_PHASES, **RECONNECT_PHASES, **FORGET_PHASES}
 
 
 def main() -> None:
@@ -57,8 +59,9 @@ def main() -> None:
         raise RuntimeError("Expected isolated QA instrumentation is not installed")
     run("shell", "run-as", args.package, "--user", str(args.user), "pwd")
     token = "probe-" + uuid.uuid4().hex[:20]
-    kind = "reconnect" if args.suite in RECONNECT_PHASES else "apply" if args.suite in APPLY_PHASES else args.suite
-    directory = f"cache/cloud-{kind}-probe-{token}"
+    kind = "forget" if args.suite in FORGET_PHASES else "reconnect" if args.suite in RECONNECT_PHASES else "apply" if args.suite in APPLY_PHASES else args.suite
+    storage = "no_backup" if args.suite in FORGET_PHASES else "cache"
+    directory = f"{storage}/cloud-{kind}-probe-{token}"
     klass = "org.schabi.newpipe.custom.cloud." + CLASSES[args.suite]
     base_command = adb + ["shell", "am", "instrument", "--user", str(args.user), "-w", "-r"]
 
@@ -103,7 +106,7 @@ def main() -> None:
         raise RuntimeError("Old QA process still alive after force-stop")
     phase("verifyRollbackAfterActualProcessDeath", "verify.log")
     verified = run("shell", "run-as", args.package, "--user", str(args.user), "cat", directory + "/verified").stdout.strip()
-    expected_marker = "reconnect-preserved-local-content" if args.suite in RECONNECT_PHASES else "rollback-restored-original-identities"
+    expected_marker = "forget-preserved-local-content" if args.suite in FORGET_PHASES else "reconnect-preserved-local-content" if args.suite in RECONNECT_PHASES else "rollback-restored-original-identities"
     if verified != expected_marker:
         raise RuntimeError("Fresh-process verification marker mismatch")
     result = {
@@ -113,6 +116,7 @@ def main() -> None:
         "actual_host_force_stop": True, "verified_marker": verified,
         "scope": PHASES.get(args.suite, "single tag-map transaction" if args.suite == "identity" else "binding durable before tag enrollment commit"),
         "native_apply_recovery_tested": args.suite in APPLY_PHASES,
+        "native_forget_recovery_tested": args.suite in FORGET_PHASES,
         "native_reconnection_recovery_tested": args.suite in RECONNECT_PHASES,
         "not_network_or_power_loss_recovery": True,
         "logs": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in args.output.glob("*.log")},

@@ -27,7 +27,8 @@ internal class CloudSyncController(
     private val repository: () -> TagRepository = { TagRuntime.get(context) },
     private val apiFactory: (String, String, () -> Unit) -> CloudApi = { origin, token, admit -> CloudHttpClient(origin, token, admit) },
     private val safetyBackup: ((CloudNativeSnapshot) -> Unit)? = null,
-    private val reconnectCheckpoint: ((String) -> Unit)? = null
+    private val reconnectCheckpoint: ((String) -> Unit)? = null,
+    private val forgetCheckpoint: ((String) -> Unit)? = null
 ) {
     enum class Direction { TO_DEVICE, INITIALIZE_CLOUD }
     class Preview(
@@ -137,22 +138,33 @@ internal class CloudSyncController(
     fun disable(): CloudConnectionStore.State? = connection.disable()
     fun forget() = operation {
         check(!connection.reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
-        val s = connection.read() ?: return@operation
+        val previous = connection.read() ?: return@operation
         TagRuntime.lock.withLock {
+            connection.requireCurrent(previous.generation)
             check(!transfers.hasPending() && !CloudRecoveryController.hasPending(connection.directory) && !CloudReplacementController.hasPending(connection.directory)) { "RESOLVE_PENDING_UPLOAD_BEFORE_FORGET" }
             val r = repository()
             CloudNativeApply.recoverLocked(r)
+            // OFF is durable before any independent database commit. Retrying an
+            // interrupted Forget is safe even after identity metadata was removed.
+            val stopped = checkNotNull(connection.disable())
+            CloudScheduler.reconcile(context)
+            forgetCheckpoint?.invoke("off")
             r.library.runInTransaction {
-                r.store.transaction { side ->
-                    check(CloudApplyStore.pending(side) == null) { "LOCAL_CLOUD_RECOVERY_REQUIRED" }
-                    CloudIdentityStore.discard(side)
-                    CloudApplyStore.discard(side)
-                }
                 r.library.openHelper.writableDatabase.execSQL("DELETE FROM rv_cloud_apply_receipt")
+                forgetCheckpoint?.invoke("before-witness-commit")
             }
+            forgetCheckpoint?.invoke("witness")
+            r.store.transaction { side ->
+                check(CloudApplyStore.pending(side) == null) { "LOCAL_CLOUD_RECOVERY_REQUIRED" }
+                CloudIdentityStore.discard(side)
+                CloudApplyStore.discard(side)
+            }
+            forgetCheckpoint?.invoke("metadata")
             r.binding.read()?.let { r.binding.write(it.copy(cloudIncarnation = null, cloudPlaylistSequence = null)) }
-            connection.forget(s.generation)
+            forgetCheckpoint?.invoke("binding")
             transfers.discardCache()
+            connection.forget(stopped.generation)
+            forgetCheckpoint?.invoke("connection")
         }
     }
     private fun api(s: CloudConnectionStore.State, automatic: Boolean = false): CloudApi = apiFactory(s.origin, connection.token(s)) {
