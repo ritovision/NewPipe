@@ -44,7 +44,7 @@ class CloudNativeApplyTest {
 
     @Before fun setup() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        f = CloudApplyFixture(context, Files.createTempDirectory(context.cacheDir.toPath(), "cloud-apply-"))
+        f = CloudApplyFixture(context, Files.createTempDirectory(context.noBackupFilesDir.toPath(), "cloud-apply-"))
         f.initialize()
     }
 
@@ -85,6 +85,55 @@ class CloudNativeApplyTest {
         assertEquals(before.tagRevision + 1, f.repo.store.version())
         assertEquals(9002L, f.scalar("PRAGMA user_version"))
         assertEquals(5, f.repo.store.readableDatabase.version)
+    }
+
+    private fun historicalInterruption(phase: CloudNativeApply.Phase) {
+        val before = f.seed()
+        val target = f.target(before)
+        val source = f.head(target, 900).copy(serviceGeneration = "historical-service-a")
+        assertThrows(Injected::class.java) {
+            CloudNativeApply(f.repo) { if (it == phase) throw Injected() }.restoreHistorical(before, source, target, target.library.map(f::hint)) {}
+        }
+        val pending = CloudApplyStore.pending(f.repo.store.readableDatabase)!!
+        val bytes = CloudApplyStore.payload(f.repo.store.readableDatabase, pending)
+        val plan = CloudApplyPlanJson.decode(bytes)
+        assertTrue(plan.historicalRestore)
+        assertEquals(source, plan.targetHead)
+        assertEquals(f.scope, plan.context.scope)
+        assertEquals(plan, CloudApplyPlanJson.decode(CloudApplyPlanJson.encode(plan)))
+        // Downgrading a cross-generation historical plan must not bypass ordinary scope validation.
+        val forged = JsonParser.`object`().from(bytes.toString(Charsets.UTF_8))
+        forged["version"] = 1
+        forged.remove("mode")
+        assertThrows(IllegalArgumentException::class.java) { CloudApplyPlanJson.decode(JsonWriter.string().`object`(forged).done().toByteArray()) }
+        f.reopen()
+        val rolledBack = phase in setOf(CloudNativeApply.Phase.JOURNAL_DURABLE, CloudNativeApply.Phase.BEFORE_ROOM_COMMIT)
+        assertEquals(if (rolledBack) before.catalog else target, f.capture().catalog)
+        if (!rolledBack) {
+            val receipt = CloudApplyStore.baseline(f.repo.store.readableDatabase)!!
+            assertTrue(receipt.historical)
+            assertNull(receipt.acknowledgedHead)
+            assertEquals(source, receipt.head)
+            assertEquals(f.scope, receipt.receivingScope)
+        }
+        assertNull(CloudApplyStore.pending(f.repo.store.readableDatabase))
+    }
+
+    @Test fun historicalJournalBeforeRoomCommitRollsBackWithoutChangingReceiverScope() = historicalInterruption(CloudNativeApply.Phase.BEFORE_ROOM_COMMIT)
+
+    @Test fun historicalJournalAfterRoomCommitCompletesWithProvenanceNotCloudAcknowledgement() = historicalInterruption(CloudNativeApply.Phase.ROOM_COMMITTED)
+
+    @Test fun historicalJournalBeforeTagCommitCompletesWithReceivingIdentity() = historicalInterruption(CloudNativeApply.Phase.BEFORE_TAG_COMMIT)
+
+    @Test fun historicalRestoreStillRejectsOtherLibrariesAndOrdinaryApplyRejectsOldServices() {
+        val before = f.seed()
+        val target = f.target(before)
+        val wrongLibrary = f.head(target).copy(library = "another-library")
+        assertThrows(IllegalStateException::class.java) { CloudNativeApply(f.repo).restoreHistorical(before, wrongLibrary, target, emptyList()) {} }
+        val oldService = f.head(target).copy(serviceGeneration = "historical-a")
+        assertThrows(IllegalStateException::class.java) { CloudNativeApply(f.repo).apply(before, oldService, target) }
+        assertEquals(before.fingerprint, f.capture().fingerprint)
+        assertNull(CloudApplyStore.pending(f.repo.store.readableDatabase))
     }
 
     @Test fun newRemoteIdsDoNotAdoptSameNamedLocalPlaylist() {

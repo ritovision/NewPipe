@@ -297,18 +297,33 @@ internal class CloudReplacementController(
         }
         inspectLocked(connected())
     }
+    private fun finishCancellation(api: CloudApi, path: String, body: Map<String, Any?>, id: String): JsonObject {
+        repeat(4) {
+            val response = api.post(path, body)
+            val current = attempt(response)
+            check(current == null || current.getString("attemptId") == id) { "REPLACEMENT_IDENTITY_CHANGED" }
+            if (response["cleanupPending"] == true) {
+                check(current != null) { "REPLACEMENT_IDENTITY_CHANGED" }
+            } else {
+                check(current == null || current.getString("state") in setOf("CANCELED", "DONE")) { "REPLACEMENT_CLEANUP_UNCONFIRMED" }
+                return response
+            }
+        }
+        // Preserve the durable local marker and exact remote identity for later continuation.
+        throw CloudRemoteException("REPLACEMENT_CLEANUP_PENDING", 503)
+    }
     fun cancel(): Status = operation {
         val s = connected()
         val api = api(s)
         if (markerExists()) {
             val p = pending(s)
-            val response = api.post("/v1/replacement/abandon", mapOf("approvalId" to p.getString("approvalId"), "recoverySequence" to p.getString("recoverySequence")))
+            val response = finishCancellation(api, "/v1/replacement/abandon", mapOf("approvalId" to p.getString("approvalId"), "recoverySequence" to p.getString("recoverySequence")), p.getString("approvalId"))
             val receipt = response["receipt"] as? JsonObject ?: checkNotNull(resolved(api, p)) { "INVALID_RETIREMENT_RECEIPT" }
             finish(p, receipt)
         } else {
             val a = attempt(remote(api))
             if (a?.getString("state") in setOf("ACTIVE", "STALE")) {
-                val response = api.post("/v1/replacement/settle", mapOf("attemptId" to a!!.getString("attemptId"), "keepForRetry" to false))
+                val response = finishCancellation(api, "/v1/replacement/settle", mapOf("attemptId" to a!!.getString("attemptId"), "keepForRetry" to false), a.getString("attemptId"))
                 val h = a.getObject("incoming")
                 val receipt = response["receipt"] as? JsonObject ?: api.post("/v1/uploads/status", mapOf("sequence" to h.getString("sequence"), "digest" to h.getString("digest")))["receipt"] as? JsonObject
                 sync.recordReplacementReceipt(h, checkNotNull(receipt) { "INVALID_RETIREMENT_RECEIPT" }, null)

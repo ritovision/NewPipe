@@ -267,7 +267,7 @@ internal class CloudRecoveryController(
             }
             check(CloudRecoveryFormat.fromFile(target, m.source, m.native) == m) { "RECOVERY_DOWNLOAD_CHECKSUM_MISMATCH" }
             val decoded = if (m.kind == "cloud-catalog") {
-                check(m.source!!.head.serviceGeneration == s.scope.service && m.source.head.library == s.scope.library) { "CLOUD_SCOPE_MISMATCH" }
+                check(m.source!!.head.library == s.scope.library) { "CLOUD_SCOPE_MISMATCH" }
                 CloudRecoveryFormat.readCatalog(target, m)
             } else {
                 prepared = TagBackupCoordinator.prepare(context, file(target))

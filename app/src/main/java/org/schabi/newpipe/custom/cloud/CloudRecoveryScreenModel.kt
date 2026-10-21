@@ -43,7 +43,8 @@ internal class CloudRecoveryScreenModel(application: Application) : AndroidViewM
     @Volatile private var current: CloudRecoveryController.Status? = null
 
     @Volatile private var groups: List<CloudChangeExplorer.Group> = emptyList()
-    private var query = ""
+    var query = ""
+        private set
     private val expanded = HashSet<String>()
     private val counts = HashMap<String, Int>()
     private fun date(millis: Long): String = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(millis))

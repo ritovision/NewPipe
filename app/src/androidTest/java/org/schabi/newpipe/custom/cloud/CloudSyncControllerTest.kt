@@ -261,6 +261,94 @@ class CloudSyncControllerTest {
         assertEquals(1, backups)
     }
 
+    @Test fun oneTimeRestoreFromEnabledInvalidatesAutomaticWorkAndStaysOffAfterRestart() {
+        f.seed()
+        enable()
+        val old = connection.read()!!
+        val preview = controller.prepare(false)
+        assertTrue(connection.read()!!.enabled) // Merely opening/canceling a preview does not disable.
+        controller.confirm(preview)
+        assertFalse(connection.read()!!.enabled)
+        assertNotEquals(old.generation, connection.read()!!.generation)
+        reject("CLOUD_CONNECTION_CHANGED") { connection.requireCurrent(old.generation, true) }
+        f.reopen()
+        f.media("After-one-time")
+        val calls = peer.calls
+        reject("ENABLE_SYNC_OR_USE_ONE_TIME_RESTORE") { newController().syncNow() }
+        assertEquals(calls, peer.calls)
+        assertFalse(CloudConnectionStore(f.context, connection.directory).read()!!.enabled)
+        controller = newController()
+        controller.confirm(controller.prepare(true))
+        assertTrue(connection.read()!!.enabled)
+    }
+
+    @Test fun aPermanentRevocationStopsOnlyTheFailedGenerationAndKeepsCredentialEvidence() {
+        f.seed()
+        enable()
+        val old = connection.read()!!
+        peer.beforeRequest = { throw CloudRemoteException("INVALID_CREDENTIAL", 401) }
+        assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+        val stopped = connection.read()!!
+        assertFalse(stopped.enabled)
+        assertNotEquals(old.generation, stopped.generation)
+        assertEquals(peer.tokenA, connection.token(stopped))
+        f.reopen()
+        f.media("While-revoked")
+        val calls = peer.calls
+        reject("ENABLE_SYNC_OR_USE_ONE_TIME_RESTORE") { newController().syncNow() }
+        assertEquals(calls, peer.calls)
+        peer.beforeRequest = null
+        controller = newController()
+        controller.confirm(controller.prepare(true))
+        val resumed = connection.read()!!
+        controller.recordFailure(CloudRemoteException("INVALID_CREDENTIAL", 401), old.generation)
+        assertEquals(resumed.generation, connection.read()!!.generation)
+        assertTrue(connection.read()!!.enabled)
+    }
+
+    @Test fun terminalRejectionCancelsRealWorkManagerRequestsAndDoesNotRescheduleOnNativeEdit() {
+        connection = CloudConnectionStore(f.context)
+        controller = newController()
+        f.seed()
+        enable()
+        val manager = androidx.work.WorkManager.getInstance(f.context)
+        val names = listOf("ritovision-cloud-periodic-v1", "ritovision-cloud-change-v1")
+        fun active(name: String) = manager.getWorkInfosForUniqueWork(name).get(10, java.util.concurrent.TimeUnit.SECONDS).any { !it.state.isFinished }
+        fun awaitState(predicate: () -> Boolean) {
+            val deadline = android.os.SystemClock.elapsedRealtime() + 15_000
+            while (!predicate()) {
+                check(android.os.SystemClock.elapsedRealtime() < deadline) { "WORK_MANAGER_STATE_TIMEOUT" }
+                Thread.sleep(100)
+            }
+        }
+        CloudScheduler.reconcile(f.context)
+        awaitState { active(names.first()) }
+        peer.beforeRequest = { throw CloudRemoteException("INVALID_CREDENTIAL", 401) }
+        assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+        awaitState { names.none(::active) }
+        val calls = peer.calls
+        f.media("Native-edit-after-rejection")
+        CloudScheduler.request(f.context)
+        CloudScheduler.reconcile(f.context)
+        Thread.sleep(2300) // Past the actual debounced enqueue window.
+        assertTrue(names.none(::active))
+        assertEquals(calls, peer.calls)
+        assertFalse(CloudConnectionStore(f.context).read()!!.enabled)
+    }
+
+    @Test fun offlineRateLimitsAndTemporaryServiceFailuresDoNotPermanentlyDisableSync() {
+        f.seed()
+        enable()
+        val generation = connection.read()!!.generation
+        for (status in listOf(0, 429, 503)) {
+            peer.beforeRequest = { throw CloudRemoteException("TEMPORARY", status) }
+            assertThrows(CloudRemoteException::class.java) { controller.syncNow() }
+            assertTrue(connection.read()!!.enabled)
+            assertEquals(generation, connection.read()!!.generation)
+        }
+        peer.beforeRequest = null
+    }
+
     @Test fun enabledLocalEditUploadsAndRemoteEditAppliesWithoutAnotherEnrollment() {
         f.seed()
         enable()

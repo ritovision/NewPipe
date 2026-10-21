@@ -46,16 +46,21 @@ internal class CloudSyncController(
     }
     private val transfers = CloudTransferStore(connection.directory)
     private val lock = operationLock(connection.directory)
-    private inline fun <T> operation(recoverReconnection: Boolean = false, body: () -> T): T {
+    private inline fun <T> operation(recoverReconnection: Boolean = false, stopOnAuthorityFailure: Boolean = true, body: () -> T): T {
         check(lock.tryLock()) { "CLOUD_OPERATION_BUSY" }
+        var admittedGeneration: String? = null
         try {
+            admittedGeneration = connection.read()?.generation
             check(recoverReconnection || !connection.reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
             return body()
+        } catch (error: Exception) {
+            if (stopOnAuthorityFailure && admittedGeneration != null) recordFailure(error, admittedGeneration)
+            throw error
         } finally {
             lock.unlock()
         }
     }
-    fun connect(rawOrigin: String, token: String): CloudConnectionStore.State = operation {
+    fun connect(rawOrigin: String, token: String): CloudConnectionStore.State = operation(stopOnAuthorityFailure = false) {
         check(connection.read() == null) { "FORGET_EXISTING_CONNECTION_FIRST" }
         val origin = CloudHttpClient.normalizeOrigin(rawOrigin)
         require(Regex("[A-Za-z0-9_-]{1,128}\\.[0-9a-f]{64}").matches(token)) { "INVALID_DEVICE_TOKEN" }
@@ -78,7 +83,7 @@ internal class CloudSyncController(
     }
 
     /** Explicit recovery enrollment: no old upload is resumed or silently discarded. */
-    fun reconnect(token: String): CloudConnectionStore.State = operation {
+    fun reconnect(token: String): CloudConnectionStore.State = operation(stopOnAuthorityFailure = false) {
         check(!connection.reconnectPending()) { "CLOUD_RECONNECT_RECOVERY_REQUIRED" }
         val s = checkNotNull(connection.read()) { "CLOUD_NOT_CONNECTED" }
         connection.requireCurrent(s.generation)
@@ -232,7 +237,7 @@ internal class CloudSyncController(
     fun confirm(preview: Preview): CloudConnectionStore.State = operation {
         check(!CloudReplacementController.hasPending(connection.directory)) { "CLOUD_REPLACEMENT_PENDING" }
         check(SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
-        val s = connection.requireCurrent(preview.generation)
+        var s = connection.requireCurrent(preview.generation)
         val api = api(s)
         check(!transfers.hasPending()) { "CLOUD_UPLOAD_ALREADY_PENDING" }
         val remote = verifiedStatus(s, api)
@@ -246,23 +251,32 @@ internal class CloudSyncController(
             Direction.TO_DEVICE -> {
                 localRecovery(preview.before)
                 check(verifiedStatus(s, api).head == preview.remote.head) { "CLOUD_PREVIEW_CHANGED" }
-                CloudNativeApply(repository()).apply(
-                    preview.before,
-                    preview.remote.head,
-                    preview.target,
-                    preview.download!!.decoded.hints,
-                    reconcileOrphans = true
-                ) {
+                TagRuntime.lock.withLock {
                     connection.requireCurrent(preview.generation)
-                    check(SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
+                    sameLocal(preview.before, native(s))
+                    if (!preview.enableAfter) {
+                        s = checkNotNull(connection.disable("Restoring once. Automatic sync is off."))
+                        CloudScheduler.reconcile(context)
+                    }
+                    CloudNativeApply(repository()).apply(
+                        preview.before,
+                        preview.remote.head,
+                        preview.target,
+                        preview.download!!.decoded.hints,
+                        reconcileOrphans = true
+                    ) {
+                        val admitted = connection.requireCurrent(s.generation)
+                        check(preview.enableAfter || !admitted.enabled) { "CLOUD_CONNECTION_CHANGED" }
+                        check(SystemClock.elapsedRealtime() < preview.expires) { "CLOUD_PREVIEW_EXPIRED" }
+                    }
                 }
             }
         }
         connection.update(s.generation) {
             it.copy(
-                enabled = if (preview.enableAfter) true else it.enabled,
+                enabled = preview.enableAfter,
                 generation = if (preview.enableAfter != it.enabled && preview.enableAfter) UUID.randomUUID().toString() else it.generation,
-                message = if (preview.enableAfter || it.enabled) "Synchronized. Automatic sync is on." else "Cloud library restored once. Automatic sync remains off.",
+                message = if (preview.enableAfter) "Synchronized. Automatic sync is on." else "Cloud library restored once. Automatic sync remains off.",
                 lastSuccess = System.currentTimeMillis()
             )
         }
@@ -279,7 +293,7 @@ internal class CloudSyncController(
         check(remote.upload == null) { "CLOUD_TOKEN_HAS_UNRESOLVED_UPLOAD" }
         val baseline = TagRuntime.lock.withLock { CloudApplyStore.baseline(repository().store.readableDatabase) }
         check(baseline == null || baseline.incarnation == s.incarnation) { "CLOUD_BASELINE_IDENTITY_CHANGED" }
-        val decision = CloudSyncPolicy.decide(CloudSyncInput(true, true, false, before.fingerprint, baseline?.head, remote.head, connection.read()?.highest))
+        val decision = CloudSyncPolicy.decide(CloudSyncInput(true, true, false, before.fingerprint, baseline?.acknowledgedHead, remote.head, connection.read()?.highest))
         when (decision) {
             CloudDecision.NOOP -> Unit
 
@@ -409,8 +423,9 @@ internal class CloudSyncController(
             r.store.transaction { side ->
                 val old = CloudApplyStore.baseline(side)
                 check(old == null || old.incarnation == s.incarnation) { "CLOUD_BASELINE_IDENTITY_CHANGED" }
-                if (old == null || CloudCounter.parse(old.head.headCounter) <= CloudCounter.parse(head.headCounter)) {
-                    if (old?.head?.headCounter == head.headCounter) check(old.head == head) { "CLOUD_ROLLBACK_SUSPECTED" }
+                val acknowledged = old?.acknowledgedHead
+                if (acknowledged == null || CloudCounter.parse(acknowledged.headCounter) <= CloudCounter.parse(head.headCounter)) {
+                    if (acknowledged?.headCounter == head.headCounter) check(acknowledged == head) { "CLOUD_ROLLBACK_SUSPECTED" }
                     CloudApplyStore.accept(side, s.incarnation, old?.operation ?: operation, head)
                 }
             }
@@ -485,10 +500,27 @@ internal class CloudSyncController(
         localRecovery(before)
     }
     fun hasPending(): Boolean = transfers.hasPending()
-    fun recordFailure(error: Throwable) {
-        val state = connection.read() ?: return
+    fun recordFailure(error: Throwable, failedGeneration: String? = null) {
         val message = CloudUserMessages.error(error)
-        runCatching { connection.update(state.generation) { it.copy(message = message) } }
+        val terminal = error is CloudRemoteException && error.httpStatus in setOf(401, 403) &&
+            error.code in setOf("INVALID_CREDENTIAL", "AUTH_REJECTED", "AUTH_OR_LIBRARY_UNAVAILABLE") ||
+            error.message in setOf("CLOUD_SCOPE_MISMATCH", "CLOUD_DEVICE_MISMATCH", "CLOUD_REMOTE_ROLLBACK_SUSPECTED", "CLOUD_CREDENTIAL_UNAVAILABLE_RECONNECT")
+        val paused = TagRuntime.lock.withLock {
+            val state = connection.read() ?: return@withLock false
+            if (failedGeneration != null && state.generation != failedGeneration) return@withLock false
+            if (connection.reconnectPending()) return@withLock false
+            val stop = failedGeneration != null && terminal
+            runCatching {
+                connection.update(state.generation) {
+                    if (stop) {
+                        it.copy(generation = UUID.randomUUID().toString(), enabled = false, message = message)
+                    } else {
+                        it.copy(message = message)
+                    }
+                }
+            }.isSuccess && stop
+        }
+        if (paused) CloudScheduler.reconcile(context)
     }
     companion object {
         private val locks = ConcurrentHashMap<String, ReentrantLock>()

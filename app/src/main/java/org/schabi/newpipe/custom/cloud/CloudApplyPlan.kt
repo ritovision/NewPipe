@@ -24,7 +24,8 @@ internal data class CloudApplyPlan(
     val displayOrder: List<CloudDisplaySlot>,
     val preservedOrphans: List<CloudOrphanAssignment>,
     val affectedTagKeys: List<CloudKey>,
-    val tagRevision: Long
+    val tagRevision: Long,
+    val historicalRestore: Boolean = false
 )
 
 /** Explicit JSON shape; every persisted native 64-bit value is decimal text, never a double. */
@@ -63,7 +64,7 @@ internal object CloudApplyPlanJson {
     private val uuid = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
     fun encode(p: CloudApplyPlan): ByteArray {
         val root = linkedMapOf<String, Any?>(
-            "version" to 1, "operation" to p.operation,
+            "version" to if (p.historicalRestore) 2 else 1, "operation" to p.operation,
             "context" to listOf(p.context.scope.service, p.context.scope.library, p.context.incarnation, p.context.libraryId.toString(), p.context.unavailableId.toString()),
             "before" to p.beforeFingerprint, "head" to head(p.targetHead), "catalog" to catalog(p.target),
             "mappings" to p.mappings.entries.sortedWith(compareBy({ it.key.kind.name }, { it.key.id })).map { listOf(it.key.kind.name, it.key.id.toString(), it.value) },
@@ -75,6 +76,7 @@ internal object CloudApplyPlanJson {
             "orphans" to p.preservedOrphans.map { listOf(key(it.key), it.tagIds) },
             "affected" to p.affectedTagKeys.map(::key), "tagRevision" to p.tagRevision.toString()
         )
+        if (p.historicalRestore) root["mode"] = "historical-local"
         val output = object : java.io.ByteArrayOutputStream() {
             override fun write(value: Int) {
                 require(count < CloudApplyStore.payloadLimit()) { "CLOUD_PLAN_MEMORY_BUDGET" }
@@ -93,14 +95,18 @@ internal object CloudApplyPlanJson {
         val decoder = Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
             .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
         val r = java.io.InputStreamReader(java.io.ByteArrayInputStream(bytes), decoder).use { JsonParser.`object`().from(it) }
-        require(r.getInt("version") == 1 && r.keys == setOf("version", "operation", "context", "before", "head", "catalog", "mappings", "streams", "deletePlaylists", "displayOrder", "orphans", "affected", "tagRevision")) { "INVALID_CLOUD_PLAN" }
+        val version = r.getInt("version")
+        val historical = version == 2
+        val fields = setOf("version", "operation", "context", "before", "head", "catalog", "mappings", "streams", "deletePlaylists", "displayOrder", "orphans", "affected", "tagRevision")
+        require(version in 1..2 && r.keys == fields + if (historical) setOf("mode") else emptySet<String>()) { "INVALID_CLOUD_PLAN" }
+        require(!historical || r.getString("mode") == "historical-local") { "INVALID_CLOUD_PLAN" }
         val c = r.getArray("context")
         require(c.size == 5)
         val context = CloudIdentityStore.Context(CloudIdentityStore.Scope(c.getString(0), c.getString(1)), c.getString(2), positive(c.getString(3)), positive(c.getString(4)))
         require(context.libraryId != context.unavailableId)
         val head = readHead(r.getObject("head"))
         val target = CloudCatalogCodec.readObject(r.getObject("catalog"))
-        require(CloudCatalogCodec.fingerprint(target) == head.fingerprint && context.scope.service == head.serviceGeneration && context.scope.library == head.library) { "INVALID_CLOUD_PLAN_TARGET" }
+        require(CloudCatalogCodec.fingerprint(target) == head.fingerprint && (historical || context.scope.service == head.serviceGeneration) && context.scope.library == head.library) { "INVALID_CLOUD_PLAN_TARGET" }
         val maps = r.getArray("mappings").map { raw ->
             val row = array(raw, 3)
             NativeId(Kind.valueOf(row.getString(0)), positive(row.getString(1))) to row.getString(2).also { require(uuid.matches(it)) { "INVALID_PLAN_PORTABLE_ID" } }
@@ -154,7 +160,7 @@ internal object CloudApplyPlanJson {
             orphans.sumOf { it.tagIds.size.toLong() },
             target.assignments.sumOf { it.tags.size.toLong() }
         )
-        return CloudApplyPlan(operation, context, before, head, target, maps.toMap(), streams, delete, display, orphans, affected, CloudCounter.parse(r.getString("tagRevision")))
+        return CloudApplyPlan(operation, context, before, head, target, maps.toMap(), streams, delete, display, orphans, affected, CloudCounter.parse(r.getString("tagRevision")), historical)
     }
     private fun readKey(raw: Any?): CloudKey {
         val o = raw as? JsonObject ?: error("INVALID_PLAN_KEY")

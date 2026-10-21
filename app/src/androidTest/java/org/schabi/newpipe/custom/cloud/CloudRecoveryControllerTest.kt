@@ -135,6 +135,48 @@ class CloudRecoveryControllerTest {
         assertEquals(cloud.fingerprint, f.capture().fingerprint)
     }
 
+    @Test fun preservedOldGenerationCatalogRestoresAfterFreshReconnectWithoutAdoptingOldAuthority() {
+        val original = f.capture().catalog
+        val archive = archiveCloud()
+        val oldCopy = peer.copies.single()
+        val current = f.target(f.capture())
+        f.main("INSERT INTO search_history(creation_date,service_id,search) VALUES(1234,0,'preserve cross-generation history')")
+        val history = f.mainRows("SELECT * FROM search_history")
+        val store = sync.connection
+        peer = CloudFakeRecoveryPeer(CloudFakePeer(CloudIdentityStore.Scope("recovered-b", f.scope.library)))
+        peer.catalog.external(current)
+        peer.copies.add(oldCopy) // Immutable A provenance retained by operator reconstruction.
+        sync = CloudSyncController(f.context, store, { f.repo }, peer::client)
+        val next = sync.reconnect(peer.catalog.tokenB)
+        recovery = controller()
+        val high = next.highest
+        val cloud = peer.catalog.head
+        recovery.prepareRestore(archive).use { preview ->
+            assertEquals(f.scope.service, preview.manifest.source!!.head.serviceGeneration)
+            recovery.confirmRestore(preview)
+        }
+        val state = store.read()!!
+        fun captured() = CloudNativeCatalog(f.repo).capture(state.scope, state.incarnation)
+        assertEquals(CloudCatalogCodec.fingerprint(original), captured().fingerprint)
+        assertEquals("recovered-b", state.scope.service)
+        assertEquals(peer.catalog.tokenB, store.token(state))
+        assertEquals(high, state.highest)
+        assertEquals(cloud, peer.catalog.head)
+        assertFalse(state.enabled)
+        val baseline = CloudApplyStore.baseline(f.repo.store.readableDatabase)!!
+        assertTrue(baseline.historical)
+        assertNull(baseline.acknowledgedHead)
+        assertEquals(next.scope, baseline.receivingScope)
+        assertEquals(oldCopy.manifest.source!!.head, baseline.head)
+        f.reopen()
+        assertEquals(CloudCatalogCodec.fingerprint(original), captured().fingerprint)
+        assertEquals(history, f.mainRows("SELECT * FROM search_history"))
+        assertFalse(store.read()!!.enabled)
+        sync.confirm(sync.prepare(true))
+        assertEquals(cloud.fingerprint, captured().fingerprint)
+        assertEquals(cloud, CloudApplyStore.baseline(f.repo.store.readableDatabase)!!.acknowledgedHead)
+    }
+
     @Test fun changedLocalContentsInvalidateArchiveRestoreBeforeSafetyBackupOrApply() {
         val archive = archiveCloud()
         recovery.prepareRestore(archive).use {

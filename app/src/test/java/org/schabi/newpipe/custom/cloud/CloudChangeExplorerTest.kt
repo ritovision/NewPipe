@@ -57,4 +57,24 @@ class CloudChangeExplorerTest {
         val automatic = groups(after, CloudCatalog(playlists = listOf(playlist.copy(artwork = null))))
         assertTrue(automatic.single().items.single { it.kind == "Artwork" }.detail.endsWith("Automatic"))
     }
+
+    @Test fun unavailableOnlyReorderingIsVisibleAndSearchableByExactServiceIdentity() {
+        val before = CloudCatalog(library = listOf(key, otherKey), unavailable = listOf(key, otherKey))
+        val after = before.copy(unavailable = listOf(otherKey, key))
+        assertNotEquals(CloudCatalogCodec.fingerprint(before), CloudCatalogCodec.fingerprint(after))
+        val result = groups(before, after)
+        assertEquals("unavailable-order", result.single().id)
+        assertEquals(2, result.single().items.size)
+        assertEquals(1, CloudChangeExplorer.search(result, "Service 1").single().items.size)
+        assertTrue(groups(before, before).isEmpty())
+    }
+
+    @Test fun unavailableMembershipAndReorderingBothAppear() {
+        val third = CloudKey(0, "https://example.test/third")
+        val before = CloudCatalog(library = listOf(key, otherKey, third), unavailable = listOf(key, otherKey))
+        val after = before.copy(unavailable = listOf(otherKey, third))
+        val result = groups(before, after)
+        assertEquals(setOf("unavailable", "unavailable-order"), result.map { it.id }.toSet())
+        assertTrue(CloudChangeExplorer.search(result, "third").isNotEmpty())
+    }
 }

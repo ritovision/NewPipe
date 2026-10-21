@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+import { BudgetError } from "./budget.ts";
 import type { AdmissionContext } from "./admission.ts";
 import { inspectOperation } from "./admission.ts";
 import { counter, sameHead } from "./protocol.ts";
@@ -138,22 +139,32 @@ export class ReplacementService {
       if (current.state !== "DONE") fail("REPLACEMENT_IDENTITY_CHANGED");
       return { ...result, attempt: this.view(current) };
     }
-    if (a.state === "ACTIVE") {
-      const op = await this.recovery.abandon({ approvalId: a.attempt_id, sequence: a.recovery_sequence });
-      if (r.keepForRetry && op.state !== "DONE") fail("REPLACEMENT_RECOVERY_NOT_READY");
+    try {
+      if (a.state === "ACTIVE") {
+        const op = await this.recovery.abandon({ approvalId: a.attempt_id, sequence: a.recovery_sequence });
+        if (r.keepForRetry && op.state !== "DONE") fail("REPLACEMENT_RECOVERY_NOT_READY");
+      }
+      const c = this.context, target = r.keepForRetry ? "STALE" : "CANCELED";
+      const slotCheck = r.keepForRetry ? " AND EXISTS(SELECT 1 FROM cloud_backup_slots s WHERE s.library_id=d.library_id AND s.archive_id=? AND s.state='READY')" : "";
+      const guard = this.db.prepare("INSERT INTO cloud_commit_assertion(slot,ok) VALUES(1,(SELECT COUNT(*) FROM cloud_devices d JOIN cloud_backup_control b ON b.library_id=d.library_id WHERE " +
+        AUTH + " AND b.service_generation=? AND b.revision<9223372036854775807" +
+        " AND EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=d.library_id AND device_id=d.device_id AND attempt_id=? AND state IN('ACTIVE','STALE'))" +
+        " AND EXISTS(SELECT 1 FROM cloud_receipts WHERE library_id=d.library_id AND device_id=d.device_id AND sequence=CAST(? AS INTEGER) AND digest=? AND outcome='RETIRED')" + slotCheck + "))")
+        .bind(...args(c), c.serviceGeneration, a.attempt_id, header.sequence, header.digest, ...(r.keepForRetry ? [a.archive_id] : []));
+      await this.db.batch([guard,
+        this.db.prepare("UPDATE cloud_replace_attempts SET state=? WHERE library_id=? AND device_id=? AND attempt_id=?")
+          .bind(target, c.library, c.device, a.attempt_id),
+        this.db.prepare("UPDATE cloud_backup_control SET revision=revision+1 WHERE library_id=?").bind(c.library),
+        this.db.prepare("DELETE FROM cloud_commit_assertion WHERE slot=1")]);
+      return { ...result, attempt: this.view((await this.own())!) };
+    } catch (error) {
+      // Retirement/ABORTING are durable, idempotent progress. A refused SQL
+      // dispatch is NOT an unknown write. Continue the SAME identity in a fresh
+      // bounded request; never release a genuinely uncertain storage effect.
+      if (error instanceof BudgetError && error.code === "REQUEST_STATEMENT_BUDGET_EXCEEDED") {
+        return { ...result, attempt: this.view(a), cleanupPending: true };
+      }
+      throw error;
     }
-    const c = this.context, target = r.keepForRetry ? "STALE" : "CANCELED";
-    const slotCheck = r.keepForRetry ? " AND EXISTS(SELECT 1 FROM cloud_backup_slots s WHERE s.library_id=d.library_id AND s.archive_id=? AND s.state='READY')" : "";
-    const guard = this.db.prepare("INSERT INTO cloud_commit_assertion(slot,ok) VALUES(1,(SELECT COUNT(*) FROM cloud_devices d JOIN cloud_backup_control b ON b.library_id=d.library_id WHERE " +
-      AUTH + " AND b.service_generation=? AND b.revision<9223372036854775807" +
-      " AND EXISTS(SELECT 1 FROM cloud_replace_attempts WHERE library_id=d.library_id AND device_id=d.device_id AND attempt_id=? AND state IN('ACTIVE','STALE'))" +
-      " AND EXISTS(SELECT 1 FROM cloud_receipts WHERE library_id=d.library_id AND device_id=d.device_id AND sequence=CAST(? AS INTEGER) AND digest=? AND outcome='RETIRED')" + slotCheck + "))")
-      .bind(...args(c), c.serviceGeneration, a.attempt_id, header.sequence, header.digest, ...(r.keepForRetry ? [a.archive_id] : []));
-    await this.db.batch([guard,
-      this.db.prepare("UPDATE cloud_replace_attempts SET state=? WHERE library_id=? AND device_id=? AND attempt_id=?")
-        .bind(target, c.library, c.device, a.attempt_id),
-      this.db.prepare("UPDATE cloud_backup_control SET revision=revision+1 WHERE library_id=?").bind(c.library),
-      this.db.prepare("DELETE FROM cloud_commit_assertion WHERE slot=1")]);
-    return { ...result, attempt: this.view((await this.own())!) };
   }
 }

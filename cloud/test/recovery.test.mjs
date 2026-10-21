@@ -88,7 +88,7 @@ before(async()=>{
  await controlDb.batch(fenceSchema.map(s=>controlDb.prepare(s)));
  await controlDb.prepare("INSERT INTO cloud_fence(resource_id,database_id,bucket_name,library_id,service_generation,provenance,state,created_at) VALUES('test-resource','test-db','test-bucket','library-a','service-a','fresh-resources-v1','OPEN',0)").run();
 
- for(const file of ['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql']){
+ for(const file of ['0001_catalog_service.sql','0002_recovery.sql','0003_replacement.sql','0004_operator_receipts.sql','0005_reopen_receipts.sql','0006_housekeeping.sql']){
   const statements=(await readFile(new URL('../migrations/'+file,import.meta.url),'utf8')).replace(/^--.*$/gm,'').split(';').map(s=>s.trim()).filter(Boolean);await sql(...statements);
  }
 });
@@ -499,3 +499,37 @@ test('replacement Android review: retiring an unadmitted intent fences a delayed
  assert.equal(ok(await replace('abandon',request)).receipt.outcome,'RETIRED');await control({release:true});failure(await late);
  assert.equal((await state()).occupiedSlots,0);assert.equal(ok(await replace('status')).attempt,null);assert.equal((await control({})).calls.create??0,0);
 });
+
+for (const phase of ['RESERVED','UPLOADING','READY','ROTATING']) {
+ test('Astra 005: bounded replacement cancellation progresses truthfully from '+phase,async()=>{
+  await enableReplacement();
+  if(phase==='ROTATING')for(let i=0;i<3;i++)await backup(zip(30+i));
+  const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
+  if(phase==='UPLOADING')assert.equal(ok(await recovery('advance',ref(p.operation))).state,'UPLOADING');
+  if(phase==='READY')await finish(p.operation);
+  const protectedArchives=(await state()).archives.filter(a=>a.state==='READY'&&a.archiveId!==p.operation.archiveId);
+  let response,passes=0;
+  do{
+   await control({resetStatements:true});
+   response=ok(await replace('abandon',{approvalId:p.preview.approvalId,recoverySequence:p.attempt.recoverySequence}));
+   const count=(await control({})).statements;
+   assert.ok(count+5<=32,JSON.stringify({phase,count}));
+   if(response.cleanupPending){assert.equal(response.receipt.outcome,'RETIRED');assert.ok(++passes<4);}
+  }while(response.cleanupPending);
+  assert.equal(response.attempt.state,'CANCELED');
+  const again=ok(await replace('abandon',{approvalId:p.preview.approvalId,recoverySequence:p.attempt.recoverySequence}));
+  assert.equal(again.attempt.state,'CANCELED');
+  assert.deepEqual(ok(await call('/v1/head')).head,source.source.head);
+  const after=(await state()).archives;
+  // Rotation is explicitly approved to evict only the oldest; every other copy survives.
+  for(const a of protectedArchives.filter(a=>phase!=='ROTATING'||a.archiveId!==p.preview.evictArchiveId)) {
+   assert.ok(after.some(b=>b.archiveId===a.archiveId&&b.digest===a.digest));
+  }
+  if(phase==='ROTATING')assert.equal(after.length,2);
+  if(phase==='READY')assert.ok(after.some(a=>a.archiveId===p.operation.archiveId&&a.usable));
+  const controlDb=await mf.getD1Database('CONTROL');
+  assert.equal((await controlDb.prepare('SELECT COUNT(*) n FROM cloud_fence_tickets').first()).n,0);
+  const budget=await controlDb.prepare('SELECT state,held_reads,held_writes FROM cloud_budget').first();
+  assert.deepEqual(budget,{state:'ACTIVE',held_reads:0,held_writes:0});
+ });
+}

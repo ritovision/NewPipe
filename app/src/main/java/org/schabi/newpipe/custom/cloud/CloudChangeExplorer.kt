@@ -29,10 +29,11 @@ internal object CloudChangeExplorer {
             a.forEachIndexed { index, key -> positions.getOrPut(key) { ArrayDeque() }.add(index + 1) }
             return b.mapIndexedNotNull { index, key ->
                 val old = positions[key]?.removeFirstOrNull()
-                if (old == null || old == index + 1) null else Item("Moved", title(key), "Position $old → ${index + 1} · ${key.url}")
+                if (old == null || old == index + 1) null else Item("Moved", title(key), "Position $old → ${index + 1} · Service ${key.service} · ${key.url}")
             }
         }
         if (d.librarySequenceChanged) order(before.library, after.library).takeIf { it.isNotEmpty() }?.let { groups.add(Group("library-order", "Library ordering", it)) }
+        if (d.unavailableSequenceChanged) order(before.unavailable, after.unavailable).takeIf { it.isNotEmpty() }?.let { groups.add(Group("unavailable-order", "Unavailable ordering", it)) }
         d.playlists.forEach { p ->
             val was = p.before
             val now = p.after

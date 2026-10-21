@@ -23,14 +23,15 @@ internal object CloudApplyCompiler {
         head: CloudHead,
         targetInput: CloudCatalog,
         mediaHints: Collection<CloudMediaHint>,
-        reconcileOrphans: Boolean = false
+        reconcileOrphans: Boolean = false,
+        historicalRestore: Boolean = false
     ): CloudApplyPlan {
         val main = repository.library.openHelper.writableDatabase
         val side = repository.store.writableDatabase
         check(TagRuntime.lock.isHeldByCurrentThread && main.inTransaction() && !side.inTransaction()) { "CLOUD_COMPILER_TRANSACTION_REQUIRED" }
         val target = CloudCatalogCodec.snapshot(targetInput)
         check(
-            head.serviceGeneration == before.identities.scope.service && head.library == before.identities.scope.library &&
+            (historicalRestore || head.serviceGeneration == before.identities.scope.service) && head.library == before.identities.scope.library &&
                 CloudCatalogCodec.fingerprint(target) == head.fingerprint
         ) { "CLOUD_TARGET_MISMATCH" }
         val targetKeys = target.library.toHashSet()
@@ -87,7 +88,7 @@ internal object CloudApplyCompiler {
         check(affected.size <= CloudCatalogCodec.MAX_MEMBERSHIPS + CloudCatalogCodec.MAX_STREAMS * 2) { "CLOUD_AFFECTED_KEYS_LIMIT" }
         return CloudApplyPlan(
             UUID.randomUUID().toString(), before.identities, before.fingerprint, head, target,
-            mapping, streams, deleted, slots, preserved, affected, before.tagRevision
+            mapping, streams, deleted, slots, preserved, affected, before.tagRevision, historicalRestore
         )
     }
 

@@ -11,6 +11,7 @@ import java.util.UUID
 internal class CloudFakeReplacementPeer(val recovery: CloudFakeRecoveryPeer) {
     val catalog get() = recovery.catalog
     var allowed = true
+    var cleanupPauses = 0
     var fault: String? = null
     var before: ((String) -> Unit)? = null
     var attempt: JsonObject? = null
@@ -107,6 +108,10 @@ internal class CloudFakeReplacementPeer(val recovery: CloudFakeRecoveryPeer) {
                 val a = checkNotNull(attempt)
                 check(a.getString("attemptId") == body[if (path == "abandon") "approvalId" else "attemptId"])
                 val r = inner.post("/v1/uploads/retire", reference(a))
+                if (body["keepForRetry"] != true && cleanupPauses > 0) {
+                    cleanupPauses--
+                    return json(mapOf("receipt" to r["receipt"], "attempt" to a, "cleanupPending" to true))
+                }
                 if (r.getObject("receipt").getString("outcome") == "COMMITTED") {
                     a["state"] = "DONE"
                 } else if (body["keepForRetry"] == true) {

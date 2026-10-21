@@ -91,6 +91,34 @@ class CloudReplacementControllerTest {
         assertFalse(c.hasPending())
     }
 
+    @Test fun cancellationContinuesBoundedCleanupWithoutDroppingThePendingIdentity() {
+        val c = controller()
+        val p = c.prepare()
+        peer.fault = "reserve.after"
+        assertThrows(CloudRemoteException::class.java) { c.confirm(p) }
+        peer.cleanupPauses = 1
+        c.cancel()
+        assertFalse(c.hasPending())
+        assertEquals("CANCELED", peer.attempt!!.getString("state"))
+        assertEquals(0, peer.cleanupPauses)
+    }
+
+    @Test fun repeatedCleanupProgressRemainsBoundedAndRetainsPendingFilesForAnotherAttempt() {
+        val c = controller()
+        val p = c.prepare()
+        peer.fault = "reserve.after"
+        assertThrows(CloudRemoteException::class.java) { c.confirm(p) }
+        val marker = File(root(), "pending.json").readBytes()
+        peer.cleanupPauses = 5
+        assertEquals("REPLACEMENT_CLEANUP_PENDING", assertThrows(CloudRemoteException::class.java) { c.cancel() }.code)
+        assertTrue(c.hasPending())
+        assertTrue(marker.contentEquals(File(root(), "pending.json").readBytes()))
+        assertEquals(1, peer.cleanupPauses)
+        c.cancel()
+        assertFalse(c.hasPending())
+        assertEquals("CANCELED", peer.attempt!!.getString("state"))
+    }
+
     @Test fun unconfirmedReservationAfterRecreationRequiresResolutionAndFreshPreview() {
         val c = controller()
         val p = c.prepare()

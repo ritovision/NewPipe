@@ -78,15 +78,15 @@ internal class CloudNativeApply(
                     if (baseline != null) {
                         check(baseline.incarnation == before.identities.incarnation) { "CLOUD_BASELINE_IDENTITY_CHANGED" }
                         val previous = baseline.head
-                        check(previous.serviceGeneration == head.serviceGeneration && previous.library == head.library) { "CLOUD_BASELINE_SCOPE_CHANGED" }
+                        check(baseline.receivingScope == before.identities.scope && head.library == before.identities.scope.library) { "CLOUD_BASELINE_SCOPE_CHANGED" }
                         check(
-                            historicalRestore ||
+                            historicalRestore || baseline.historical ||
                                 CloudCounter.parse(head.headCounter) >= CloudCounter.parse(previous.headCounter) &&
                                 (head.headCounter != previous.headCounter || head == previous) &&
                                 (head.epoch != previous.epoch || CloudCounter.parse(head.revision) >= CloudCounter.parse(previous.revision))
                         ) { "CLOUD_REMOTE_ROLLBACK_SUSPECTED" }
                     }
-                    val compiled = CloudApplyCompiler.compile(repository, current, head, target, hints, reconcileOrphans)
+                    val compiled = CloudApplyCompiler.compile(repository, current, head, target, hints, reconcileOrphans, historicalRestore)
                     // Round-trip the exact journal representation before anything can mutate Room.
                     val bytes = CloudApplyPlanJson.encode(compiled)
                     val immutable = CloudApplyPlanJson.decode(bytes)
@@ -302,7 +302,7 @@ internal class CloudNativeApply(
                             applied.fingerprint == p.targetHead.fingerprint && applied.nativeIds == p.mappings &&
                                 applied.orphaned == p.preservedOrphans
                         ) { "CLOUD_FINAL_PROJECTION_MISMATCH" }
-                        CloudApplyStore.accept(side, p.context.incarnation, p.operation, p.targetHead)
+                        CloudApplyStore.accept(side, p.context.incarnation, p.operation, p.targetHead, p.context.scope.takeIf { p.historicalRestore })
                         beforeTagCommit()
                         applied
                     }

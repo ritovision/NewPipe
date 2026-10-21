@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+import { BudgetError } from "./budget.ts";
 import type { AdmissionContext } from "./admission.ts";
 import { counter, sameHead } from "./protocol.ts";
 import { CatalogService } from "./service.ts";
@@ -24,7 +25,7 @@ const args = (c: AdmissionContext) => [c.library, c.device, c.tokenHash, c.authG
 const active = "state NOT IN('DONE','CANCELED')";
 const manifest = (s: { manifest: string }) => readRecoveryManifest(JSON.parse(s.manifest));
 const asError = (e: unknown): never => {
-  if (e instanceof RecoveryError) throw e;
+  if (e instanceof RecoveryError || e instanceof BudgetError) throw e;
   if (String(e).toLowerCase().includes("constraint failed")) fail("RECOVERY_STATE_CHANGED");
   return fail("RECOVERY_OUTCOME_UNKNOWN", 503);
 };

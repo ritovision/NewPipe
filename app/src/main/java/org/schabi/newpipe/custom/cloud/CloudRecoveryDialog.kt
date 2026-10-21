@@ -72,6 +72,7 @@ class CloudRecoveryDialog : DialogFragment() {
             hint = "Search all catalog changes"
             setSingleLine()
             isSaveEnabled = false
+            setText(model.query)
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
                 override fun afterTextChanged(s: Editable?) = Unit
@@ -89,7 +90,10 @@ class CloudRecoveryDialog : DialogFragment() {
             }
         }
         val list = CloudChangePreviewDialog.scrollingContent(content, adapter, "Recovery archives and exact catalog changes")
-        model.details.observe(this) { adapter.update(it) }
+        model.details.observe(this) {
+            if (search.text.toString() != model.query) search.setText(model.query)
+            adapter.update(it)
+        }
         model.state.observe(this) { s ->
             summary.text = s.message
             actions.visibility = if (s.preview == null) View.VISIBLE else View.GONE

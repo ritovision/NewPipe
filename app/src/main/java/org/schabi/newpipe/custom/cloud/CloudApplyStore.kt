@@ -38,26 +38,55 @@ internal object CloudApplyStore {
                 "operation_id TEXT NOT NULL,head_json TEXT NOT NULL,accepted_at INTEGER NOT NULL)"
         )
     }
-    data class Baseline(val incarnation: String, val operation: String, val head: CloudHead)
+
+    /** Historical source heads are provenance, never acknowledgements of the receiving service. */
+    data class Baseline(
+        val incarnation: String,
+        val operation: String,
+        val head: CloudHead,
+        val receivingScope: CloudIdentityStore.Scope = CloudIdentityStore.Scope(head.serviceGeneration, head.library),
+        val historical: Boolean = false
+    ) {
+        val acknowledgedHead: CloudHead? get() = if (historical) null else head
+    }
     fun baseline(db: SQLiteDatabase): Baseline? = db.rawQuery(
         "SELECT incarnation,operation_id,head_json FROM cloud_sync_baseline WHERE slot=1",
         null
     ).use { c ->
-        if (!c.moveToFirst()) {
-            null
+        if (!c.moveToFirst()) return@use null
+        val record = com.grack.nanojson.JsonParser.`object`().from(c.getString(2))
+        if (!record.containsKey("version")) {
+            Baseline(c.getString(0), c.getString(1), CloudApplyPlanJson.readHead(record))
         } else {
-            Baseline(
-                c.getString(0),
-                c.getString(1),
-                CloudApplyPlanJson.readHead(com.grack.nanojson.JsonParser.`object`().from(c.getString(2)))
-            )
+            check(
+                record.getInt("version") == 2 && record.getString("mode") == "historical-local" &&
+                    record.keys == setOf("version", "mode", "sourceHead", "service", "library")
+            ) { "INVALID_HISTORICAL_BASELINE" }
+            val head = CloudApplyPlanJson.readHead(record.getObject("sourceHead"))
+            val receiving = CloudIdentityStore.Scope(record.getString("service"), record.getString("library"))
+            check(receiving.library == head.library) { "INVALID_HISTORICAL_BASELINE" }
+            Baseline(c.getString(0), c.getString(1), head, receiving, true)
         }
     }
-    fun accept(db: SQLiteDatabase, incarnation: String, operation: String, head: CloudHead) {
+    fun accept(db: SQLiteDatabase, incarnation: String, operation: String, head: CloudHead, historicalScope: CloudIdentityStore.Scope? = null) {
         check(TagRuntime.lock.isHeldByCurrentThread && db.inTransaction()) { "CLOUD_BASELINE_REQUIRES_TRANSACTION" }
+        check(historicalScope == null || historicalScope.library == head.library) { "INVALID_HISTORICAL_BASELINE" }
+        val record = if (historicalScope == null) {
+            CloudApplyPlanJson.headJson(head)
+        } else {
+            CloudWireJson.encode(
+                linkedMapOf(
+                    "version" to 2,
+                    "mode" to "historical-local",
+                    "sourceHead" to CloudApplyPlanJson.head(head),
+                    "service" to historicalScope.service,
+                    "library" to historicalScope.library
+                )
+            )
+        }
         db.execSQL(
             "INSERT OR REPLACE INTO cloud_sync_baseline VALUES(1,?,?,?,?)",
-            arrayOf<Any>(incarnation, operation, CloudApplyPlanJson.headJson(head), System.currentTimeMillis())
+            arrayOf<Any>(incarnation, operation, record, System.currentTimeMillis())
         )
     }
     fun pending(db: SQLiteDatabase): Pending? = db.rawQuery(
