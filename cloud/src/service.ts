@@ -122,9 +122,15 @@ function deviceStateRow(row: DeviceStateRow): DeviceState {
   replacement: row.attempt_id === null ? null : { attemptId: row.attempt_id, state: row.attempt_state } };
 }
 const args = (c: AdmissionContext): string[] => [c.library, c.device, c.tokenHash, c.authGeneration, c.serviceGeneration];
-const UPLOAD_SELECT = `SELECT CAST(u.sequence AS TEXT) AS sequence,u.digest,u.header,u.status,u.expires_at,u.expected_chunks,
- u.expected_changes,u.expected_bytes,u.received_chunks,u.received_changes,u.received_bytes,u.verified_pages,u.verified_bytes,u.verified_manifest
+const UPLOAD_COLUMNS = `CAST(u.sequence AS TEXT) AS sequence,u.digest,u.header,u.status,u.expires_at,u.expected_chunks,
+ u.expected_changes,u.expected_bytes,u.received_chunks,u.received_changes,u.received_bytes,u.verified_pages,u.verified_bytes,u.verified_manifest`;
+const UPLOAD_SELECT = `SELECT ${UPLOAD_COLUMNS}
  FROM cloud_uploads u JOIN cloud_devices d ON d.library_id=u.library_id AND d.device_id=u.device_id WHERE ${AUTH}`;
+// One authenticated snapshot, including the catalog head/info existence check,
+// distinguishes a missing/revoked library (401) from no matching staged upload
+// (404). The outer join never admits another device's upload.
+const AUTHORIZED_UPLOAD_SELECT = `SELECT ${STATUS_COLUMNS},${UPLOAD_COLUMNS}${STATUS_FROM}
+ LEFT JOIN cloud_uploads u ON u.library_id=d.library_id AND u.device_id=d.device_id WHERE ${AUTH}`;
 
 /** Real typed catalog service. SQL statements are compiled here; no remote API accepts SQL/auth contexts. */
 export class CatalogService {
@@ -148,9 +154,10 @@ export class CatalogService {
     return this.db.prepare(UPLOAD_SELECT).bind(...args(this.context)).first<Upload>();
   }
   private async requireUpload(sequence: string, digest?: string): Promise<Upload> {
-    await this.status();
-    const u = await this.getUpload();
-    if (!u || u.sequence !== sequence) fail("UPLOAD_NOT_FOUND", 404);
+    const u = await this.db.prepare(AUTHORIZED_UPLOAD_SELECT).bind(...args(this.context)).first<Upload & CatalogRow>();
+    if (!u) fail("AUTH_OR_LIBRARY_UNAVAILABLE", 401);
+    this.statusRow(u); // Preserve the original checkedHead/catalog status validation.
+    if (u.sequence === null || u.sequence !== sequence) fail("UPLOAD_NOT_FOUND", 404);
     if (digest !== undefined && u.digest !== digest) fail("REPLAY_MISMATCH"); return u;
   }
   private async writeBatch(condition: string, values: unknown[], mutations: D1PreparedStatement[]): Promise<void> {

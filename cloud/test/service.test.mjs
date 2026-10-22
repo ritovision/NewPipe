@@ -107,6 +107,32 @@ test('new catalog publication uses one receipt preflight without weakening repla
  assert.equal(repeat.status,200);assert.deepEqual(repeat.data,committed.data);
  assert.equal(await rows('cloud_receipts'),1);
 });
+test('catalog staged chunk uses a single authenticated upload snapshot without losing 401/404',async()=>{
+ const before=await status();
+ const desired=catalog('base'),pages=await encodePages(desired);
+ const u=await makeUpload('initialize','1',before.head,await fingerprint(desired),changedPages([],pages));
+ assert.equal((await call('/v1/uploads/start',u.header)).status,200);
+ await controls({resetStats:true});
+ const chunk=await call('/v1/uploads/chunk',{sequence:'1',index:0,changes:u.chunks[0]});
+ assert.equal(chunk.status,200,JSON.stringify(chunk.data));
+ assert.equal(chunk.data.nextChunk,1);
+ const measured=await controls({});
+ assert.equal(measured.batches,1,'One guarded transactional batch');
+ assert.equal(measured.statements-measured.maxBatch,3,'Token auth plus one upload-state read before and after write');
+ const notStaged=await call('/v1/uploads/chunk',{sequence:'2',index:1,changes:u.chunks[0]});
+ assert.equal(notStaged.status,404);assert.equal(notStaged.data.error,'UPLOAD_NOT_FOUND');
+});
+test('combined upload snapshot still rejects an invalid catalog head before a staged write',async()=>{
+ const current=await status(),target=catalog('base'),pages=await encodePages(target);
+ const op=await makeUpload('initialize','1',current.head,await fingerprint(target),changedPages([],pages));
+ assert.equal((await call('/v1/uploads/start',op.header)).status,200);
+ const before=await rows('cloud_upload_changes');
+ await sql("UPDATE cloud_head SET fingerprint='bad' WHERE library_id='library-a'");
+ const refusal=await call('/v1/uploads/chunk',{sequence:'1',index:0,changes:op.chunks[0]});
+ assert.equal(refusal.status,503,'Invalid head must fail before any staged write');
+ assert.deepEqual(await rows('cloud_upload_changes'),before);
+ assert.equal((await sql('SELECT received_chunks FROM cloud_uploads'))[0].results[0].received_chunks,0);
+});
 test('partial uploaded pages never appear in the live catalog',async()=>{
  const u=await stage(catalog('base'),{seal:false});assert.equal((await status()).initialized,false);assert.equal(await rows('cloud_catalog_pages'),0);
  assert.ok(await rows('cloud_upload_changes')>0);failure(await call('/v1/uploads/publish',u.ref),'UPLOAD_NOT_SEALED_OR_EXPIRED');

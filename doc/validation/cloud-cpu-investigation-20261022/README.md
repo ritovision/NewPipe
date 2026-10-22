@@ -56,3 +56,13 @@ The Miniflare/workerd inspector trials exercised 48 synthetic invocations per re
 4. Reuse prior accepted 8/8 sync, 20/20 recovery and 213/213 Pixel 7 native tests; no new broad independent code-review loop unless a substantive new release risk is introduced.
 
 **Current status: targeted source changes are locally verified, but Cloudflare deployed CPU and final release acceptance are not signed off.**
+
+## Follow-up: authenticated upload-state read consolidation
+
+**Checkpoint after the initial CPU corrections:** `cloud/src/service.ts` uses one AUTH-preserving, primary-D1 snapshot for `requireUpload` rather than calling `status()` and then querying the upload separately. The SQL still joins `cloud_head` and `cloud_catalog_info` and LEFT JOINs *only the authenticated device's upload*. It calls the original `checkedHead`-based `statusRow` before checking sequence/digest, preserving rejection of malformed catalog status. The write batch still independently guards writable authority, expected heads, staged sequence and digest, and the exact operation receipt.
+
+- An isolated synthetic chunk test proves a single transaction and exactly **three nonbatch DATA statements**: token authorization plus the staged upload read before/after the write. Wrong staged sequence still yields `UPLOAD_NOT_FOUND` and HTTP 404, and existing auth/replay probes remain intact.
+- A second test mutates only a **disposable local Miniflare fixture** to simulate corrupt cloud-head fingerprint. The optimized code must return HTTP 503 **before** inserting changes or changing the upload's received chunk count. This specifically verifies that the earlier two-statement path's catalog integrity check was not dropped.
+- The **final local backend suite passed 377/377** (0 failed, 0 skipped or cancelled); TypeScript passed. See [`final-stage-full-backend.log`](final-stage-full-backend.log), [`final-stage-typecheck.log`](final-stage-typecheck.log), and [`stage-followup-head-integrity-targeted.log`](stage-followup-head-integrity-targeted.log). The full suite includes real synthetic transaction contention, replay and unknown-result checks; it is **not** a new deployed Cloudflare p95 benchmark.
+
+No production Worker was deployed, no existing QA R2 objects were rotated, and the original **20.263 ms deployed CPU p95 failure still governs**. To advance the gate, use a fresh authorized synthetic profiling environment with separate route windows, not the archived, disabled service pair.

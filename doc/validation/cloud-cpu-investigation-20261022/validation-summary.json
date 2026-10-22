@@ -4,16 +4,16 @@
   "change": "Remove one redundant UTF-8 encoding of each canonical catalog token while preserving byte-length accounting and canonical wire bytes",
   "changedProductionFile": "cloud/src/catalog.ts",
   "changedTestFile": "cloud/test/catalog.test.mjs",
-  "typecheck": "PASS after all CPU source optimizations",
+  "typecheck": "PASS after combined single-snapshot upload-state correction",
   "fullBackendSuite": {
-    "tests": 375,
-    "passed": 375,
+    "tests": 377,
+    "passed": 377,
     "failed": 0,
     "skipped": 0,
     "cancelled": 0,
-    "logSHA256": "af91caef3440ea3b8ec73bbc30d1a565e7b60ca0eddd0275bde221de6582fcc0",
+    "logSHA256": "d7ea59c259037a072f1da15f137ae4d782c2d4c1dd591f44fb8d75ed4711f75e",
     "localNodeOnly": true,
-    "noDeployedCpuAcceptanceClaim": true
+    "deployedCpuP95Pass": false
   },
   "pureNodeCanonicalBenchmark": {
     "goldenAndSynthCatalogCases": 13,
@@ -60,7 +60,13 @@
       "canonical Unicode UTF-8 length",
       "connect/head exact grant/capability/2-DATA-statement",
       "publish replay and no redundant DATA preflight"
-    ]
+    ],
+    "stagedUploadSnapshot": "One AUTH-preserving SELECT joins head, catalog metadata and only this device upload. checkedHead validation retained; failure before staged SQL mutation."
   },
-  "deployedP95Pass": false
+  "deployedP95Pass": false,
+  "followup": "2026-10-22 exact authenticated staged-upload snapshot, legacy 401/404/409 handling and checkedHead integrity retained",
+  "newFocusedTests": [
+    "catalog staged chunk snapshot uses 3 nonbatch DATA statements total",
+    "bad catalog fingerprint triggers HTTP 503 before any staged mutation"
+  ]
 }

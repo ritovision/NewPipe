@@ -1,0 +1,12 @@
+(node:120697) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ catalog staged chunk uses a single authenticated upload snapshot without losing 401/404 (993.246412ms)
+✔ combined upload snapshot still rejects an invalid catalog head before a staged write (241.167801ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1831.476376
