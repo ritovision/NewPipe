@@ -1,0 +1,57 @@
+// Explicitly enabled limited production profile; 64 KiB/8-page catalog, 1 MiB recovery.
+// Scalability is unproven: see ../doc/architecture/cloud-production-scale-risk-20261022.md.
+{
+  "account_id": "b35814b119cba4448e3e0ac59442cc25",
+  "compatibility_date": "2026-10-19",
+  "workers_dev": true,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "newpipe-prod-v1",
+      "database_id": "4ab5e6b2-0496-4833-ae0e-31834f385b8c",
+      "migrations_dir": "migrations"
+    },
+    {
+      "binding": "CONTROL",
+      "database_name": "newpipe-prod-v1-ctl",
+      "database_id": "9824bf18-e614-491e-b408-335f958bdf22",
+      "migrations_dir": "control-migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RECOVERY",
+      "bucket_name": "newpipe-prod-v1"
+    }
+  ],
+  "observability": {
+    "enabled": false
+  },
+  "name": "newpipe-prod-v1",
+  "main": "src/index.ts",
+  "minify": true,
+  "vars": {
+    "PUBLIC_ORIGIN": "https://newpipe-prod-v1.ritorhymes.workers.dev",
+    "LIBRARY_ID": "newpipe-prod-library-821d08da-9738-4d3e-aaa4-99285148e63e",
+    "SERVICE_GENERATION": "d9d34eb2-09ed-411a-9700-a320fe237f9b",
+    "FENCE_RESOURCE": "902ad132-225c-42a8-a725-6122bb1f4dcc",
+    "ENABLE_CATALOG_API": "true",
+    "ENABLE_HOUSEKEEPING": "false",
+    "ENABLE_RECOVERY_API": "true",
+    "ENABLE_REPLACEMENT_API": "true",
+    "MAX_RECOVERY_BYTES": "1048576",
+    "MAX_CATALOG_BYTES": "65536",
+    "MAX_CATALOG_PAGES": "8"
+  },
+  "ratelimits": [
+    {
+      "name": "REQUEST_LIMITER",
+      "namespace_id": "2026102002",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
+  ]
+}

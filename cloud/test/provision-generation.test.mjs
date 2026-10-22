@@ -63,3 +63,26 @@ test('fresh provisioner uses the identical service generation for scope, operato
   assert.equal(app.vars.ENABLE_REPLACEMENT_API,'false');
  }finally{await rm(sandbox,{recursive:true,force:true});}
 });
+
+test('fresh production provisioning uses a dedicated library identity, disabled public APIs and an unchanged external generation',async()=>{
+ const sandbox=await mkdtemp(join(tmpdir(),'newpipe-prod-provision-identity-'));
+ try{
+  const shim=join(sandbox,'mock.cjs'),ledger=join(sandbox,'mock-log.json'),output=join(sandbox,'private','provision.json');
+  await mkdir(join(sandbox,'private'));await writeFile(shim,mock);
+  const cwd=resolve(import.meta.dirname,'..');
+  const result=spawnSync(process.execPath,['--require',shim,resolve(cwd,'operator/provision.mjs'),
+   '--account','a'.repeat(32),'--prefix','newpipe-prod-v1','--environment','production','--out',output],{
+   cwd,env:{...process.env,NEWPIPE_CLOUDFLARE_API_TOKEN:'fake-local-test-token',PROVISION_FAKE_LOG:ledger},encoding:'utf8',timeout:20000});
+  assert.equal(result.status,0,`Production fake-only CLI should succeed: ${result.stderr.slice(-900)}`);
+  const read=async(name)=>JSON.parse(await readFile(join(sandbox,'private',name),'utf8'));
+  const record=await read('provision.json'),scope=await read('scope.json'),app=await read('application.jsonc'),operator=await read('operator.jsonc');
+  assert.match(scope.library,/^newpipe-prod-library-[0-9a-f-]{36}$/);
+  assert.equal(scope.worker,'newpipe-prod-v1');
+  assert.equal(record.activeGeneration,scope.generation);
+  assert.equal(app.vars.SERVICE_GENERATION,scope.generation);
+  assert.equal(JSON.parse(operator.vars.SCOPE).generation,scope.generation);
+  assert.deepEqual(JSON.parse(await readFile(ledger,'utf8')),[{kind:'fence',generation:scope.generation}]);
+  assert.notEqual(scope.database,scope.fence.control);
+  for(const k of ['ENABLE_CATALOG_API','ENABLE_RECOVERY_API','ENABLE_REPLACEMENT_API','ENABLE_HOUSEKEEPING'])assert.equal(app.vars[k],'false');
+ }finally{await rm(sandbox,{recursive:true,force:true});}
+});

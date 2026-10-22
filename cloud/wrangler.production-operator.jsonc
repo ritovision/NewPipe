@@ -1,0 +1,43 @@
+// Explicit production maintenance/recovery operator. OPERATOR_TOKEN is a Cloudflare secret; not stored here.
+{
+  "account_id": "b35814b119cba4448e3e0ac59442cc25",
+  "compatibility_date": "2026-10-19",
+  "workers_dev": true,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "newpipe-prod-v1",
+      "database_id": "4ab5e6b2-0496-4833-ae0e-31834f385b8c",
+      "migrations_dir": "migrations"
+    },
+    {
+      "binding": "CONTROL",
+      "database_name": "newpipe-prod-v1-ctl",
+      "database_id": "9824bf18-e614-491e-b408-335f958bdf22",
+      "migrations_dir": "control-migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RECOVERY",
+      "bucket_name": "newpipe-prod-v1"
+    }
+  ],
+  "observability": {
+    "enabled": false
+  },
+  "name": "newpipe-prod-v1-op",
+  "main": "operator/worker.mjs",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "alias": {
+    "@aws-sdk/xml-builder": "./node_modules/@aws-sdk/xml-builder/dist-cjs/index.js"
+  },
+  "vars": {
+    "PUBLIC_ORIGIN": "https://newpipe-prod-v1-op.ritorhymes.workers.dev",
+    "FENCE_RESOURCE": "902ad132-225c-42a8-a725-6122bb1f4dcc",
+    "SCOPE": "{\"account\":\"b35814b119cba4448e3e0ac59442cc25\",\"worker\":\"newpipe-prod-v1\",\"database\":\"4ab5e6b2-0496-4833-ae0e-31834f385b8c\",\"bucket\":\"newpipe-prod-v1\",\"library\":\"newpipe-prod-library-821d08da-9738-4d3e-aaa4-99285148e63e\",\"generation\":\"d9d34eb2-09ed-411a-9700-a320fe237f9b\",\"fence\":{\"control\":\"9824bf18-e614-491e-b408-335f958bdf22\",\"resource\":\"902ad132-225c-42a8-a725-6122bb1f4dcc\",\"operator\":\"newpipe-prod-v1-op\"}}"
+  }
+}
