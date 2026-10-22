@@ -1,0 +1,895 @@
+{
+  "sourceRevision": "0681b0497a36aefcfcfe013938657bf2ca5ac535",
+  "runtime": "local Miniflare bundled minified workerd",
+  "notProductionMeasurement": true,
+  "routes": {
+    "head-before-initialize": {
+      "requests": 48,
+      "wallMsP50": 22.006297999999788,
+      "wallMsP95": 28.10195799999974,
+      "wallMsMax": 33.500230999999985,
+      "profile": {
+        "samples": 452,
+        "durationMicros": 1124157,
+        "mostCpuFunctions": [
+          {
+            "fn": "(idle)",
+            "file": "",
+            "line": 0,
+            "hitCount": 43
+          },
+          {
+            "fn": "(program)",
+            "file": "",
+            "line": 0,
+            "hitCount": 34
+          },
+          {
+            "fn": "(garbage collector)",
+            "file": "",
+            "line": 0,
+            "hitCount": 20
+          },
+          {
+            "fn": "toJson",
+            "file": "cloudflare-internal:d1-api",
+            "line": 624,
+            "hitCount": 20
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 20
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 18
+          },
+          {
+            "fn": "",
+            "file": "",
+            "line": 0,
+            "hitCount": 16
+          },
+          {
+            "fn": "Et",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 15
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 14
+          },
+          {
+            "fn": "text",
+            "file": "",
+            "line": 0,
+            "hitCount": 12
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 12
+          },
+          {
+            "fn": "zt",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 9
+          },
+          {
+            "fn": "toJson",
+            "file": "cloudflare-internal:d1-api",
+            "line": 624,
+            "hitCount": 8
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 8
+          },
+          {
+            "fn": "P",
+            "file": "script-0.mjs",
+            "line": 47,
+            "hitCount": 7
+          },
+          {
+            "fn": "Et",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 7
+          },
+          {
+            "fn": "P",
+            "file": "script-0.mjs",
+            "line": 47,
+            "hitCount": 6
+          },
+          {
+            "fn": "Response",
+            "file": "",
+            "line": 0,
+            "hitCount": 6
+          },
+          {
+            "fn": "enterSpan",
+            "file": "",
+            "line": 0,
+            "hitCount": 6
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 606,
+            "hitCount": 5
+          },
+          {
+            "fn": "setAttributes",
+            "file": "",
+            "line": 0,
+            "hitCount": 5
+          },
+          {
+            "fn": "zt",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 4
+          },
+          {
+            "fn": "f",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 4
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 4
+          },
+          {
+            "fn": "_wrappedFetch",
+            "file": "cloudflare-internal:d1-api",
+            "line": 162,
+            "hitCount": 4
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 4
+          },
+          {
+            "fn": "_wrappedFetch",
+            "file": "cloudflare-internal:d1-api",
+            "line": 162,
+            "hitCount": 4
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 117,
+            "hitCount": 4
+          },
+          {
+            "fn": "observe",
+            "file": "script-0.mjs",
+            "line": 14,
+            "hitCount": 3
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 175,
+            "hitCount": 3
+          },
+          {
+            "fn": "firstIfArray",
+            "file": "cloudflare-internal:d1-api",
+            "line": 586,
+            "hitCount": 3
+          },
+          {
+            "fn": "read",
+            "file": "",
+            "line": 0,
+            "hitCount": 3
+          },
+          {
+            "fn": "setAttributes",
+            "file": "",
+            "line": 0,
+            "hitCount": 3
+          },
+          {
+            "fn": "digest",
+            "file": "",
+            "line": 0,
+            "hitCount": 3
+          },
+          {
+            "fn": "At",
+            "file": "script-0.mjs",
+            "line": 1,
+            "hitCount": 3
+          }
+        ]
+      }
+    },
+    "head-initialized": {
+      "requests": 48,
+      "wallMsP50": 22.057145000000673,
+      "wallMsP95": 25.420544999999947,
+      "wallMsMax": 29.044338000000607,
+      "profile": {
+        "samples": 421,
+        "durationMicros": 1066390,
+        "mostCpuFunctions": [
+          {
+            "fn": "(program)",
+            "file": "",
+            "line": 0,
+            "hitCount": 41
+          },
+          {
+            "fn": "(idle)",
+            "file": "",
+            "line": 0,
+            "hitCount": 38
+          },
+          {
+            "fn": "text",
+            "file": "",
+            "line": 0,
+            "hitCount": 18
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 18
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 18
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 15
+          },
+          {
+            "fn": "",
+            "file": "",
+            "line": 0,
+            "hitCount": 14
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 13
+          },
+          {
+            "fn": "toJson",
+            "file": "cloudflare-internal:d1-api",
+            "line": 624,
+            "hitCount": 12
+          },
+          {
+            "fn": "Et",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 8
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 8
+          },
+          {
+            "fn": "(garbage collector)",
+            "file": "",
+            "line": 0,
+            "hitCount": 7
+          },
+          {
+            "fn": "read",
+            "file": "",
+            "line": 0,
+            "hitCount": 7
+          },
+          {
+            "fn": "P",
+            "file": "script-0.mjs",
+            "line": 47,
+            "hitCount": 6
+          },
+          {
+            "fn": "read",
+            "file": "",
+            "line": 0,
+            "hitCount": 6
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 6
+          },
+          {
+            "fn": "_wrappedFetch",
+            "file": "cloudflare-internal:d1-api",
+            "line": 162,
+            "hitCount": 6
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 606,
+            "hitCount": 6
+          },
+          {
+            "fn": "zt",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 6
+          },
+          {
+            "fn": "enterSpan",
+            "file": "",
+            "line": 0,
+            "hitCount": 6
+          },
+          {
+            "fn": "toJson",
+            "file": "cloudflare-internal:d1-api",
+            "line": 624,
+            "hitCount": 5
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 606,
+            "hitCount": 5
+          },
+          {
+            "fn": "f",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 5
+          },
+          {
+            "fn": "Response",
+            "file": "",
+            "line": 0,
+            "hitCount": 5
+          },
+          {
+            "fn": "Et",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 5
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 117,
+            "hitCount": 5
+          },
+          {
+            "fn": "Headers",
+            "file": "",
+            "line": 0,
+            "hitCount": 5
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 487,
+            "hitCount": 4
+          },
+          {
+            "fn": "TextDecoder",
+            "file": "",
+            "line": 0,
+            "hitCount": 4
+          },
+          {
+            "fn": "addD1MetaToSpan",
+            "file": "cloudflare-internal:d1-api",
+            "line": 640,
+            "hitCount": 4
+          },
+          {
+            "fn": "enterSpan",
+            "file": "",
+            "line": 0,
+            "hitCount": 4
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 4
+          },
+          {
+            "fn": "zt",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 3
+          },
+          {
+            "fn": "toArrayOfObjects",
+            "file": "cloudflare-internal:d1-api",
+            "line": 591,
+            "hitCount": 3
+          },
+          {
+            "fn": "bind",
+            "file": "cloudflare-internal:d1-api",
+            "line": 393,
+            "hitCount": 3
+          }
+        ]
+      }
+    },
+    "pages-initialized": {
+      "requests": 48,
+      "wallMsP50": 20.945678000000044,
+      "wallMsP95": 25.728447000000415,
+      "wallMsMax": 30.233114999999998,
+      "profile": {
+        "samples": 448,
+        "durationMicros": 1050148,
+        "mostCpuFunctions": [
+          {
+            "fn": "(program)",
+            "file": "",
+            "line": 0,
+            "hitCount": 48
+          },
+          {
+            "fn": "(idle)",
+            "file": "",
+            "line": 0,
+            "hitCount": 28
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 23
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 22
+          },
+          {
+            "fn": "text",
+            "file": "",
+            "line": 0,
+            "hitCount": 17
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 17
+          },
+          {
+            "fn": "toJson",
+            "file": "cloudflare-internal:d1-api",
+            "line": 624,
+            "hitCount": 16
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 15
+          },
+          {
+            "fn": "",
+            "file": "",
+            "line": 0,
+            "hitCount": 12
+          },
+          {
+            "fn": "(garbage collector)",
+            "file": "",
+            "line": 0,
+            "hitCount": 10
+          },
+          {
+            "fn": "Et",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 10
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 117,
+            "hitCount": 10
+          },
+          {
+            "fn": "Et",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 9
+          },
+          {
+            "fn": "enterSpan",
+            "file": "",
+            "line": 0,
+            "hitCount": 8
+          },
+          {
+            "fn": "toJson",
+            "file": "cloudflare-internal:d1-api",
+            "line": 624,
+            "hitCount": 7
+          },
+          {
+            "fn": "Response",
+            "file": "",
+            "line": 0,
+            "hitCount": 6
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 6
+          },
+          {
+            "fn": "P",
+            "file": "script-0.mjs",
+            "line": 47,
+            "hitCount": 5
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 606,
+            "hitCount": 5
+          },
+          {
+            "fn": "zt",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 5
+          },
+          {
+            "fn": "read",
+            "file": "",
+            "line": 0,
+            "hitCount": 5
+          },
+          {
+            "fn": "withSpan",
+            "file": "cloudflare-internal:tracing-helpers",
+            "line": 34,
+            "hitCount": 5
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 487,
+            "hitCount": 4
+          },
+          {
+            "fn": "read",
+            "file": "",
+            "line": 0,
+            "hitCount": 4
+          },
+          {
+            "fn": "addD1MetaToSpan",
+            "file": "cloudflare-internal:d1-api",
+            "line": 640,
+            "hitCount": 4
+          },
+          {
+            "fn": "f",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 4
+          },
+          {
+            "fn": "digest",
+            "file": "",
+            "line": 0,
+            "hitCount": 4
+          },
+          {
+            "fn": "t",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 4
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 117,
+            "hitCount": 4
+          },
+          {
+            "fn": "setAttributes",
+            "file": "",
+            "line": 0,
+            "hitCount": 4
+          },
+          {
+            "fn": "",
+            "file": "script-0.mjs",
+            "line": 21,
+            "hitCount": 3
+          },
+          {
+            "fn": "",
+            "file": "cloudflare-internal:d1-api",
+            "line": 175,
+            "hitCount": 3
+          },
+          {
+            "fn": "get",
+            "file": "",
+            "line": 0,
+            "hitCount": 3
+          },
+          {
+            "fn": "zt",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 3
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 3
+          }
+        ]
+      }
+    },
+    "upload-status-notfound": {
+      "requests": 48,
+      "wallMsP50": 23.279427999999825,
+      "wallMsP95": 30.733313000000635,
+      "wallMsMax": 36.28055300000051,
+      "profile": {
+        "samples": 504,
+        "durationMicros": 1169127,
+        "mostCpuFunctions": [
+          {
+            "fn": "(idle)",
+            "file": "",
+            "line": 0,
+            "hitCount": 61
+          },
+          {
+            "fn": "(program)",
+            "file": "",
+            "line": 0,
+            "hitCount": 41
+          },
+          {
+            "fn": "text",
+            "file": "",
+            "line": 0,
+            "hitCount": 24
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 20
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 20
+          },
+          {
+            "fn": "toJson",
+            "file": "cloudflare-internal:d1-api",
+            "line": 624,
+            "hitCount": 19
+          },
+          {
+            "fn": "",
+            "file": "",
+            "line": 0,
+            "hitCount": 18
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 16
+          },
+          {
+            "fn": "fetch",
+            "file": "",
+            "line": 0,
+            "hitCount": 15
+          },
+          {
+            "fn": "zt",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 15
+          },
+          {
+            "fn": "(garbage collector)",
+            "file": "",
+            "line": 0,
+            "hitCount": 12
+          },
+          {
+            "fn": "Et",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 12
+          },
+          {
+            "fn": "Response",
+            "file": "",
+            "line": 0,
+            "hitCount": 9
+          },
+          {
+            "fn": "read",
+            "file": "",
+            "line": 0,
+            "hitCount": 8
+          },
+          {
+            "fn": "toJson",
+            "file": "cloudflare-internal:d1-api",
+            "line": 624,
+            "hitCount": 8
+          },
+          {
+            "fn": "read",
+            "file": "",
+            "line": 0,
+            "hitCount": 7
+          },
+          {
+            "fn": "_wrappedFetch",
+            "file": "cloudflare-internal:d1-api",
+            "line": 162,
+            "hitCount": 7
+          },
+          {
+            "fn": "te",
+            "file": "script-0.mjs",
+            "line": 31,
+            "hitCount": 6
+          },
+          {
+            "fn": "P",
+            "file": "script-0.mjs",
+            "line": 47,
+            "hitCount": 6
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 6
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 5
+          },
+          {
+            "fn": "addD1MetaToSpan",
+            "file": "cloudflare-internal:d1-api",
+            "line": 640,
+            "hitCount": 5
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 5
+          },
+          {
+            "fn": "Et",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 5
+          },
+          {
+            "fn": "enterSpan",
+            "file": "",
+            "line": 0,
+            "hitCount": 5
+          },
+          {
+            "fn": "URL",
+            "file": "",
+            "line": 0,
+            "hitCount": 5
+          },
+          {
+            "fn": "addD1MetaToSpan",
+            "file": "cloudflare-internal:d1-api",
+            "line": 640,
+            "hitCount": 4
+          },
+          {
+            "fn": "withSpan",
+            "file": "cloudflare-internal:tracing-helpers",
+            "line": 34,
+            "hitCount": 4
+          },
+          {
+            "fn": "_wrappedFetch",
+            "file": "cloudflare-internal:d1-api",
+            "line": 162,
+            "hitCount": 4
+          },
+          {
+            "fn": "zt",
+            "file": "script-0.mjs",
+            "line": 108,
+            "hitCount": 4
+          },
+          {
+            "fn": "P",
+            "file": "script-0.mjs",
+            "line": 47,
+            "hitCount": 4
+          },
+          {
+            "fn": "enterSpan",
+            "file": "",
+            "line": 0,
+            "hitCount": 4
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 4
+          },
+          {
+            "fn": "Rt",
+            "file": "script-0.mjs",
+            "line": 31,
+            "hitCount": 4
+          },
+          {
+            "fn": "_send",
+            "file": "cloudflare-internal:d1-api",
+            "line": 196,
+            "hitCount": 4
+          }
+        ]
+      }
+    }
+  }
+}

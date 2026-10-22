@@ -1,0 +1,489 @@
+{
+  "window": {
+    "worker": "newpipe-accept-20261021a",
+    "start": "2026-10-21T16:26:00Z",
+    "end": "2026-10-21T17:33:58Z"
+  },
+  "data": [
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:22:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 8006,
+        "cpuTimeP95": 15142,
+        "cpuTimeP99": 18898
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 23
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:23:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 11431,
+        "cpuTimeP95": 18140,
+        "cpuTimeP99": 19741
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 20
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:59:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 7748,
+        "cpuTimeP95": 11898,
+        "cpuTimeP99": 11898
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 2
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:13:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 8922,
+        "cpuTimeP95": 8922,
+        "cpuTimeP99": 8922
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:21:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 5504,
+        "cpuTimeP95": 12299,
+        "cpuTimeP99": 12299
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 2
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:36:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 5820,
+        "cpuTimeP95": 11157,
+        "cpuTimeP99": 11157
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 3
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:18:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 8321,
+        "cpuTimeP95": 16818,
+        "cpuTimeP99": 16818
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 7
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:52:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 6957,
+        "cpuTimeP95": 9115,
+        "cpuTimeP99": 9115
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 5
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:55:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 10441,
+        "cpuTimeP95": 10441,
+        "cpuTimeP99": 10441
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:27:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 790,
+        "cpuTimeP95": 790,
+        "cpuTimeP99": 790
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:07:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 526,
+        "cpuTimeP95": 526,
+        "cpuTimeP99": 526
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:53:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 5810,
+        "cpuTimeP95": 10245,
+        "cpuTimeP99": 10245
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 5
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:19:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 6670,
+        "cpuTimeP95": 6670,
+        "cpuTimeP99": 6670
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:09:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 11707,
+        "cpuTimeP95": 14707,
+        "cpuTimeP99": 14707
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 6
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:49:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 9508,
+        "cpuTimeP95": 13996,
+        "cpuTimeP99": 13996
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 2
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:51:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 4942,
+        "cpuTimeP95": 11883,
+        "cpuTimeP99": 11883
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 8
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:50:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 9264,
+        "cpuTimeP95": 18138,
+        "cpuTimeP99": 21725
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 21
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:15:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 8420,
+        "cpuTimeP95": 13925,
+        "cpuTimeP99": 13925
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 5
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:06:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 1245,
+        "cpuTimeP95": 1245,
+        "cpuTimeP99": 1245
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:48:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 1623,
+        "cpuTimeP95": 1623,
+        "cpuTimeP99": 1623
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:24:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 6886,
+        "cpuTimeP95": 22937,
+        "cpuTimeP99": 27266
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 32
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:28:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 1015,
+        "cpuTimeP95": 1015,
+        "cpuTimeP99": 1015
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:37:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 1579,
+        "cpuTimeP95": 1579,
+        "cpuTimeP99": 1579
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:08:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 14102,
+        "cpuTimeP95": 20263,
+        "cpuTimeP99": 20263
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 21
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:29:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 705,
+        "cpuTimeP95": 705,
+        "cpuTimeP99": 705
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:58:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 1791,
+        "cpuTimeP95": 1791,
+        "cpuTimeP99": 1791
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T16:33:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 1860,
+        "cpuTimeP95": 1860,
+        "cpuTimeP99": 1860
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:33:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 1219,
+        "cpuTimeP95": 1219,
+        "cpuTimeP99": 1219
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:25:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 5616,
+        "cpuTimeP95": 8084,
+        "cpuTimeP99": 8084
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 5
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:14:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 7243,
+        "cpuTimeP95": 14495,
+        "cpuTimeP99": 14495
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 15
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:16:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 1170,
+        "cpuTimeP95": 1170,
+        "cpuTimeP99": 1170
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-21T17:30:00Z",
+        "status": "success"
+      },
+      "quantiles": {
+        "cpuTimeP50": 1706,
+        "cpuTimeP95": 9158,
+        "cpuTimeP99": 9158
+      },
+      "sum": {
+        "errors": 0,
+        "requests": 2
+      }
+    }
+  ]
+}

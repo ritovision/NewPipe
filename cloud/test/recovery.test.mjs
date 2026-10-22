@@ -339,6 +339,36 @@ async function sealReplacement(p){
 const publishReplacement=p=>replace('publish',{attemptId:p.attempt.attemptId},p.token);
 const settleReplacement=(p,keepForRetry)=>replace('settle',{attemptId:p.attempt.attemptId,keepForRetry},p.token);
 
+test('replacement-enabled connect/head folds an exact authenticated grant into one indexed snapshot',async()=>{
+ await enableReplacement();
+ await control({resetStatements:true});
+ const granted=ok(await call('/v1/head'));
+ assert.ok(granted.capabilities.includes('catalog.replace'));
+ assert.ok(!granted.unavailableCapabilities.includes('catalog.replace'));
+ assert.equal(granted.replacementAllowed,undefined,'Internal grant column is never a protocol field');
+ assert.equal((await control({})).statements,2,'Only token auth and the single current-state/grant snapshot read DATA');
+ await control({resetStatements:true});
+ const readOnly=ok(await call('/v1/connect',{},tokens.r));
+ assert.ok(!readOnly.capabilities.includes('catalog.replace'));
+ assert.ok(readOnly.unavailableCapabilities.includes('catalog.replace'));
+ assert.equal((await control({})).statements,2);
+ await sql("UPDATE cloud_replace_grants SET can_replace=0 WHERE device_id='device-a'");
+ await control({resetStatements:true});
+ const grantOff=ok(await call('/v1/head'));
+ assert.ok(!grantOff.capabilities.includes('catalog.replace'));
+ assert.equal((await control({})).statements,2);
+ await sql("UPDATE cloud_replace_grants SET can_replace=1 WHERE device_id='device-a'", "UPDATE cloud_devices SET can_write=0 WHERE device_id='device-a'");
+ await control({resetStatements:true});
+ const nonWriter=ok(await call('/v1/head'));
+ assert.ok(!nonWriter.capabilities.includes('catalog.replace'));
+ assert.ok(!nonWriter.capabilities.includes('catalog.sync'));
+ assert.equal((await control({})).statements,2);
+ await sql("UPDATE cloud_devices SET can_write=1 WHERE device_id='device-a'");
+ await control({options:{ENABLE_REPLACEMENT_API:'false'},resetStatements:true});
+ const disabled=ok(await call('/v1/head'));
+ assert.ok(!disabled.capabilities.includes('catalog.replace'));
+ assert.equal((await control({})).statements,2,'Disabled replacement must not require any grant query');
+});
 test('replacement: exact outgoing backup precedes atomic new epoch, receipt and cooldown',async()=>{
  await enableReplacement();const source=await publishCatalog('base'),p=await reserveReplacement(await replacementPreview(source));
  assert.deepEqual(ok(await call('/v1/head')).deviceState.replacement,{attemptId:p.attempt.attemptId,state:'ACTIVE'});assert.equal(ok(await call('/v1/head',{},tokens.b)).deviceState.replacement,null);

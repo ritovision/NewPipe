@@ -117,8 +117,12 @@ export function canonicalBytes(input: Catalog): Uint8Array {
   const c = readCatalog(input), parts = ["rv-cloud/1\n"];
   let size = 11;
   const token = (v: string | number): void => {
-    const s = String(v), part = `${encoder.encode(s).length}:${s},`;
-    size += encoder.encode(part).length;
+    // Prefix is decimal ASCII followed by ':'; suffix ',' is ASCII.
+    // Encode each token once for its UTF-8 width, rather than encoding the
+    // entire prefixed token again. This preserves the exact canonical bytes.
+    const s = String(v), encodedLength = encoder.encode(s).length;
+    const part = `${encodedLength}:${s},`;
+    size += String(encodedLength).length + encodedLength + 2;
     requireThat(size <= CATALOG_LIMITS.bytes, "encoded byte limit"); parts.push(part);
   };
   const writeKey = (k: Key): void => { token(k.service); token(k.url); };

@@ -20,6 +20,15 @@ for(const r of fixture.diffs) test(`exact difference: ${r.before} -> ${r.after}`
  assert.equal(d.playlists.reduce((n,p)=>n+p.removed.length,0),r.occurrencesRemoved);
  assert.equal(d.tags.added.length,r.tagsAdded);assert.equal(d.tags.removed.length,r.tagsRemoved);assert.equal(d.categories.removed.length,r.categoriesRemoved);
 });
+test('canonical token prefixes use exact UTF-8 byte lengths for multibyte URLs',async()=>{
+ const c=structuredClone(catalogs.get('empty'));
+ const url='https://example.test/é/𝄞/🚀/漢字';
+ c.library=[{service:0,url}];
+ const bytes=canonicalBytes(c),utf8=new TextEncoder(),decoded=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+ assert.ok(decoded.includes(`${utf8.encode(url).length}:${url},`));
+ assert.equal(bytes.length,utf8.encode(decoded).length);
+ assert.equal(createHash('sha256').update(bytes).digest('hex'),await fingerprint(c));
+});
 test('global removal lists exact duplicates while retaining tag definitions',()=>{
  const c=catalogs.get('base'),d=diffCatalog(c,catalogs.get('global-remove'));
  assert.deepEqual(d.removed,[c.library[0]]);assert.deepEqual(d.playlists[0].removed,[c.library[0],c.library[0]]);assert.equal(d.tags.removed.length,0);

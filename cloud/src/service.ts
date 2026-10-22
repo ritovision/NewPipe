@@ -174,11 +174,14 @@ export class CatalogService {
    * an entire staged header merely to return its public status. Authority remains
    * part of this query and is independently rechecked by every write transaction.
    */
-  async connectionStatus(): Promise<CatalogStatus & { deviceState: DeviceState }> {
-    const row = await this.db.prepare(`SELECT ${STATUS_COLUMNS},${DEVICE_COLUMNS}${STATUS_FROM}${DEVICE_JOINS} WHERE ${AUTH}`)
-      .bind(...args(this.context)).first<CatalogRow & DeviceStateRow>();
+  async connectionStatus(replacementEnabled = false): Promise<CatalogStatus & { deviceState: DeviceState; replacementAllowed: boolean }> {
+    // The replacement grant shares this exact authenticated D1 snapshot.
+    // The final replacement write independently rechecks grant and authority.
+    const grant = replacementEnabled ? `,CASE WHEN d.can_write=1 AND ${REPLACE_GRANT} THEN 1 ELSE 0 END AS replacement_allowed` : "";
+    const row = await this.db.prepare(`SELECT ${STATUS_COLUMNS},${DEVICE_COLUMNS}${grant}${STATUS_FROM}${DEVICE_JOINS} WHERE ${AUTH}`)
+      .bind(...args(this.context)).first<CatalogRow & DeviceStateRow & { replacement_allowed?: number }>();
     if (!row) fail("AUTH_OR_LIBRARY_UNAVAILABLE", 401);
-    return { ...this.statusRow(row), deviceState: deviceStateRow(row) };
+    return { ...this.statusRow(row), deviceState: deviceStateRow(row), replacementAllowed: replacementEnabled && row.replacement_allowed === 1 };
   }
   async uploadStatus(sequence: string, digest: string) {
     const r = await this.resolve(sequence, digest); if (r) return { receipt: r };
@@ -320,8 +323,10 @@ export class CatalogService {
     return this.publishSealed(sequence, digest, now, proof);
   }
   private async publishSealed(sequence: string, digest: string, now: number, proof: ReplacementProof | null): Promise<{ receipt: Receipt }> {
-    const existing = await this.resolve(sequence, digest);
-    if (existing) { if (existing.outcome === "RETIRED") fail("OPERATION_RETIRED"); return { receipt: existing }; }
+    // A new successful publication has an exact SEALED upload. Read it first
+    // and let guardedCommit's authenticated receipt/high-water preflight remain
+    // the sole publication preflight. When the upload is gone (replay or race),
+    // resolve the immutable receipt before reporting an expired operation.
     const u = await this.getUpload(), c = this.context;
     if (!u || u.sequence !== sequence || u.status !== "SEALED") {
       const replay = await this.resolve(sequence, digest);

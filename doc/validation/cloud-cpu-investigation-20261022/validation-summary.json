@@ -1,0 +1,66 @@
+{
+  "candidateSourceBeforeChange": "0681b0497a36aefcfcfe013938657bf2ca5ac535",
+  "date": "2026-10-22",
+  "change": "Remove one redundant UTF-8 encoding of each canonical catalog token while preserving byte-length accounting and canonical wire bytes",
+  "changedProductionFile": "cloud/src/catalog.ts",
+  "changedTestFile": "cloud/test/catalog.test.mjs",
+  "typecheck": "PASS after all CPU source optimizations",
+  "fullBackendSuite": {
+    "tests": 375,
+    "passed": 375,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "logSHA256": "af91caef3440ea3b8ec73bbc30d1a565e7b60ca0eddd0275bde221de6582fcc0",
+    "localNodeOnly": true,
+    "noDeployedCpuAcceptanceClaim": true
+  },
+  "pureNodeCanonicalBenchmark": {
+    "goldenAndSynthCatalogCases": 13,
+    "byteEqualityAll": true,
+    "largestCatalogBytes": 59522,
+    "largestCaseSpeedupPct": 32.62810689614153,
+    "equivalentDeployedCpu": false
+  },
+  "historicalDeployedWorker": {
+    "requests": 198,
+    "observedP95Ms": 20.263,
+    "targetP95Ms": 8,
+    "status": "FAIL on old revision / not retested after optimization",
+    "minuteBins": 32,
+    "routeBreakdown": "UNAVAILABLE in historical analytics",
+    "allLiveQaDisabled": true
+  },
+  "localWorkerdProfile": {
+    "profilesHaveExactFunctionHits": true,
+    "notDeployedWorkerCpuP95": true,
+    "bottleneckHypotheses": [
+      "D1 bridge JSON conversions",
+      "Repeated reservation/settlement database calls",
+      "Catalog canonical text encoding"
+    ]
+  },
+  "claudeIndependentReview": {
+    "status": "COMPLETE read-only",
+    "model": "Claude Opus Max",
+    "report": "claude-opus-independent-review.md",
+    "implementationCodeWritten": false,
+    "cloudflareCredentialAccess": false,
+    "validatedSeparatelyByCoordinator": true
+  },
+  "deployment": "NONE",
+  "phoneDataChanged": false,
+  "QAResourcesChanged": false,
+  "merge": "NONE",
+  "cpuSafetyChanges": {
+    "catalogTokenUtf8Size": "exact-byte-equivalent, no protocol/hash change",
+    "replacementGrant": "incorporate authorized grant into existing head/connect D1 snapshot, final write guard unchanged",
+    "newPublication": "skip redundant outer receipt preflight, guarded commit and replay lookup unchanged",
+    "newTargetedTests": [
+      "canonical Unicode UTF-8 length",
+      "connect/head exact grant/capability/2-DATA-statement",
+      "publish replay and no redundant DATA preflight"
+    ]
+  },
+  "deployedP95Pass": false
+}

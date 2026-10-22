@@ -1,0 +1,97 @@
+{
+  "source": "pure JS / node24, not deployed Worker CPU measurement",
+  "byteEqualityAll": true,
+  "cases": [
+    {
+      "name": "empty",
+      "bytes": 116,
+      "baselineMeanMs": 0.07506601066666663,
+      "prototypeMeanMs": 0.05762722000000005,
+      "improvementPct": 23.231274063709307
+    },
+    {
+      "name": "base",
+      "bytes": 740,
+      "baselineMeanMs": 0.2498852413333333,
+      "prototypeMeanMs": 0.1741888413333333,
+      "improvementPct": 30.292465291707703
+    },
+    {
+      "name": "semantic-order",
+      "bytes": 740,
+      "baselineMeanMs": 0.1984733893333332,
+      "prototypeMeanMs": 0.13321455733333326,
+      "improvementPct": 32.88039379949252
+    },
+    {
+      "name": "reorder",
+      "bytes": 740,
+      "baselineMeanMs": 0.1649041866666671,
+      "prototypeMeanMs": 0.10862014533333317,
+      "improvementPct": 34.13135983448677
+    },
+    {
+      "name": "global-remove",
+      "bytes": 506,
+      "baselineMeanMs": 0.13497786799999933,
+      "prototypeMeanMs": 0.09517169600000033,
+      "improvementPct": 29.49088809137155
+    },
+    {
+      "name": "rename",
+      "bytes": 749,
+      "baselineMeanMs": 0.19323428133333315,
+      "prototypeMeanMs": 0.13206378266666646,
+      "improvementPct": 31.656131740488803
+    },
+    {
+      "name": "category-delete",
+      "bytes": 402,
+      "baselineMeanMs": 0.11460365866666629,
+      "prototypeMeanMs": 0.08432946666666674,
+      "improvementPct": 26.416427147456435
+    },
+    {
+      "name": "nullable-and-external-artwork",
+      "bytes": 742,
+      "baselineMeanMs": 0.17088633999999972,
+      "prototypeMeanMs": 0.1198471719999998,
+      "improvementPct": 29.86731882723921
+    },
+    {
+      "name": "unicode-legacy",
+      "bytes": 1034,
+      "baselineMeanMs": 0.27714596000000047,
+      "prototypeMeanMs": 0.1906892946666661,
+      "improvementPct": 31.195354726922307
+    },
+    {
+      "name": "synthetic-50",
+      "bytes": 4091,
+      "baselineMeanMs": 0.6295677226666666,
+      "prototypeMeanMs": 0.42310202666666685,
+      "improvementPct": 32.794835021952984
+    },
+    {
+      "name": "synthetic-200",
+      "bytes": 14402,
+      "baselineMeanMs": 1.835690912,
+      "prototypeMeanMs": 1.306015165333333,
+      "improvementPct": 28.854299119974456
+    },
+    {
+      "name": "synthetic-500",
+      "bytes": 35225,
+      "baselineMeanMs": 4.837349017333335,
+      "prototypeMeanMs": 2.9782196560000025,
+      "improvementPct": 38.43281422679332
+    },
+    {
+      "name": "synthetic-850",
+      "bytes": 59522,
+      "baselineMeanMs": 7.6521431413333385,
+      "prototypeMeanMs": 5.155393697333335,
+      "improvementPct": 32.62810689614153
+    }
+  ]
+}

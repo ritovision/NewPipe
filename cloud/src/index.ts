@@ -8,7 +8,7 @@ import { CatalogError, CatalogService, authenticateToken, DEFAULT_SERVICE_LIMITS
 import type { Head } from "./protocol.ts";
 import { RecoveryService, readRecoveryReference } from "./recovery.ts";
 import { RecoveryError, RECOVERY_LIMITS } from "./recovery-format.ts";
-import { ReplacementService, canReplace } from "./replacement.ts";
+import { ReplacementService } from "./replacement.ts";
 
 export interface CloudEnvironment {
   DB: D1Database;
@@ -143,9 +143,9 @@ export async function handleRequest(request: Request, env: CloudEnvironment): Pr
       case "/v1/connect":
       case "/v1/head": {
         exact(data, []);
-        const replacementAllowed = replacementEnabled && await canReplace(env.DB, context);
+        const { replacementAllowed, ...connection } = await service.connectionStatus(replacementEnabled);
         return response({ protocol: 1, device: context.device, scope: { service: context.serviceGeneration, library: context.library },
-          ...await service.connectionStatus(), limits: { ...limits, requestBytes: TRANSPORT_LIMITS.requestBytes, uploadLifetimeMs: TRANSPORT_LIMITS.stageLifetimeMs },
+          ...connection, limits: { ...limits, requestBytes: TRANSPORT_LIMITS.requestBytes, uploadLifetimeMs: TRANSPORT_LIMITS.stageLifetimeMs },
           capabilities: [...(context.writable ? ["catalog.read", "catalog.initialize", "catalog.sync", "operation.retire"] : ["catalog.read"]),
             ...(recoveryEnabled ? (context.writable ? ["backup.r2", "backup.read"] : ["backup.read"]) : []),
             ...(replacementAllowed ? ["catalog.replace"] : [])],

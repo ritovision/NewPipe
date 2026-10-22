@@ -92,6 +92,21 @@ test('device A initializes; device B downloads the exact catalog and can publish
  const update=await stage(catalog('reorder'),{token:tokens.b,previous:b.pages});await publish(update,tokens.b);
  const final=await download();assert.equal(await fingerprint(final.catalog),await fingerprint(catalog('reorder')));assert.equal(final.head.head.revision,'2');
 });
+test('new catalog publication uses one receipt preflight without weakening replay resolution',async()=>{
+ const staged=await stage(catalog('base'));
+ await controls({resetStats:true});
+ const committed=await call('/v1/uploads/publish',staged.ref);
+ assert.equal(committed.status,200,JSON.stringify(committed.data));
+ assert.equal(committed.data.receipt.outcome,'COMMITTED');
+ const measured=await controls({});
+ assert.equal(measured.batches,1);
+ assert.equal(measured.statements-measured.maxBatch,3,
+  'DATA calls before the guarded batch are token auth, sealed-upload read, and authenticated high-water/receipt preflight');
+ assert.equal(await rows('cloud_receipts'),1);
+ const repeat=await call('/v1/uploads/publish',staged.ref);
+ assert.equal(repeat.status,200);assert.deepEqual(repeat.data,committed.data);
+ assert.equal(await rows('cloud_receipts'),1);
+});
 test('partial uploaded pages never appear in the live catalog',async()=>{
  const u=await stage(catalog('base'),{seal:false});assert.equal((await status()).initialized,false);assert.equal(await rows('cloud_catalog_pages'),0);
  assert.ok(await rows('cloud_upload_changes')>0);failure(await call('/v1/uploads/publish',u.ref),'UPLOAD_NOT_SEALED_OR_EXPIRED');
