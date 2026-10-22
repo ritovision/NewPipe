@@ -38,8 +38,12 @@ class CloudLiveSyncTest {
         val step = args.getString("cloudLiveStep")
         assumeTrue("Live acceptance is opt-in", step != null)
         val app = ApplicationProvider.getApplicationContext<Context>()
+        val qa20261022 = app.packageName in setOf(
+            "org.schabi.newpipe.debug.featurecloudsyncv120261019.cpuqa20261022",
+            "org.schabi.newpipe.debug.featurecloudsyncv120261019.cpuqa20261022.peerb"
+        )
         check(
-            app.packageName in setOf(
+            qa20261022 || app.packageName in setOf(
                 "org.schabi.newpipe.debug.featurecloudsyncv120261019",
                 "org.schabi.newpipe.debug.featurecloudsyncv120261019.peerb"
             )
@@ -49,7 +53,12 @@ class CloudLiveSyncTest {
         val config = CloudWireJson.obj(credentialFile.readText())
         check(config.getBoolean("syntheticOnly")) { "SYNTHETIC_ONLY" }
         val origin = config.getString("origin")
-        check(origin == "https://newpipe-fence-qa-20261020.ritorhymes.workers.dev") { "LIVE_QA_ORIGIN_REQUIRED" }
+        val expectedOrigin = if (qa20261022) {
+            "https://newpipe-cpu-qa-20261022a.ritorhymes.workers.dev"
+        } else {
+            "https://newpipe-fence-qa-20261020.ritorhymes.workers.dev"
+        }
+        check(origin == expectedOrigin) { "LIVE_QA_ORIGIN_REQUIRED" }
         val repo = TagRuntime.get(app)
         repo.definitions()
         val controller = CloudSyncController(app)
@@ -94,7 +103,9 @@ class CloudLiveSyncTest {
                 if (baseline?.head?.fingerprint == expected) return
                 SystemClock.sleep(500)
             }
-            error("LIVE_AUTOMATIC_SYNC_TIMEOUT")
+            // Keep the real scheduler/failure reason visible to the isolated
+            // acceptance harness. Connection status never includes credentials.
+            error("LIVE_AUTOMATIC_SYNC_TIMEOUT: ${controller.connection.read()?.message ?: "no-status"}")
         }
         fun checkExpected() {
             val expected = checkNotNull(args.getString("expectedFingerprint"))
@@ -121,6 +132,49 @@ class CloudLiveSyncTest {
             assertFalse("Host must disable networking only on the dedicated QA emulator", connected)
         }
         when (step) {
+            "disableForFixtureRebase" -> {
+                check(qa20261022) { "LIVE_QA_FRESH_PACKAGE_REQUIRED" }
+                checkNotNull(controller.connection.read()) { "LIVE_QA_NOT_CONNECTED" }
+                controller.disable()
+                CloudScheduler.reconcile(app)
+                // This only cancels work owned by the newly installed QA app.
+                val manager = WorkManager.getInstance(app)
+                manager.cancelUniqueWork("ritovision-cloud-change-v1").result.get(15, TimeUnit.SECONDS)
+                manager.cancelUniqueWork("ritovision-cloud-periodic-v1").result.get(15, TimeUnit.SECONDS)
+                assertFalse(controller.connection.read()!!.enabled)
+            }
+
+            "rebaseForSmallerFixture" -> {
+                check(qa20261022) { "LIVE_QA_FRESH_PACKAGE_REQUIRED" }
+                val expected = checkNotNull(args.getString("expectedFingerprint"))
+                assertFalse(controller.connection.read()!!.enabled)
+                val preview = idle { controller.prepare(false) }
+                assertEquals(CloudSyncController.Direction.TO_DEVICE, preview.direction)
+                assertEquals(expected, preview.remote.head.fingerprint)
+                assertTrue(preview.delta.removed.isNotEmpty())
+                idle { controller.confirm(preview) }
+                assertEquals(expected, snapshot().fingerprint)
+                assertFalse(controller.connection.read()!!.enabled)
+                assertTrue(File(controller.connection.directory, "recovery/before-last-cloud-restore.zip").isFile)
+            }
+
+            "joinExistingForConflict" -> {
+                check(qa20261022) { "LIVE_QA_FRESH_PACKAGE_REQUIRED" }
+                check(controller.connection.read() == null) { "LIVE_QA_ALREADY_CONNECTED" }
+                val existing = repo.library.openHelper.readableDatabase.query("SELECT COUNT(*) FROM streams").use {
+                    it.moveToFirst()
+                    it.getLong(0)
+                }
+                check(existing == 0L && repo.definitions().tags.isEmpty()) { "LIVE_QA_NOT_EMPTY" }
+                controller.connect(origin, config.getString("token"))
+                val preview = controller.prepare(true)
+                assertEquals(CloudSyncController.Direction.TO_DEVICE, preview.direction)
+                controller.confirm(preview)
+                assertEquals(snapshot().fingerprint, idle { controller.inspect() }.head.fingerprint)
+                controller.disable()
+                assertFalse(controller.connection.read()!!.enabled)
+            }
+
             "continuationJoin" -> {
                 check(config.getString("run")?.matches(Regex("[a-z0-9-]{1,48}")) == true)
                 check(controller.connection.read() == null) { "LIVE_QA_ALREADY_CONNECTED" }

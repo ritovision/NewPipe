@@ -1,0 +1,12 @@
+{
+  "README.md": "ea9f741ab143678c5f186c318c34ab48e9cbdf28ce6c71936413a0a49c4637ee",
+  "instrumentation/01-a-resumeForConflict.log": "dd8b3d9b182431e78aa0494b135cf606c255dedd9038aeb7de93a6b7813a6f5e",
+  "instrumentation/02-b-resumeForConflict.log": "07f292c02e60543c60ada5c8cda03a54205f19c14467e4b5d2a4e03792ca2c81",
+  "instrumentation/03-b-holdOfflineEdit.log": "e0084949635bec9fb5dcf49f877ecec42db76be0064f55b8fad49f9c32ffd910",
+  "instrumentation/04-a-automaticRemoteEdit.log": "6beef0e1f174264cc5014488433b21119081da379c3e1e273beb815032b2f3d4",
+  "instrumentation/05-b-verifyConflict.log": "686210bd4acae108b41cf587a81d8544eb994a33fecefc432c82757c37670d35",
+  "instrumentation/06-b-resolveConflictToDevice.log": "cdcd2b14955b38884c020eddd82682728e2f306230baf721a8873a0c351a1b61",
+  "instrumentation/07-a-stop.log": "94ac4d3c2c237f456973e14a3e337486e47e931d034cd2e61f2f8d890a24fbd3",
+  "instrumentation/08-b-stop.log": "94ac4d3c2c237f456973e14a3e337486e47e931d034cd2e61f2f8d890a24fbd3",
+  "validation-summary.json": "75beec1b16087f9104ec4d13819d0fc0231898bc49ee749b2e8528023ae6c77d"
+}

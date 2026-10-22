@@ -1,0 +1,142 @@
+{
+  "date": "2026-10-22",
+  "status": "PASS",
+  "scope": "newpipe-cpu-qa-20261022a, synthetic only",
+  "device": "Physical Pixel 7 running Android 17, API 37",
+  "twoIndependentQAApplicationIDs": true,
+  "twoPhysicalDevices": false,
+  "originalNewPipeUnaffected": true,
+  "noAppDataClears": true,
+  "olderQAUnaffected": true,
+  "stepsExecuted": 8,
+  "initialOversizedSyntheticCatalog": {
+    "streams": 600,
+    "serverStoredBytes": 61885,
+    "nativeFailure": "CLOUD_SERVER_LIBRARY_LIMIT",
+    "result": "Correct admission refusal; cloud head unchanged at revision 5"
+  },
+  "admittedConflictFixture": {
+    "streams": 120,
+    "serverStoredBytes": 14762,
+    "pageLimit": 8,
+    "byteLimit": 65536,
+    "initialRevision": 6,
+    "changedRevision": 7,
+    "categoryAndTagPreserved": true
+  },
+  "rebases": {
+    "explicitReviewedOneTimeRestoreForBothQAApps": true,
+    "safetyBackupsRetained": true,
+    "startedSyncDisabled": true
+  },
+  "differentLocalAndRemoteEditsHeldUntilReview": true,
+  "conflictError": "CLOUD_CONFLICT_REVIEW_REQUIRED",
+  "manualReconcileWithNativeSafetyBackupPassed": true,
+  "qaAppsAutoSyncOffAtFinish": true,
+  "serverShutdown": {
+    "publicEndpoint": "503 CLOUD_API_DISABLED",
+    "syntheticCredentialsRevoked": 6,
+    "syntheticCredentialsStillActive": 0,
+    "pendingWrites": 0,
+    "readyR2ArchiveSlots": 3,
+    "fence": "OPEN; formal operator close not yet permitted"
+  },
+  "steps": [
+    {
+      "stepNumber": 1,
+      "app": "A",
+      "step": "resumeForConflict",
+      "result": "PASS",
+      "fingerprint": "8aac16653e4e8c45f5129bc76b938c804909d32c87183437c2159d73425cc592",
+      "enabled": true,
+      "actualProcessStop": false,
+      "seconds": 5.075,
+      "privateRawLogSha256": "668bfd0d83f50f945a65e1edb8ed49304c6e90b3dd4bfe614e178ee13c25244a",
+      "sanitizedLog": "instrumentation/01-a-resumeForConflict.log"
+    },
+    {
+      "stepNumber": 2,
+      "app": "B",
+      "step": "resumeForConflict",
+      "result": "PASS",
+      "fingerprint": "8aac16653e4e8c45f5129bc76b938c804909d32c87183437c2159d73425cc592",
+      "enabled": true,
+      "actualProcessStop": false,
+      "seconds": 4.588,
+      "privateRawLogSha256": "b67d9bc6a92bf1c399b398ad339a12f3e90cf2b636fbe9d89e18560e8c277802",
+      "sanitizedLog": "instrumentation/02-b-resumeForConflict.log"
+    },
+    {
+      "stepNumber": 3,
+      "app": "B",
+      "step": "holdOfflineEdit",
+      "result": "HOST-VERIFIED DURABLE PROCESS STOP",
+      "fingerprint": "a11fa060d3809d3eda5bfce93a8faeb66403f13f0032087adf48d77b7166e5a9",
+      "enabled": null,
+      "actualProcessStop": true,
+      "seconds": null,
+      "privateRawLogSha256": "3decc7a185d0069e65d888dc7f5330599cbdc9bb2f7ab0d8835ed68819808f83",
+      "sanitizedLog": "instrumentation/03-b-holdOfflineEdit.log"
+    },
+    {
+      "stepNumber": 4,
+      "app": "A",
+      "step": "automaticRemoteEdit",
+      "result": "PASS",
+      "fingerprint": "fce0ba4571a8ba5c086b723ab1163adc74538c46e462f97c3988694339c631a8",
+      "enabled": true,
+      "actualProcessStop": false,
+      "seconds": 35.912,
+      "privateRawLogSha256": "d24723601dae2b36eb4033acef125bb5d223553d3cfcfbbbca256ee950ee622d",
+      "sanitizedLog": "instrumentation/04-a-automaticRemoteEdit.log"
+    },
+    {
+      "stepNumber": 5,
+      "app": "B",
+      "step": "verifyConflict",
+      "result": "PASS",
+      "fingerprint": "a11fa060d3809d3eda5bfce93a8faeb66403f13f0032087adf48d77b7166e5a9",
+      "enabled": true,
+      "actualProcessStop": false,
+      "seconds": 4.143,
+      "privateRawLogSha256": "41bb7784bc1a79779a19af2551cde3d6964653f20e62a1fbe05d958b9a38deea",
+      "sanitizedLog": "instrumentation/05-b-verifyConflict.log"
+    },
+    {
+      "stepNumber": 6,
+      "app": "B",
+      "step": "resolveConflictToDevice",
+      "result": "PASS",
+      "fingerprint": "fce0ba4571a8ba5c086b723ab1163adc74538c46e462f97c3988694339c631a8",
+      "enabled": true,
+      "actualProcessStop": false,
+      "seconds": 4.513,
+      "privateRawLogSha256": "33a9c33b6be9be5694329735dd7fa0a2ea9e44283ebeba7ce7c4ed69687a749d",
+      "sanitizedLog": "instrumentation/06-b-resolveConflictToDevice.log"
+    },
+    {
+      "stepNumber": 7,
+      "app": "A",
+      "step": "stop",
+      "result": "PASS",
+      "fingerprint": "fce0ba4571a8ba5c086b723ab1163adc74538c46e462f97c3988694339c631a8",
+      "enabled": false,
+      "actualProcessStop": false,
+      "seconds": 2.547,
+      "privateRawLogSha256": "d0302d7b3c4c858d6473493e2c5949e30fb67543787e68476c8ab52572699c28",
+      "sanitizedLog": "instrumentation/07-a-stop.log"
+    },
+    {
+      "stepNumber": 8,
+      "app": "B",
+      "step": "stop",
+      "result": "PASS",
+      "fingerprint": "fce0ba4571a8ba5c086b723ab1163adc74538c46e462f97c3988694339c631a8",
+      "enabled": false,
+      "actualProcessStop": false,
+      "seconds": 2.557,
+      "privateRawLogSha256": "d0302d7b3c4c858d6473493e2c5949e30fb67543787e68476c8ab52572699c28",
+      "sanitizedLog": "instrumentation/08-b-stop.log"
+    }
+  ]
+}

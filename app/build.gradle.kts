@@ -78,6 +78,16 @@ configure<ApplicationExtension> {
                 applicationIdSuffix = ".debug.${normalizedWorkingBranch}.peerb"
                 resValue("string", "app_name", "NewPipe Cloud QA B")
             }
+            // Fresh, independent end-to-end QA packages only. Never overwrite the older
+            // Cloud acceptance installations or the user's standard NewPipe package.
+            providers.gradleProperty("cloudQaCpu20261022").orNull?.let { variant ->
+                require(workingBranch == "feature/cloud-sync-v1-20261019" && variant == "isolated") {
+                    "cloudQaCpu20261022 is restricted to isolated Cloud & Sync QA"
+                }
+                val suffix = if (providers.gradleProperty("cloudQaPeer").orNull == "b") ".peerb" else ""
+                applicationIdSuffix = ".debug.featurecloudsyncv120261019.cpuqa20261022$suffix"
+                resValue("string", "app_name", "NewPipe Cloud CPU QA 20261022$suffix")
+            }
         }
 
         release {
