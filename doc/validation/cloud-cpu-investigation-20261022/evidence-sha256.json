@@ -1,8 +1,9 @@
 {
-  "README.md": "050dc26ce814d0875097cdad95953868c4a464525c131f72703cf6b559f21cf9",
+  "README.md": "f1a6c2524accc0e950256fec6398da95ed8694c6d78ee0bf03861f9f6def93fa",
   "catalog-encoding-benchmark.json": "7a6679b83874c9cd6d3099a1102fe3aa351ddcfc3323a3db6d529d605a9ad4cc",
   "claude-opus-independent-review.md": "85700fb95dd590c14cd4be7dc6a8b9847a10e546a77692f10b69c92ef674faf1",
   "cloudflare-cpu-by-minute-readonly.json": "c9b4a8f12fb91ad7a43a0afd4ea0fb642dd067d5a4951c4213eb1aa972948d7c",
+  "database-capacity-preflight.json": "bb890e5ee5b7c40b39024465787fac09e41cf7ea23eadd9245008fd1369b8fc0",
   "final-stage-full-backend.log": "d7ea59c259037a072f1da15f137ae4d782c2d4c1dd591f44fb8d75ed4711f75e",
   "final-stage-typecheck.log": "cc6a5884186c102dff04585739879eef8dff00cf32f538ece49e4dd3445bb36b",
   "full-backend-after-all-cpu-fixes.log": "af91caef3440ea3b8ec73bbc30d1a565e7b60ca0eddd0275bde221de6582fcc0",
@@ -11,7 +12,10 @@
   "local-workerd-cpu-profiles-mutations.json": "75652a047e0d2a6d8e59ca0be1da54c78cecae992291a164f8cf256a605d21b2",
   "local-workerd-cpu-profiles.json": "5e073647954bffd1315811ac3c218aaa8376b2649e5457a88ed25dc4ac1be857",
   "publish-read-fold-targeted-test.log": "c4f5fe6e9ccc5507f21d4ecc95f0589bc35fed84806815a111f8be5d8466e9e7",
+  "recovery-status-batch-targeted.log": "87fc12b70a6fe241e03618eb5372691099cf4adf3034a9fd6777f5bd4cf92f29",
+  "recovery-status-full-backend.log": "4e80366ac3f7b34292d4d088ad682f437bca5f124e6dc6e55e8a0380b07ee0ff",
+  "recovery-status-typecheck.log": "cc6a5884186c102dff04585739879eef8dff00cf32f538ece49e4dd3445bb36b",
   "stage-followup-head-integrity-targeted.log": "f3f92c6b203978479337938b53a4e6ea6dcc8fa0dd0bf807ddca8871cea132f9",
   "ts-check-after-all-cpu-fixes.log": "cc6a5884186c102dff04585739879eef8dff00cf32f538ece49e4dd3445bb36b",
-  "validation-summary.json": "9efebb1c2b0a09c72405ad992abf34b75c240c1b8c7b879f82bff7bddaedd6fc"
+  "validation-summary.json": "0f950af44adee1ed3191bd2484ed65d876930e5ec1f95bdc05f227ada41060ce"
 }

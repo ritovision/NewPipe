@@ -1,0 +1,22 @@
+{
+  "observedAtDate": "2026-10-22",
+  "accountScope": "authorized connected newpipe-cloud profile only",
+  "currentD1DatabaseCount": 10,
+  "documentedCloudflareFreeD1DatabaseLimit": 10,
+  "currentAccountWorkersSubscriptionTier": "UNVERIFIED (read-only subscriptions lookup HTTP 403)",
+  "provisionScriptGuard": "cloud/operator/provision.mjs rejects when current D1 database count >8; new pair requires two fresh D1 databases",
+  "databaseMix": {
+    "NewPipeRelated": 5,
+    "OtherProjects": 5
+  },
+  "existingQaPublicFlagsEnabled": false,
+  "freshQaD1FenceState": "OPEN",
+  "freshQaPendingFenceTickets": 0,
+  "freshQaReadyR2Slots": 3,
+  "oldQaPublicHttpStatus": 503,
+  "newQaPublicHttpStatus": 503,
+  "changesToExistingRemoteResources": false,
+  "newRemoteProfilingPairCreated": false,
+  "removalOrUpgradeAuthorized": false,
+  "deploymentCpuMeasuredAfterFixes": false
+}

@@ -4,7 +4,7 @@ import {handleRequest} from '../src/index.ts';
 import {ReplacementService} from '../src/replacement.ts';
 import {authenticateToken,DEFAULT_SERVICE_LIMITS} from '../src/service.ts';
 let options={},fault=null,block=null,blockedRequest=false;
-let stats={calls:{},maxPayloads:0,blocked:null,statements:0},uploads=new Map(),objects=new Set(),aborted=new Set();
+let stats={calls:{},maxPayloads:0,blocked:null,statements:0,batches:0},uploads=new Map(),objects=new Set(),aborted=new Set();
 const measured=new WeakMap();
 async function hook(point){
  if(block===point&&!blockedRequest){
@@ -24,7 +24,7 @@ function database(db){
   const point=sql.includes("UPDATE cloud_replace_attempts SET state='DONE'")?'publishReplacement':sql.includes('INSERT INTO cloud_replace_attempts')?'reserveReplacement':sql.includes("state='ABORTING',busy_token=")?'claimAbort':sql.includes("state='UPLOADING',upload_id=")?'recordCreate':sql.includes("state='CREATING'")?'claimCreate':
    sql.includes('parts_json=?,next_part')?'recordPart':sql.includes("state='VERIFYING',object_etag=")?'recordComplete':
    sql.includes('state=?,verify_part=')?'recordVerify':sql.includes('DELETE FROM cloud_backup_slots')?'removeSlot':'batch';
-  stats.statements+=statements.length;await hook(point+'.before');const r=await db.batch(raw.map(x=>x.s));await hook(point+'.after');return r;
+  stats.statements+=statements.length;stats.batches++;await hook(point+'.before');const r=await db.batch(raw.map(x=>x.s));await hook(point+'.after');return r;
  }};
 }
 function bucket(r2){
@@ -55,13 +55,13 @@ export default {async fetch(request,env){
  if(path==='/__test/sql'){try{return Response.json(await env.DB.batch((await request.json()).map(s=>env.DB.prepare(s.sql).bind(...(s.args??[])))));}catch(e){return Response.json({error:String(e)},{status:409});}}
  if(path==='/__test/control'){
   const input=await request.json();options=input.options??options;if(Object.hasOwn(input,'fault'))fault=input.fault;if(Object.hasOwn(input,'block'))block=input.block;
-  if(input.resetStatements)stats.statements=0;if(input.release)block=null;return Response.json({...stats,uploads:uploads.size,objects:objects.size});
+  if(input.resetStatements){stats.statements=0;stats.batches=0;}if(input.release)block=null;return Response.json({...stats,uploads:uploads.size,objects:objects.size});
  }
  if(path==='/__test/reset'){
   fault=null;block=null;options={};
   for(const [id,key]of uploads)try{await env.RECOVERY.resumeMultipartUpload(key,id).abort();}catch{}
   for(const o of (await env.RECOVERY.list({limit:1000})).objects)await env.RECOVERY.delete(o.key);
-  uploads=new Map();objects=new Set();aborted=new Set();stats={calls:{},maxPayloads:0,blocked:null,statements:0};return Response.json({ok:true});
+  uploads=new Map();objects=new Set();aborted=new Set();stats={calls:{},maxPayloads:0,blocked:null,statements:0,batches:0};return Response.json({ok:true});
  }
  if(path==='/__test/object'){
   const p=await request.json();if(p.remove){await env.RECOVERY.delete(p.key);objects.delete(p.key);}

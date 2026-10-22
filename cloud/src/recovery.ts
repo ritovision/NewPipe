@@ -51,19 +51,30 @@ export class RecoveryService {
   }
   private prefix() { return "recovery/" + this.context.library + "/"; }
   private key(slot: number, id: string) { return this.prefix() + slot + "/" + id; }
-  private async control(): Promise<Control> {
-    const row = await this.db.prepare("SELECT CAST(b.revision AS TEXT) AS revision,CAST(b.next_ordinal AS TEXT) AS next_ordinal,b.service_generation FROM cloud_backup_control b JOIN cloud_devices d ON d.library_id=b.library_id WHERE " + AUTH)
-      .bind(...args(this.context)).first<Control>();
+  private controlQuery(): D1PreparedStatement {
+    return this.db.prepare("SELECT CAST(b.revision AS TEXT) AS revision,CAST(b.next_ordinal AS TEXT) AS next_ordinal,b.service_generation FROM cloud_backup_control b JOIN cloud_devices d ON d.library_id=b.library_id WHERE " + AUTH)
+      .bind(...args(this.context));
+  }
+  private slotsQuery(): D1PreparedStatement {
+    return this.db.prepare("SELECT s.*,CAST(s.ordinal AS TEXT) AS ordinal FROM cloud_backup_slots s WHERE library_id=? ORDER BY ordinal")
+      .bind(this.context.library);
+  }
+  private ownOperationQuery(): D1PreparedStatement {
+    return this.db.prepare("SELECT o.*,CAST(o.sequence AS TEXT) AS sequence FROM cloud_backup_operations o WHERE library_id=? AND device_id=?")
+      .bind(this.context.library, this.context.device);
+  }
+  private checkedControl(row: Control | undefined): Control {
     if (!row || row.service_generation !== this.context.serviceGeneration) fail("RECOVERY_INDEX_RECONCILIATION_REQUIRED", 503);
     return row;
   }
+  private async control(): Promise<Control> {
+    return this.checkedControl((await this.controlQuery().first<Control>()) ?? undefined);
+  }
   private async slots(): Promise<Slot[]> {
-    return (await this.db.prepare("SELECT s.*,CAST(s.ordinal AS TEXT) AS ordinal FROM cloud_backup_slots s WHERE library_id=? ORDER BY ordinal")
-      .bind(this.context.library).all<Slot>()).results;
+    return (await this.slotsQuery().all<Slot>()).results;
   }
   private async ownOperation(): Promise<Operation | null> {
-    return this.db.prepare("SELECT o.*,CAST(o.sequence AS TEXT) AS sequence FROM cloud_backup_operations o WHERE library_id=? AND device_id=?")
-      .bind(this.context.library, this.context.device).first<Operation>();
+    return this.ownOperationQuery().first<Operation>();
   }
   private async operation(ref: RecoveryReference): Promise<Operation> {
     await this.control();
@@ -129,7 +140,14 @@ export class RecoveryService {
       nextPart: s?.next_part ?? null, verifyPart: s?.verify_part ?? null, error: op.error ?? s?.error ?? null };
   }
   async status() {
-    const c = await this.control(), slots = await this.slots(), own = await this.ownOperation();
+    // All three bounded reads share one D1 snapshot/round trip. The control
+    // query still authenticates the device and must pass the same generation
+    // check before any result is exposed. No R2 integrity check is skipped.
+    const result = await this.db.batch([this.controlQuery(), this.slotsQuery(), this.ownOperationQuery()]);
+    const c = this.checkedControl(result[0]?.results[0] as Control | undefined);
+    const slots = result[1]?.results as Slot[] | undefined;
+    const own = result[2]?.results[0] as Operation | undefined;
+    if (!slots || !result[2]) fail("RECOVERY_INDEX_RECONCILIATION_REQUIRED", 503);
     const archives = [];
     for (const s of slots) {
       const m = manifest(s);

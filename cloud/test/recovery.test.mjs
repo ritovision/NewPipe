@@ -111,6 +111,24 @@ beforeEach(async()=>{
   {sql:'INSERT INTO cloud_backup_control(library_id,service_generation) VALUES(?,?)',args:['library-a','service-a']});
 });
 
+test('recovery status batches its three scoped DATA reads while still HEAD-verifying READY archives',async()=>{
+ await control({resetStatements:true});
+ const initial=ok(await recovery('status',{},tokens.a));
+ assert.equal(initial.occupiedSlots,0);assert.deepEqual(initial.archives,[]);
+ const first=await control({});
+ assert.equal(first.statements,4,'Token authentication plus control, slots and own-operation reads');
+ assert.equal(first.batches,1,'Only one D1 round trip for all three status selects');
+ const archived=await backup();
+ const before=await control({resetStatements:true}),headCalls=before.calls.head??0;
+ const ready=ok(await recovery('status',{},tokens.r));
+ assert.equal(ready.occupiedSlots,1);
+ assert.equal(ready.archives[0].archiveId,archived.archiveId);
+ assert.equal(ready.archives[0].usable,true,'Must still verify stored R2 bytes and metadata');
+ const measured=await control({});
+ assert.equal(measured.statements,4);
+ assert.equal(measured.batches,1);
+ assert.equal((measured.calls.head??0)-headCalls,1,'Exactly one R2 HEAD for the existing READY archive');
+});
 test('valid native ZIP uses multipart, verifies bytes, pins and downloads exactly',async()=>{
  const saved=await backup(),s=await state();assert.equal(s.occupiedSlots,1);assert.equal(s.archives[0].usable,true);assert.equal(s.archives[0].validation,'producer-native-validation-and-verified-transfer');
  assert.equal(saved.digest,await recoveryDigest(saved.manifest));
