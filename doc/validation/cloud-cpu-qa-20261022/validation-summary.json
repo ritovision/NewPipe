@@ -1,0 +1,31 @@
+{
+  "sourceSnapshot": "acab5dd07e55c2e2a3c53a2507c1f0b2f5f55275 plus only fresh-provisioner generation identity correction and its black-box mock test",
+  "typescript": "PASS",
+  "backendTests": 379,
+  "backendPassed": 379,
+  "backendFailed": 0,
+  "backendSkipped": 0,
+  "backendCancelled": 0,
+  "fullLogSHA256": "991bd2be9eb1a37b4463ca15125a38dc87e4562866e2c99f84ef2124c73d1780",
+  "TSLogSHA256": "06beff7e0ca05d69657556d4ee4a83f61171ce17ffae33974b801ca84a8ff11e",
+  "smokeRequests": 25,
+  "profileRequests": 9,
+  "profileStreams": 600,
+  "profilePages": 7,
+  "profileBytes": 61716,
+  "R2BackupRequests": 26,
+  "R2ArchivesReadyAndHEADVerified": 3,
+  "liveCancellationRequests": 7,
+  "liveCancellationPass": true,
+  "credentialRevocation": "3 of 3 synthetic test devices revoked; no remaining active uploads/backup operations",
+  "externalFence": "OPEN (formal exclusive close blocked by platform safety checks)",
+  "publicAPI": "disabled, 503 CLOUD_API_DISABLED",
+  "afterTestD1Budgets": {
+    "state": "ACTIVE",
+    "spent_reads": 45225,
+    "spent_writes": 10964,
+    "held_reads": 0,
+    "held_writes": 0
+  },
+  "source": "Exact local and provider executed records. Private raw credentials, cloud trace headers and device paths not committed."
+}

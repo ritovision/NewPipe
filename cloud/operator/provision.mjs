@@ -39,7 +39,7 @@ try{
  const bucket=await call('/r2/buckets',{name:names.bucket});await checkpoint('create-bucket',{name:bucket.name,creation_date:bucket.creation_date});
  if(data.name!==names.data||control.name!==names.control||bucket.name!==names.bucket)fail('CREATION_SCOPE_MISMATCH');
  const scope=validateScope({account:v.account,worker:names.worker,database:data.uuid,bucket:names.bucket,
-  library:'newpipe-fence-qa-'+randomUUID(),generation:randomUUID(),fence:{control:control.uuid,resource:randomUUID(),operator:names.operator}});
+  library:'newpipe-fence-qa-'+randomUUID(),generation:record.activeGeneration,fence:{control:control.uuid,resource:randomUUID(),operator:names.operator}});
  const usage={reads:0,writes:0,dataSize:0};
  const sql=async(id,statement,params=[])=>{
   const r=await call('/d1/database/'+id+'/query',{sql:statement,params});

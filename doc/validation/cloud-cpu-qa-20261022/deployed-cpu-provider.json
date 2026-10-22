@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-22",
+  "scriptName": "newpipe-cpu-qa-20261022a",
+  "start": "2026-10-22T08:54:24Z",
+  "end": "2026-10-22T09:05:50Z",
+  "source": "Cloudflare GraphQL workersInvocationsAdaptive (provider 95th percentile, adaptive sampling)",
+  "requests": 313,
+  "workerErrors": 0,
+  "cpuMs": {
+    "p50": 3.288,
+    "p95": 6.885,
+    "p99": 9.63
+  },
+  "targetP95Ms": 8,
+  "targetMet": true,
+  "scope": "Representative mixture of real synthetic catalog, backup, authentication and replay calls in isolated QA; not unlimited-sized library or all route/service-generation lifecycle operations"
+}

@@ -1,0 +1,39 @@
+{
+  "source": "Cloudflare Wrangler tail sampled events (CPU duration in ms), not adaptive analytical quantiles",
+  "eventCount": 126,
+  "byRoute": {
+    "/v1/head": {
+      "count": 33,
+      "minMs": 1,
+      "medianMs": 2,
+      "nearestRankP95Ms": 3,
+      "maxMs": 3,
+      "meanMs": 2.061
+    },
+    "/v1/pages": {
+      "count": 33,
+      "minMs": 2,
+      "medianMs": 2,
+      "nearestRankP95Ms": 3,
+      "maxMs": 3,
+      "meanMs": 2.242
+    },
+    "/v1/recovery/status": {
+      "count": 35,
+      "minMs": 3,
+      "medianMs": 4,
+      "nearestRankP95Ms": 5,
+      "maxMs": 9,
+      "meanMs": 3.914
+    },
+    "/v1/uploads/publish": {
+      "count": 25,
+      "minMs": 2,
+      "medianMs": 3,
+      "nearestRankP95Ms": 4,
+      "maxMs": 4,
+      "meanMs": 2.8
+    }
+  },
+  "scope": "Private IP/header/URL logs omitted; these are 126 sampled traces only. CPU duration rounded to integer milliseconds, nearest-rank p95 used; not a replacement for the adaptive 313-request provider quantile."
+}
