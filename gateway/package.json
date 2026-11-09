@@ -22,12 +22,12 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20261016.1",
+    "@cloudflare/workers-types": "5.20261104.1",
     "esbuild": "0.28.2",
-    "miniflare": "5.20260825.0-alpha",
+    "miniflare": "5.20261104.0-beta",
     "typescript": "7.0.2",
     "vitest": "5.0.5",
-    "wrangler": "4.126.0",
+    "wrangler": "4.158.0",
     "ws": "8.21.0"
   }
 }
