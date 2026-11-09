@@ -1,21 +1,22 @@
 import {beforeAll, afterAll, describe, test, expect} from 'vitest';
 import {createHash, generateKeyPairSync, randomBytes, randomUUID, sign} from 'node:crypto';
-import {harness, origin, ownerKey, digest} from './helpers.mjs';
+import {harness, origin, ownerKey, digest, mergeCookies, field} from './helpers.mjs';
 let h;
 beforeAll(async()=>{h=await harness();},30000);
 afterAll(async()=>{await h?.mf.dispose();});
 const cookies=r=>(r.headers.getSetCookie?.()??[r.headers.get('set-cookie')]).filter(Boolean).map(c=>c.split(';')[0]).join('; ');
 
 async function consent(scopes, method='S256') {
+ const browser=await h.ownerLogin();
  const registered=await h.post('/oauth/register',{client_name:'Untrusted test label',redirect_uris:['https://example.com/callback'],grant_types:['authorization_code','refresh_token'],response_types:['code'],token_endpoint_auth_method:'none'});
  const client=await registered.json(),verifier=randomBytes(32).toString('base64url');
  const query=new URLSearchParams({response_type:'code',client_id:client.client_id,redirect_uri:'https://example.com/callback',scope:scopes.join(' '),state:'state',code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:method,resource:origin+'/mcp'});
- const page=await h.get('/authorize?'+query);
- const cookie=cookies(page),text=await page.text(),handle=text.match(/name="handle" value="([^"]+)"/)?.[1];
- return {page,text,cookie,handle,client,scopeProof:text.match(/name="scope_proof" value="([^"]+)"/)?.[1]};
+ const page=await h.get('/authorize?'+query,{headers:{Cookie:browser.cookie}});
+ const cookie=mergeCookies(browser.cookie,cookies(page)),text=await page.text(),handle=text.match(/name="handle" value="([^"]+)"/)?.[1];
+ return {page,text,cookie,handle,client,csrf:field(text,'csrf'),flow:field(text,'flow'),scopeProof:text.match(/name="scope_proof" value="([^"]+)"/)?.[1]};
 }
 async function approve(info,cookie,scopes) {
- const form=new URLSearchParams({handle:info.handle??'',scope_proof:info.scopeProof??'',owner_key:ownerKey,decision:'allow'});
+ const form=new URLSearchParams({handle:info.handle??'',scope_proof:info.scopeProof??'',csrf:info.csrf??'',flow:info.flow??'',decision:'allow'});
  scopes.forEach(s=>form.append('scope',s));
  return h.get('/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:cookie,Origin:origin},body:form.toString()});
 }

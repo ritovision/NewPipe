@@ -1,3 +1,4 @@
+import {cookies, mergeCookies, field} from './helpers.mjs';
 import { beforeAll, afterAll, describe, expect, test } from 'vitest';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { harness, origin, ownerKey, digest } from './helpers.mjs';
@@ -26,12 +27,13 @@ describe('private gateway boundaries',()=>{
   const page=await h.get('/setup');
   expect(page.status).toBe(200);
   expect(page.headers.get('referrer-policy')).toBe('same-origin');
-  const headers={'Content-Type':'application/x-www-form-urlencoded',Origin:origin};
-  const form=new URLSearchParams({owner_key:ownerKey}).toString();
+  const pageText=await page.text();
+  const headers={'Content-Type':'application/x-www-form-urlencoded',Origin:origin,Cookie:cookies(page)};
+  const form=new URLSearchParams({owner_key:ownerKey,browser_csrf:field(pageText,'browser_csrf')}).toString();
   const accepted=await h.get('/setup',{method:'POST',headers,body:form,redirect:'manual'});
   expect(accepted.status).toBe(303);
   expect(accepted.headers.get('set-cookie')).toContain('__Host-newpipe-admin=');
-  const cookie=accepted.headers.get('set-cookie')?.split(';')[0]??'';
+  const cookie=mergeCookies(cookies(page),cookies(accepted));
   const ownerPage=await h.get('/setup',{headers:{Cookie:cookie}});
   expect(ownerPage.status).toBe(200);
   expect(await ownerPage.text()).toContain('Create a five-minute pairing code');
@@ -134,7 +136,7 @@ describe('private gateway boundaries',()=>{
   const credentials=await h.oauth();
   const listed=await h.rpc(credentials.access_token,'tools/list',{});expect(listed.status).toBe(200);expect(listed.value.result.tools.some(t=>t.name==='remove_library_items')).toBe(true);
   const devices=await h.call(credentials.access_token,'list_devices',{});expect(Array.isArray(devices.data.devices)).toBe(true);
-  const reused=await h.get('/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:credentials.consentCookie,Origin:origin},body:new URLSearchParams({handle:credentials.consentHandle,owner_key:ownerKey,decision:'allow'}).toString()});
+  const reused=await h.get('/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:credentials.consentCookie,Origin:origin},body:new URLSearchParams(credentials.consentFields).toString()});
   expect(reused.headers.get('location')??'').not.toMatch(/[?&]code=/);
  },15000);
  test('unpaired devices cannot get a connection challenge',async()=>{

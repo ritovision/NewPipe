@@ -1,3 +1,4 @@
+import { OwnerAuth } from './owner-state';
 import { DurableObject } from 'cloudflare:workers';
 import { assert, body, CLIENT, ControlError, device, digest, Env, failure, randomToken, response, UUID, verifyDevice, DeviceRegistration, cleanLabel } from './shared';
 
@@ -22,10 +23,14 @@ export class ControlAccount extends DurableObject<Env> {
         devices: await this.ctx.storage.get<Registration[]>('devices') ?? [],
         blocked_clients: await this.ctx.storage.get<string[]>('blocked') ?? []
       });
-      const input = await body(request, 16_384);
+      const input = await body(request, path.startsWith('/owner/') ? 65_536 : 16_384);
+      if (path.startsWith('/owner/')) {
+        return response(await this.gate(() => new OwnerAuth(this.ctx.storage, this.env).handle(path.slice(6), input)));
+      }
       if (path === '/pairing') {
         const code = randomToken(18), expiresAt = Date.now() + 300_000;
         await this.gate(async () => {
+          if (input.ownerAuthority) await new OwnerAuth(this.ctx.storage, this.env).validateAuthority(input.ownerAuthority);
           const current = await this.ctx.storage.list<Pairing>({prefix: 'pair:', limit: 65});
           if (current.size >= 64) throw new ControlError('PAIRING_LIMIT', 429);
           await this.ctx.storage.put('pair:' + await digest(code), {expiresAt});
@@ -86,6 +91,7 @@ export class ControlAccount extends DurableObject<Env> {
         assert(typeof input.device_id === 'string' && UUID.test(input.device_id));
         const id = input.device_id;
         await this.gate(async () => {
+          if (input.ownerAuthority) await new OwnerAuth(this.ctx.storage, this.env).validateAuthority(input.ownerAuthority);
           const devices = await this.ctx.storage.get<Registration[]>('devices') ?? [];
           if (!devices.some(d => d.deviceId === id)) throw new ControlError('NOT_FOUND', 404);
           await this.ctx.storage.put('devices', devices.map(d => d.deviceId === id ? {...d, revoked: true, pending: false} : d));
@@ -101,6 +107,7 @@ export class ControlAccount extends DurableObject<Env> {
         assert(typeof input.client_id === 'string' && CLIENT.test(input.client_id));
         const client = input.client_id, blocked = path === '/block-client';
         const policy = await this.gate(async () => {
+          if (input.ownerAuthority) await new OwnerAuth(this.ctx.storage, this.env).validateAuthority(input.ownerAuthority);
           const previous = await this.ctx.storage.get<string[]>('blocked') ?? [];
           if (blocked && !previous.includes(client) && previous.length >= 128) throw new ControlError('CLIENT_LIMIT', 409);
           const revision = (await this.ctx.storage.get<number>('policy_revision:'+client) ?? 0) + 1;
@@ -127,7 +134,8 @@ export class ControlAccount extends DurableObject<Env> {
         const pairs = await this.ctx.storage.list<Pairing>({prefix: 'pair:'});
         const expired = [...pairs].filter(([, p]) => p.expiresAt <= Date.now()).map(([key]) => key);
         for (let n = 0; n < expired.length; n += 128) await this.ctx.storage.delete(expired.slice(n, n + 128));
-        if (pairs.size > expired.length) await this.ctx.storage.setAlarm(Date.now() + 360_000);
+        const authPending = await new OwnerAuth(this.ctx.storage, this.env).prune();
+        if (pairs.size > expired.length || authPending) await this.ctx.storage.setAlarm(Date.now() + 360_000);
       });
     } catch { await this.ctx.storage.setAlarm(Date.now() + 60_000); }
   }

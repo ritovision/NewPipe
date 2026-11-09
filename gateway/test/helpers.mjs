@@ -2,13 +2,24 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign } from 'node:crypto';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
+import {buildSync} from 'esbuild';
 export const origin='https://newpipe.test';
 export const owner='90000000-0000-0000-0000-000000000001';
 export const ownerKey='test-only-'+randomBytes(32).toString('base64url');
 export const digest=s=>createHash('sha256').update(s).digest('hex');
+export const cookies=r=>(r.headers.getSetCookie?.()??[r.headers.get('set-cookie')]).filter(Boolean).map(c=>c.split(';')[0]).join('; ');
+export function mergeCookies(...values) {
+ const jar=new Map();for(const item of values.flatMap(v=>v.split(';')).map(v=>v.trim()).filter(Boolean)) {
+  const at=item.indexOf('=');jar.set(item.slice(0,at),item.slice(at+1));
+ }
+ return [...jar].map(([k,v])=>k+'='+v).join('; ');
+}
+export const field=(html,name)=>html.match(new RegExp('name="'+name+'" value="([^"\\n]*)"'))?.[1];
+
 export async function harness(bindingOverrides={}, opts={}) {
  const localOrigin=opts.origin??origin;
- const config=convertV4MiniflareOptions({modules:true,scriptPath:resolve('dist/index.js'),compatibilityDate:'2026-08-25',compatibilityFlags:['nodejs_compat','global_fetch_strictly_public'],
+ const entry=opts.scriptPath?{script:buildSync({entryPoints:[resolve(opts.scriptPath)],bundle:true,write:false,format:'esm',platform:'browser',external:['cloudflare:*','node:*']}).outputFiles[0].text,scriptPath:resolve(opts.scriptPath)}:{scriptPath:resolve('dist/index.js')};
+ const config=convertV4MiniflareOptions({modules:true,...entry,compatibilityDate:'2026-08-25',compatibilityFlags:['nodejs_compat','global_fetch_strictly_public'],
    kvNamespaces:['OAUTH_KV'],durableObjects:{ACCOUNT:{className:'ControlAccount',useSQLite:true},DEVICES:{className:'DeviceRoom',useSQLite:true}},
    bindings:{PUBLIC_ORIGIN:localOrigin,OWNER_ID:owner,OWNER_KEY_HASH:digest(ownerKey),SESSION_SECRET:randomBytes(32).toString('base64url'),...bindingOverrides},
    ratelimits:{AUTH_LIMITER:{namespace_id:'1',simple:{limit:1000,period:60}},CONTROL_LIMITER:{namespace_id:'2',simple:{limit:1000,period:60}}}
@@ -18,21 +29,34 @@ export async function harness(bindingOverrides={}, opts={}) {
  await mf.ready;
  const get=(path,init={})=>mf.dispatchFetch(localOrigin+path,{redirect:'manual',...init});
  const post=(path,value,headers={})=>get(path,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(value)});
- const cookies=r=>(r.headers.getSetCookie?.()??[r.headers.get('set-cookie')]).filter(Boolean).map(c=>c.split(';')[0]).join('; ');
- async function oauth(scopes=['mcp.connect','library.read','library.write','playlist.write','library.delete','playlist.delete','playback.control'], approvedScopes=scopes) {
+ async function newBrowser() {
+  const page=await get('/setup');assert.equal(page.status,200,await page.clone().text());
+  const text=await page.text();return {cookie:cookies(page),browser_csrf:field(text,'browser_csrf'),html:text};
+ }
+ async function ownerLogin() {
+  const browser=await newBrowser();
+  const logged=await get('/setup',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:browser.cookie,Origin:localOrigin},body:new URLSearchParams({owner_key:ownerKey,browser_csrf:browser.browser_csrf}).toString()});
+  assert.equal(logged.status,303,await logged.clone().text());
+  browser.cookie=mergeCookies(browser.cookie,cookies(logged));
+  const page=await get('/setup',{headers:{Cookie:browser.cookie}});assert.equal(page.status,200,await page.clone().text());
+  browser.html=await page.text();browser.csrf=field(browser.html,'csrf');assert.ok(browser.csrf);return browser;
+ }
+ async function oauth(scopes=['mcp.connect','library.read','library.write','playlist.write','library.delete','playlist.delete','playback.control'], approvedScopes=scopes, options={}) {
+  const browser=options.browser??await ownerLogin();
   const registered=await post('/oauth/register',{client_name:'Synthetic QA client',redirect_uris:['https://example.com/callback'],grant_types:['authorization_code','refresh_token'],response_types:['code'],token_endpoint_auth_method:'none'});
   assert.equal(registered.status,201,await registered.clone().text());const client=await registered.json();
   const verifier=randomBytes(32).toString('base64url'),challenge=createHash('sha256').update(verifier).digest('base64url');
   const query=new URLSearchParams({response_type:'code',client_id:client.client_id,redirect_uri:'https://example.com/callback',scope:scopes.join(' '),state:'synthetic-state',code_challenge:challenge,code_challenge_method:'S256',resource:localOrigin+'/mcp'});
-  const page=await get('/authorize?'+query);assert.equal(page.status,200,await page.clone().text());const text=await page.text();
+  const page=await get('/authorize?'+query,{headers:{Cookie:browser.cookie}});assert.equal(page.status,200,await page.clone().text());const text=await page.text();
   const handle=text.match(/name="handle" value="([^"]+)"/)?.[1];assert.ok(handle);
   const scopeProof=text.match(/name="scope_proof" value="([^"]+)"/)?.[1];assert.ok(scopeProof);
-  const values=new URLSearchParams({handle,scope_proof:scopeProof,owner_key:ownerKey,decision:'allow'});for(const scope of approvedScopes) if(scope!=='mcp.connect') values.append('scope',scope);
-  const approved=await get('/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:cookies(page),Origin:localOrigin},body:values.toString()});
+  const consentCookie=mergeCookies(browser.cookie,cookies(page));
+  const values=new URLSearchParams({handle,scope_proof:scopeProof,flow:field(text,'flow'),csrf:field(text,'csrf'),decision:'allow'});for(const scope of approvedScopes) if(scope!=='mcp.connect') values.append('scope',scope);
+  const approved=await get('/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:consentCookie,Origin:localOrigin},body:values.toString()});
   assert.equal(approved.status,302,await approved.clone().text());const redirect=new URL(approved.headers.get('location'));assert.equal(redirect.searchParams.get('state'),'synthetic-state');
   const code=redirect.searchParams.get('code');assert.ok(code);
   const exchanged=await get('/oauth/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'authorization_code',client_id:client.client_id,redirect_uri:'https://example.com/callback',code_verifier:verifier,code,resource:localOrigin+'/mcp'}).toString()});
-  assert.equal(exchanged.status,200,await exchanged.clone().text());return {...await exchanged.json(),client_id:client.client_id,consentHandle:handle,consentCookie:cookies(page),consentHtml:text};
+  assert.equal(exchanged.status,200,await exchanged.clone().text());return {...await exchanged.json(),client_id:client.client_id,consentHandle:handle,consentCookie,consentHtml:text,consentFields:Object.fromEntries(values)};
  }
  async function rpc(token,method,params,id=1) {
   const r=await post('/mcp',{jsonrpc:'2.0',id,method,params},{Authorization:'Bearer '+token,Accept:'application/json, text/event-stream','MCP-Protocol-Version':'2025-11-25'});
@@ -71,5 +95,5 @@ export async function harness(bindingOverrides={}, opts={}) {
    });
   });return ws;
  }
- return {mf,get,post,oauth,rpc,call,pairedDevice,connectDevice,origin:localOrigin};
+ return {mf,get,post,newBrowser,ownerLogin,oauth,rpc,call,pairedDevice,connectDevice,origin:localOrigin};
 }

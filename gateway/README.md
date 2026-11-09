@@ -2,7 +2,17 @@
 
 Private, single-owner Cloudflare MCP gateway for independently paired NewPipe Android devices. The Worker is publicly reachable over HTTPS, but catalog and playback tools require OAuth authorization and device-scoped permission. NewPipe owns the Library and executes commands. No tunnel, public phone port, desktop relay or duplicate cloud Library is used.
 
-## Deployment and one-time owner setup
+## Passkey source candidate (2026-11-09; not deployed)
+
+The feature branch implements passkey-first owner login, one-time owner-key bootstrap/emergency recovery, revocable one-hour owner browser sessions, and explicit OAuth consent. The production gateway has **not** been replaced by this work. See [Phase B adjudication](../doc/reviews/ai-passkeys-phase-b-adjudication-20261109.md) and the [progress record](../doc/validation/ai-passkeys-progress-20261109.md) for remaining acceptance gates. Android no-copy pairing remains a separate unfinished milestone.
+
+After rollout, open `/setup`, use **First setup or emergency recovery** once with the protected existing owner key, and add a passkey. Returning owners use **Sign in with passkey**; an authenticated browser can review a new client's OAuth permissions without retyping the key. Passkeys authenticate the owner; successful login does not automatically approve any OAuth client. The browser/device handles fingerprint, PIN or supported unlock; no biometric data reaches this gateway.
+
+Adding/removing passkeys requires fresh verification. Removing the last passkey additionally requires fresh recovery-key verification and explicit confirmation. Owner-session reset does not revoke already issued OAuth grants or paired devices: their existing revoke controls remain separate. Old signed admin cookies are intentionally not accepted by the new server-backed session format. Existing device identities and OAuth records are not rewritten.
+
+Browser authentication uses pinned SimpleWebAuthn libraries, a local bundled script (no CDN), single-use challenges and explicit CSRF/origin checks. The passkey RP ID is the **exact configured gateway hostname**; changing it after enrollment requires a deliberate credential migration. `npm run check` and `npm run build` generate the ignored `.generated/` browser asset; tests always rebuild before execution.
+
+## Deployment and owner recovery
 
 Worker: `ritovision-newpipe-ai-control`
 
@@ -22,7 +32,7 @@ Do not rerun the script just to update NewPipe on Android. It changes only gatew
 
 The script uses the existing Wrangler login, reads the owner-only file `~/.local/share/newpipe-ai-control/owner-credentials.json`, and uploads only `OWNER_KEY_HASH` and `SESSION_SECRET`. It does not print their values. The raw owner key remains in that private file, outside this repository. Do not commit it, expose it in a screenshot, or place it in a URL.
 
-After installation, initial owner setup and client OAuth consent use that owner key. The setup page can issue an expiring one-time pairing code, show authorized grants, revoke a device/client, and remove an emergency client block. This setup is separate from individual AI actions: once granted, catalog deletions execute directly without an extra approval page.
+In the legacy deployment, initial owner setup and client OAuth consent use that owner key. In this passkey source candidate it is reserved for first enrollment and emergency recovery; ordinary consent requires an authenticated owner session. The setup page can issue an expiring one-time pairing code, show authorized grants, revoke a device/client, and remove an emergency client block. This setup is separate from individual AI actions: once granted, catalog deletions execute directly without an extra approval page.
 
 QA live integration and independent source reviews have been performed; see `../doc/validation/ai-control-v1-release-readiness-2026-10-17.md` for current evidence and limitations.
 

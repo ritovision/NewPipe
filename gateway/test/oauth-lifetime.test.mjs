@@ -18,7 +18,15 @@ const token=fields=>h.get('/oauth/token',{method:'POST',headers:{'Content-Type':
 const refresh=(c,refresh_token,extra={})=>token({grant_type:'refresh_token',client_id:c.client_id,refresh_token,...extra});
 const grantKey=t=>{const [user,grant]=t.split(':');return `grant:${user}:${grant}`;};
 const kvExpiration=async key=>(await kv.list({prefix:key})).keys.find(k=>k.name===key)?.expiration;
-const stored=async key=>({record:await kv.get(key,'json'),expiration:await kvExpiration(key)});
+async function stored(key) {
+ const {value:raw,metadata}=await kv.getWithMetadata(key,'text');
+ return {record:raw===null?null:JSON.parse(raw),raw,metadata,expiration:await kvExpiration(key)};
+}
+async function relevantSnapshot(c) {
+ const [user,id]=c.refresh_token.split(':'),keys=[grantKey(c.refresh_token),'client:'+c.client_id];
+ keys.push(...(await kv.list({prefix:`token:${user}:${id}:`})).keys.map(k=>k.name));
+ return Object.fromEntries(await Promise.all(keys.sort().map(async key=>[key,await stored(key)])));
+}
 async function simulate(key,changes,expiration) {
  const {value,metadata}=await kv.getWithMetadata(key,'json');
  await kv.put(key,JSON.stringify({...value,...changes}),{expiration,...(metadata?{metadata}:{})});
@@ -56,37 +64,82 @@ describe('durable OAuth authorization: 10-minute access, 90-day sliding grant',(
   expect((await h.rpc(next.access_token,'tools/list',{})).status).toBe(200);
  },15000);
 
- test('a grant idle past its window is rejected and a failed refresh writes nothing',async()=>{
+ test('an expired grant is rejected before writes to grant, token, client or metadata',async()=>{
   const c=await h.oauth(['mcp.connect','library.read']),key=grantKey(c.refresh_token);
   const current=(await ok(await refresh(c,c.refresh_token))).refresh_token; // c.refresh_token is now the retry-window token
   // Inside the provider's 60 s floor, then fully elapsed. The record is kept so the check is shown to be logical, not only KV eviction.
   for(const expiresAt of [now()+30,now()-1]) {
    await simulate(key,{expiresAt},now()+3600);
-   const before=await stored(key);
+   const before=await relevantSnapshot(c);
    await rejected(await refresh(c,current));
    await rejected(await refresh(c,c.refresh_token));
-   expect(await stored(key)).toEqual(before);
+   expect(await relevantSnapshot(c)).toEqual(before);
   }
   await kv.delete(key); // physical KV expiry
   await rejected(await refresh(c,current));
   expect(await listed(c.client_id)).toBeUndefined();
  },15000);
 
- test('rotation accepts one lost-response retry, each success slides, superseded tokens fail',async()=>{
+ test('previous-token retries repeatedly slide until a replacement is used, then are rejected without writes',async()=>{
   const c=await h.oauth(['mcp.connect','library.read']),key=grantKey(c.refresh_token),r0=c.refresh_token;
-  const lost=await ok(await refresh(c,r0));
-  const t0=now(),retry=await ok(await refresh(c,r0)),t1=now();
-  near((await stored(key)).record.expiresAt,t0,t1,GRANT_TTL);
-  expect(retry.refresh_token).not.toBe(lost.refresh_token);
-  const before=await stored(key);
-  await rejected(await refresh(c,lost.refresh_token));
-  expect(await stored(key)).toEqual(before);
-  const third=await ok(await refresh(c,retry.refresh_token));
+  let lost=await ok(await refresh(c,r0));
+  for(let attempt=0;attempt<3;attempt++) {
+   // Without aging, an unchanged expiry could accidentally satisfy the assertion.
+   const aged=now()+3600;
+   await simulate(key,{expiresAt:aged},aged);
+   const t0=now(),retry=await ok(await refresh(c,r0)),t1=now();
+   near((await stored(key)).record.expiresAt,t0,t1,GRANT_TTL);
+   expect(retry.refresh_token).not.toBe(lost.refresh_token);
+   const before=await relevantSnapshot(c);
+   await rejected(await refresh(c,lost.refresh_token));
+   expect(await relevantSnapshot(c)).toEqual(before);
+   lost=retry;
+  }
+  const third=await ok(await refresh(c,lost.refresh_token));
+  let before=await relevantSnapshot(c);
   await rejected(await refresh(c,r0));
+  expect(await relevantSnapshot(c)).toEqual(before);
   const other=await h.oauth(['mcp.connect']);
+  before=await relevantSnapshot(c); const otherBefore=await relevantSnapshot(other);
   await rejected(await refresh({client_id:other.client_id},third.refresh_token));
+  expect(await relevantSnapshot(c)).toEqual(before);expect(await relevantSnapshot(other)).toEqual(otherBefore);
   expect((await ok(await refresh(c,third.refresh_token))).scope).toBe(c.scope);
  },15000);
+
+ test('a grant older than a year keeps sliding when refreshed before its idle deadline',async()=>{
+  const c=await h.oauth(['mcp.connect','library.read']),key=grantKey(c.refresh_token),createdAt=now()-400*DAY;
+  let current=c.refresh_token;
+  for(let round=0;round<3;round++) {
+   const expiresAt=now()+3600;
+   await simulate(key,{createdAt,expiresAt},expiresAt);
+   const t0=now();current=(await ok(await refresh(c,current))).refresh_token;const t1=now();
+   const result=await stored(key);near(result.record.expiresAt,t0,t1,GRANT_TTL);
+   expect(result.record.createdAt).toBe(createdAt);
+  }
+ },15000);
+
+ test('a failed access-token write can follow grant rotation; retrying the old token recovers',async()=>{
+  // The fault injection exists ONLY in this separate test-entry Worker, never production.
+  const f=await harness({}, {scriptPath:'test/fixtures/kv-fault-worker.mjs'});
+  try {
+   const store=await f.mf.getKVNamespace('OAUTH_KV'),c=await f.oauth(['mcp.connect','library.read']),key=grantKey(c.refresh_token);
+   const before=await store.getWithMetadata(key,'json'),aged=now()+3600;
+   await store.put(key,JSON.stringify({...before.value,expiresAt:aged}),{expiration:aged,metadata:before.metadata});
+   const send=(token,headers={})=>f.get('/oauth/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',...headers},body:new URLSearchParams({grant_type:'refresh_token',client_id:c.client_id,refresh_token:token,resource:origin+'/mcp'}).toString()});
+   const [user,id]=c.access_token.split(':'),prefix=`token:${user}:${id}:`;
+   const tokensBefore=(await store.list({prefix})).keys;
+   const t0=now(),failed=await send(c.refresh_token,{'X-Test-Fail-Access-Write':'yes'}),t1=now();
+   expect(failed.status).toBe(500);
+   const partial=await store.get(key,'json');near(partial.expiresAt,t0,t1,GRANT_TTL);
+   expect(partial.refreshTokenId).not.toBe(before.value.refreshTokenId);
+   expect(partial.previousRefreshTokenId).toBe(before.value.refreshTokenId);
+   expect((await store.list({prefix})).keys).toEqual(tokensBefore);
+   const recovered=await ok(await send(c.refresh_token));expect(recovered.expires_in).toBe(ACCESS_TTL);
+   expect((await f.rpc(recovered.access_token,'tools/list',{})).status).toBe(200);
+   await ok(await send(recovered.refresh_token));
+   await rejected(await send(c.refresh_token));
+  } finally {await f.mf.dispose();}
+ },30000);
 
  test('refresh can narrow but never widen the consented scope',async()=>{
   const consented=['mcp.connect','library.read','playback.control'];
@@ -100,6 +153,8 @@ describe('durable OAuth authorization: 10-minute access, 90-day sliding grant',(
   expect(await stored(key)).toEqual(before);
   const narrow=await ok(await refresh(c,wide.refresh_token,{scope:'mcp.connect library.read'}));
   expect(narrow.scope).toBe('mcp.connect library.read');
+  const denied=await h.call(narrow.access_token,'pause',{device_id:randomUUID(),request_id:randomUUID(),issued_at_ms:Date.now()});
+  expect(denied.data.code).toBe('PERMISSION_DENIED');
   // The consented grant, not the last token, is the ceiling: a later plain refresh restores exactly it.
   expect((await ok(await refresh(c,narrow.refresh_token))).scope.split(' ').sort()).toEqual([...consented].sort());
   expect((await stored(key)).record.scope.sort()).toEqual([...consented].sort());

@@ -1,3 +1,4 @@
+import { ownerRoutes } from './owner-web';
 import { OAuthProvider } from '@cloudflare/workers-oauth-provider';
 import { administration, authorize } from './auth';
 import { mcpFetch } from './mcp';
@@ -7,7 +8,8 @@ export { DeviceRoom } from './device';
 
 async function publicRoutes(request:Request,env:Env):Promise<Response> {
   const url=new URL(request.url);
-  if(url.pathname==='/authorize') return authorize(request,env);
+  if(url.pathname.startsWith('/auth/')) return ownerRoutes(request,env);
+  if(url.pathname==='/authorize' || url.pathname==='/authorize/continue') return authorize(request,env);
   if(url.pathname==='/setup' || url.pathname.startsWith('/admin/')) return administration(request,env);
   if(url.pathname==='/device/pair' && request.method==='POST') {
     return account(env).fetch(new Request('https://internal/pair',{method:'POST',body:await boundedText(request,4096)}));
