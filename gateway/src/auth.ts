@@ -1,6 +1,6 @@
 import { AuthorizationError } from '@cloudflare/workers-oauth-provider';
 import { account, assert, body, ControlError, digest, Env, esc, failure, response, sameOrigin, SCOPES, verifyOwner, cleanLabel } from './shared';
-import { authority, browserContext, form, getSession, html, loginPanel, managementPanel, ownerCall, recover, sessionCookie, strictOrigin } from './owner-web';
+import { authority, browserContext, form, getSession, html, loginPanel, managementPanel, oauthRedirectOrigin, ownerCall, recover, sessionCookie, strictOrigin } from './owner-web';
 import type {BrowserContext} from './owner-web';
 import type {Consent, OwnerAuthority, OwnerSession} from './owner-state';
 
@@ -29,11 +29,12 @@ export async function authorize(request: Request, env: Env): Promise<Response> {
       const parsed = await env.OAUTH_PROVIDER.parseAuthRequest(request);
       if (parsed.codeChallengeMethod !== 'S256' || !parsed.codeChallenge) throw new ControlError('PKCE_S256_REQUIRED');
       const info = await env.OAUTH_PROVIDER.describeConsent(parsed);
+      const redirectOrigin = oauthRedirectOrigin(parsed.redirectUri);
       const transaction = await env.OAUTH_PROVIDER.beginConsent(parsed);
       const browser = await browserContext(request, env, transaction.headers);
       const consent = await ownerCall<Consent>(env, '/consent/begin', {browserHash: browser.hash,
         sessionHash: session?.hash, handle: transaction.handle, scopes: parsed.scope, clientName: info.clientName,
-        clientDomain: info.clientDomain ?? '', redirectHost: info.redirectHost, redirectOrigin: new URL(parsed.redirectUri).origin, redirectIsLoopback: info.redirectIsLoopback});
+        clientDomain: info.clientDomain ?? '', redirectHost: info.redirectHost, redirectOrigin, redirectIsLoopback: info.redirectIsLoopback});
       return html(consentPage(consent, session, browser), transaction.headers, 200, consent.redirectOrigin);
     }
     if (request.method !== 'POST' || url.pathname !== '/authorize') throw new ControlError('METHOD_NOT_ALLOWED', 405);

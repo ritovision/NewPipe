@@ -1,6 +1,7 @@
 // Test-only subclass: allows deterministic expiry/epoch/failure fixtures in ephemeral
 // Miniflare storage. Neither this module nor its routes is bundled for deployment.
-import worker, {ControlAccount as ActualAccount} from '../../dist/index.js';
+import worker from './kv-fault-worker.mjs';
+import {ControlAccount as ActualAccount} from '../../dist/index.js';
 export {DeviceRoom} from '../../dist/index.js';
 export class ControlAccount extends ActualAccount {
  async fetch(request) {

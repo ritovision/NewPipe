@@ -16,6 +16,14 @@ Anonymous bindings are not identities and cannot hold all capacity indefinitely.
 
 This is not a claim of DoS immunity. Sustained public traffic may still evict an anonymous pre-login flow or hit rate limits, requiring a new sign-in attempt. It does not evict an authenticated pending approval or require the owner key merely to reclaim anonymous capacity.
 
+## Round 2 correction: callback origin is not itself a CSP-safe token
+
+[Round 2](ai-passkeys-phase-b-astra-max-r2-20261109.md) accepted the pending-capacity fix but correctly found that URL parsing permits wildcard/metacharacter hosts such as `https://*` and `https://example.com;sandbox`. The canonical origin alone was insufficient validation. The gateway now validates HTTP(S) callback host syntax against DNS/IPv4 or URL-validated IPv6 literals and rejects CSP metacharacters **before beginning a consent transaction**, and repeats that validation before composing a page policy. The provider still validates the exact registered callback first. Public-endpoint tests register crafted callbacks and prove rejection; separate tests retain loopback IPv4/IPv6, punycode DNS and explicit-port compatibility.
+
+Additional tests exercise a fresh authorizer different from the current session credential, concurrent authorizer revocation versus enrollment, concurrent logout versus consent commit, and a grant-storage failure after consent claim. The last failure test needed its isolated fault Worker to replace the provider's cached helper environment; otherwise it did not actually inject a failure into initial grant issuance. Production code was not modified to expose any injection hook. The corrected test proves a consumed consent stays consumed after failed issuance, and a new consent flow works.
+
+Primary Chromium on source `20b07dd5a` with QA runner `554f3e4ed` passed 11 browser checks including real WebAuthn browser APIs via a virtual CTAP2 authenticator, enrollment/login/cancellation, OAuth approval/PKCE exchange, and **both authenticated and anonymous denial callbacks**. This is synthetic browser acceptance, not the user's biometric or live ChatGPT connection. The callback-syntax correction requires a fresh exact-source browser run before final acceptance.
+
 ## Other implementation decisions and validation
 
 - Single-use WebAuthn challenges are consumed before verification; actual ES256 and RS256 signatures, RP hash, exact origin, UP/UV flags, credential counters, user handle and cross-origin rejection are tested. Synced passkeys with a zero counter remain supported.

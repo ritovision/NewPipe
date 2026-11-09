@@ -47,9 +47,9 @@ async function begin(browser,scopes=['mcp.connect','library.read','library.delet
  const parse=html=>Object.fromEntries(['flow','handle','scope_proof','csrf'].map(name=>[name,field(html,name)??'']));
  return {browser,client,verifier,html,values:parse(html),parse,csp:result.headers.get('content-security-policy')};
 }
-async function consent(info,extra={},scopes=['library.read']) {
+async function consent(info,extra={},scopes=['library.read'],headers={}) {
  const values=new URLSearchParams({...info.values,decision:'allow',...extra});scopes.forEach(s=>values.append('scope',s));
- return h.get('/authorize',{method:'POST',headers:{Cookie:info.browser.cookie,Origin:origin,'Content-Type':'application/x-www-form-urlencoded'},body:values.toString()});
+ return h.get('/authorize',{method:'POST',headers:{Cookie:info.browser.cookie,Origin:origin,'Content-Type':'application/x-www-form-urlencoded',...headers},body:values.toString()});
 }
 const logout=browser=>h.post('/admin/logout',{csrf:browser.csrf},{Cookie:browser.cookie,Origin:origin});
 
@@ -164,6 +164,29 @@ describe('passkey ownership with real WebAuthn cryptography',()=>{
   expect(await page(live)).toContain('Sign in with passkey');
   expect((await authPost(live,'/register/finish',{challengeId:pending.challengeId,response:authenticator().register(pending.options)})).status).toBe(401);
   expect((await readState()).credentials.map(c=>c.id)).toEqual([second.id]);
+ });
+ test('revoking a fresh authorizer invalidates enrollment even when its owner session uses a different live passkey',async()=>{
+  const {browser,key}=await seeded();const second=await add(browser,authenticator(),'Second',await recoveryPermit(browser,'register','Second'));
+  const live=await login(key),permit=await fresh(live,second,'register','Pending');
+  const pending=await ok(await authPost(live,'/register/options',{label:'Pending',permit}));
+  await ok(await authPost(browser,'/credentials/remove',{credentialId:second.id,permit:await recoveryPermit(browser,'remove',second.id)}));
+  expect(await page(live)).toContain('Add passkey');
+  expect((await authPost(live,'/register/finish',{challengeId:pending.challengeId,response:authenticator().register(pending.options)})).status).toBe(401);
+  expect((await readState()).credentials.map(c=>c.id)).toEqual([key.id]);
+ });
+ test('concurrent registration and authorizer revocation have a single serialized authority order',async()=>{
+  const {browser,key}=await seeded();const second=await add(browser,authenticator(),'Second',await recoveryPermit(browser,'register','Second'));
+  const live=await login(key),permit=await fresh(live,second,'register','Racing');
+  const pending=await ok(await authPost(live,'/register/options',{label:'Racing',permit}));
+  const remove=await recoveryPermit(browser,'remove',second.id),newKey=authenticator(),auditBefore=(await readState()).audit.length;
+  const [finished,removed]=await Promise.all([
+   authPost(live,'/register/finish',{challengeId:pending.challengeId,response:newKey.register(pending.options)}),
+   authPost(browser,'/credentials/remove',{credentialId:second.id,permit:remove})]);
+  expect(removed.status).toBe(200);expect([200,401]).toContain(finished.status);
+  const state=await readState(),events=state.audit.slice(auditBefore).map(e=>e.event);
+  expect(state.credentials.some(c=>c.id===second.id)).toBe(false);
+  expect(state.credentials.some(c=>c.id===newKey.id)).toBe(finished.status===200);
+  if(finished.status===200)expect(events.indexOf('passkey-added')).toBeLessThan(events.indexOf('passkey-removed'));
  });
  test('last-key removal requires fresh recovery proof and explicit confirmation; recovery still works afterward',async()=>{
   const {browser,key}=await seeded();
@@ -312,6 +335,32 @@ describe('passkey OAuth consent remains explicit, single-use and browser-bound',
   expect(info.csp).not.toContain('*');
   expect((await h.get('/setup')).headers.get('content-security-policy')).toContain("form-action 'self';");
  });
+ test.each(['https://*/callback','https://example.com;sandbox/callback',
+  'https://example.com,evil/callback','https://*.example.com/callback'])('rejects a provider-registered callback with CSP syntax: %s',async(redirect)=>{
+  const browser=await h.newBrowser();
+  const client=await ok(await h.post('/oauth/register',{client_name:'Untrusted callback',redirect_uris:[redirect],
+   grant_types:['authorization_code','refresh_token'],response_types:['code'],token_endpoint_auth_method:'none'}),201);
+  const verifier=randomBytes(32).toString('base64url');
+  const query=new URLSearchParams({response_type:'code',client_id:client.client_id,redirect_uri:redirect,scope:'mcp.connect',
+   state:'rejected-csp',code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256',resource:origin+'/mcp'});
+  const result=await h.get('/authorize?'+query,{headers:{Cookie:browser.cookie}});
+  expect(result.status).toBe(400);expect(await result.text()).toContain('INVALID_REDIRECT_ORIGIN');
+  expect(result.headers.get('content-security-policy')).toContain("form-action 'self';");
+  expect(result.headers.get('location')).toBeNull();
+  expect((await readState())?.consents??[]).toHaveLength(0);
+ });
+ test.each(['http://127.0.0.1:49152/callback','http://[::1]:49152/callback',
+  'https://xn--bcher-kva.example:8443/callback','https://sub.example.com/callback'])('permits a validated literal/DNS callback without widening CSP: %s',async(redirect)=>{
+  const browser=await h.newBrowser();
+  const client=await ok(await h.post('/oauth/register',{client_name:'Valid callback',redirect_uris:[redirect],
+   grant_types:['authorization_code','refresh_token'],response_types:['code'],token_endpoint_auth_method:'none'}),201);
+  const verifier=randomBytes(32).toString('base64url');
+  const query=new URLSearchParams({response_type:'code',client_id:client.client_id,redirect_uri:redirect,scope:'mcp.connect',
+   state:'accepted-csp',code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256',resource:origin+'/mcp'});
+  const result=await h.get('/authorize?'+query,{headers:{Cookie:browser.cookie}});
+  expect(result.status,await result.clone().text()).toBe(200);
+  expect(result.headers.get('content-security-policy')).toContain("form-action 'self' "+new URL(redirect).origin+';');
+ });
  test('public anonymous consent saturation cannot evict or block verified owner consent',async()=>{
   const {key}=await seeded(),browser=await login(key),protectedFlow=await begin(browser);
   for(let binding=0;binding<5;binding++) {
@@ -350,6 +399,26 @@ describe('passkey OAuth consent remains explicit, single-use and browser-bound',
   const {key}=await seeded(),anon=await h.newBrowser(),info=await begin(anon);
   const result=await consent(info,{decision:'deny'});expect(result.status).toBe(302);expect(result.headers.get('location')).toContain('error=access_denied');
   await login(key,anon);expect((await consent(info)).status).toBe(401);
+ });
+ test('concurrent logout and approval either commit before logout or refuse the consent',async()=>{
+  const {key}=await seeded(),browser=await login(key),info=await begin(browser),auditBefore=(await readState()).audit.length;
+  const [approved,loggedOut]=await Promise.all([consent(info),logout(browser)]);
+  expect(loggedOut.status).toBe(303);expect([302,401]).toContain(approved.status);
+  const events=(await readState()).audit.slice(auditBefore).map(e=>e.event);
+  if(approved.status===302) {
+   expect(approved.headers.get('location')).toContain('code=');
+   expect(events.indexOf('oauth-consent-committed')).toBeGreaterThanOrEqual(0);
+   expect(events.indexOf('oauth-consent-committed')).toBeLessThan(events.indexOf('logout'));
+  } else expect(events).not.toContain('oauth-consent-committed');
+  expect((await consent(info)).status).toBe(401);
+ });
+ test('OAuth storage failure after consent commit leaves the flow spent and a new flow can recover',async()=>{
+  const {key}=await seeded(),browser=await login(key),info=await begin(browser);
+  const failed=await consent(info,{},['library.read'],{'X-Test-Fail-Grant-Write':'yes'});
+  expect(failed.status).toBe(500);expect(failed.headers.get('location')??'').not.toContain('code=');
+  expect((await readState()).consents.find(c=>c.id===info.values.flow).status).toBe('claimed');
+  expect((await consent(info)).status).toBe(401);
+  const next=await begin(browser);expect((await consent(next)).status).toBe(302);
  });
  test('a session plus CSRF does not replace the provider original-browser cookie',async()=>{
   const {key}=await seeded(),info=await begin(await login(key));

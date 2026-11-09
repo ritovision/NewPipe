@@ -51,14 +51,28 @@ export async function form(request: Request): Promise<URLSearchParams> {
   if (!(request.headers.get('Content-Type') ?? '').startsWith('application/x-www-form-urlencoded')) throw new ControlError('INVALID_CONTENT_TYPE', 415);
   return new URLSearchParams(await boundedText(request, 8192));
 }
+export function oauthRedirectOrigin(uri: string): string {
+  let target: URL;
+  try { target = new URL(uri); } catch { throw new ControlError('INVALID_REDIRECT_ORIGIN', 400); }
+  // WHATWG URL accepts hosts such as '*' and 'example.com;sandbox'. A canonical
+  // URL origin is therefore NOT necessarily a safe CSP source expression.
+  // Limit interpolation to ordinary DNS/IPv4 names or URL-validated IPv6 literals.
+  const dnsLabel = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
+  const dns = new RegExp('^' + dnsLabel + '(?:\\.' + dnsLabel + ')*\\.?$', 'i');
+  const ipv6 = /^\[[0-9a-f:]+\]$/i;
+  if (!['https:', 'http:'].includes(target.protocol) ||
+      !(dns.test(target.hostname) || ipv6.test(target.hostname)) ||
+      /[\s;,'"*\\]/.test(target.origin)) throw new ControlError('INVALID_REDIRECT_ORIGIN', 400);
+  return target.origin;
+}
 export function html(content: string, headers = new Headers(), status = 200, validatedRedirectOrigin?: string): Response {
   let formAction = "'self'";
   if (validatedRedirectOrigin) {
     // Only a canonical HTTP(S) origin from the OAuth provider's validated redirect
     // is admitted. No wildcard, client-supplied CSP fragment or arbitrary return URL.
-    const target = new URL(validatedRedirectOrigin);
-    assert(target.origin === validatedRedirectOrigin && ['https:', 'http:'].includes(target.protocol), 'INVALID_REDIRECT_ORIGIN');
-    formAction += ' ' + target.origin;
+    const source = oauthRedirectOrigin(validatedRedirectOrigin);
+    assert(source === validatedRedirectOrigin, 'INVALID_REDIRECT_ORIGIN');
+    formAction += ' ' + source;
   }
   headers.set('Content-Type', 'text/html; charset=utf-8');
   headers.set('Cache-Control', 'no-store'); headers.set('Referrer-Policy', 'same-origin');
