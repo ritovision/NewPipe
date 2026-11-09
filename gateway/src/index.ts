@@ -31,11 +31,15 @@ async function publicRoutes(request:Request,env:Env):Promise<Response> {
 // keeping the actual grant subject to owner-key consent and unchecked destructive checkboxes.
 // offline_access belongs to the authorization server, not the MCP protected resource.
 const MCP_RESOURCE_SCOPES = SCOPES.filter(scope => scope !== 'offline_access');
+// Durable authorization: 10-minute access tokens; a grant lasts 90 days and each successful
+// refresh (rotation is the provider's) moves its expiry 90 days out. Plain MCP use does not.
+// Existing grants adopt the idle policy on their next successful refresh; expired grants are
+// never revived. DCR records renew past half their one-year TTL, longer than the idle window.
 function provider(origin:string):OAuthProvider<Env> {
   return new OAuthProvider<Env>({
     apiRoute:'/mcp', apiHandler:{fetch:mcpFetch}, defaultHandler:{fetch:publicRoutes},
     authorizeEndpoint:'/authorize', tokenEndpoint:'/oauth/token', clientRegistrationEndpoint:'/oauth/register',
-    accessTokenTTL:600, refreshTokenTTL:604800, clientRegistrationTTL:31_536_000,
+    accessTokenTTL:600, refreshTokenTTL:7_776_000, refreshTokenIdleTTL:7_776_000, clientRegistrationTTL:31_536_000,
     scopesSupported:[...SCOPES], requiredScopes:[...MCP_RESOURCE_SCOPES], allowTokenExchangeGrant:false,
     clientIdMetadataDocumentEnabled:true, cookiePrefix:'__Host-newpipe-oauth-',
     resourceMetadata:{resource:origin+'/mcp',authorization_servers:[origin]},

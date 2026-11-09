@@ -40,6 +40,10 @@ The protected MCP resource advertises `mcp.connect` and the available Library, p
 
 When these advertised scopes change, **an existing ChatGPT OAuth connection cannot gain them through token refresh**. Reconnect/reauthorize the custom plugin on ChatGPT web (or recreate it if the settings UI does not offer reauthorization). No Pixel re-pairing is necessary. Follow the owner-consent screen and select `playlist.delete` only if you specifically want ChatGPT to delete temporary ordinary playlists; selecting `library.delete` authorizes direct canonical Library removal across all playlists and should not be enabled casually.
 
+## OAuth token lifetimes
+
+Source configuration as of 2026-11-09 (**not yet deployed**; the live Worker still uses the earlier fixed seven-day grant until a deliberate deployment). Access tokens last 10 minutes. A grant lasts 90 days from authorization, and each successful refresh moves its expiry 90 days forward; ordinary MCP calls do not extend it. Refresh tokens rotate (the immediately previous token covers one lost-response retry), refresh never widens consented scopes, and an expired or revoked grant is never revived. There is no absolute maximum: revoke a client on `/setup` to end it. Dynamically registered clients keep a one-year registration that renews during use. An existing seven-day grant adopts the 90-day policy only if it is refreshed successfully before its original expiry; otherwise it needs one reauthorization. See `../doc/validation/ai-passkeys-phase-a-20261109.md`.
+
 ## Short reliability acceptance
 
 Run `npm run qa:reliability` inside `gateway/` to execute the synthetic,
