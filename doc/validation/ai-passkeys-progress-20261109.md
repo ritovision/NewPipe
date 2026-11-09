@@ -1,37 +1,52 @@
 # AI Control passkeys / durable authorization — saved execution checkpoint
 
-Date: 2026-11-09. Branch: `feature/ai-passkeys-20261109`. This is a partial implementation checkpoint, not a release or deployment approval.
+**Updated:** 2026-11-09, after the direct-implementation continuation. **Branch:** `feature/ai-passkeys-20261109`. **Last production-source change:** `44711d025`; subsequent checkpoint changes are documentation/evidence only. This is source acceptance of the gateway milestone, **not deployment or full-feature completion**.
 
 ## Actual status
 
 | Work | State |
 | --- | --- |
-| Approved spec | Saved, committed and pushed on the feature branch |
-| Security design review | Astra Max completed; adjudication recorded in `doc/reviews/ai-passkeys-design-adjudication-20261109.md` |
-| Phase A token policy | Implemented at source commit `c4e8b8e39`: 600-second access tokens, 7,776,000-second initial and sliding refresh lifetimes; client TTL unchanged |
-| Phase A tests | 68/68 across 7 files passed on both machines; previous 59 tests unchanged; 9 new tests |
-| Phase A implementation review | Astra Extra High found no blocking configuration error; two P2 documentation/coverage findings. Documentation corrected, test additions still required before deployment acceptance |
-| Phase B passkeys | Source/consent API inspection started; **no Phase B implementation changes** before the coding service hit its usage limit |
-| Phase C no-copy Android pairing | Not implemented |
-| Live deployment / real ChatGPT validation | Not performed |
-| Phone preflight | Authorized wireless ADB and isolated scrcpy virtual-display smoke passed; no installed NewPipe package/data changed |
+| Product/security design | Approved spec and design adjudication committed; user authorized implementation |
+| Phase A durable OAuth | Implemented: 600-second access, 7,776,000-second initial/sliding refresh; provider remains pinned1.2.3, no custom token server |
+| Phase A review follow-ups | Completed: 11 lifetime tests, repeated-token retry/expiry, KV metadata snapshots, narrowed scope, old grants, partial-write recovery |
+| Phase B owner passkeys | Implemented: actual WebAuthn, recovery, revocable sessions, fresh authorization for credential changes, explicit browser-bound OAuth consent |
+| Phase B review | Three read-only GPT-6 Astra max rounds. All actionable findings corrected; R3 approves source44711d025 within its focused follow-up, no new blocking findings |
+| Exact-source gateway tests | **130/130 across8 files passed independently on both machines**; primary uses one worker, secondary normal concurrent run |
+| Primary browser QA | **11/11 passed** using actual Chromium WebAuthn APIs and a disposable virtual CTAP2 authenticator; includes both approval and denial callbacks |
+| Phase C no-copy Android pairing | **Not implemented**; existing app/manual pairing unchanged |
+| Live Pixel/credential manager/fingerprint and ChatGPT validation | **Not performed**; synthetic browser results do not substitute for these |
+| Deployment | **Not performed**; production owner-key experience and OAuth policy remain unchanged |
+| Dependency audit | Two pre-existing reports patched compatibly; four high dev-tool-chain reports remain tracked before rollout |
+| Phone access | Pixel7 wireless ADB over Tailscale still returns `device`; no installed APK/data changes |
 
-## Next engineering actions
+Detailed evidence: [Phase B/source acceptance](ai-passkeys-phase-b-20261109.md), [review adjudication](../reviews/ai-passkeys-phase-b-adjudication-20261109.md), [Phase A acceptance/migration](ai-passkeys-phase-a-20261109.md).
 
-1. Finish Phase A review follow-ups in `gateway/test/oauth-lifetime.test.mjs`: repeated previous-token reuse, age-before-retry sliding assertion, complete relevant rejected-request snapshots including KV metadata, and access-token storage-failure injection/recovery. Do not describe token issuance as atomic. Consider a >90-day-old grant and a denied action on a narrowed access token. Re-run the full suite and review the delta.
-2. Implement Phase B using the approved spec plus security adjudication. Reuse exact production gateway hostname as RP ID, maintained exact-pinned SimpleWebAuthn server/browser libraries, local browser assets, durable one-use challenges, server-revocable sessions, action-bound fresh verification, explicit single-use OAuth consent and recovery. Keep existing OAuth/device identities and Cloud & Sync unchanged.
-3. Independently review Phase B and test the actual browser UI on the primary machine. Synthetic WebAuthn signatures/browser authenticators are not evidence of physical Pixel biometric enrollment.
-4. Implement Phase C with a key-bound, app-initiated browser approval exchange and separate pending Android state; failed enrollment must preserve the active pairing. Use a separate QA package for Android tests.
-5. Re-read active deployment metadata, validate rollback/migration, then conduct the compatible rollout and user-present fingerprint enrollment. Do not treat this saved checkpoint as permission to skip those gates.
+## Implementation commits
 
-## Workspaces and local handoff
+- `c4e8b8e39`: original Phase A token configuration and tests.
+- `20b07dd5a`: Phase B owner-state, browser UI, session/recovery/consent integration, tests, first review corrections and compatible dependency patches.
+- `554f3e4ed`: primary-only browser test runner correction and explicit approval/denial checks; no production source change.
+- `44711d025`: CSP-safe callback host restriction and failure/concurrency regressions; **exact source used in final130-test and11-browser-check runs**.
+
+## Next engineering work
+
+1. Implement Phase C from the accepted spec and security adjudication: app-initiated, device-key-bound `begin -> browser approve -> finish/status`, short-lived one-use transaction, explicit owner approval, no secret/pairing token in URL, no unsafe custom-scheme dependency. Keep pending Android enrollment separate so cancellation/expiry does not replace a working pairing. Do not regenerate an existing device key merely for this UX change.
+2. Add native Connect to AI flow with browser return/resume, cancellation/network/lifecycle coverage, existing manual-code fallback under Advanced, and explicit foreground-service opt-in. Test only a separate synthetic QA Android package before any canonical APK update.
+3. Review Phase C, run gateway/native tests and primary-only Pixel UI checks. Secondary remains headless/build-only. Do not ask the user to repeat the completed USB/Tailscale setup unless the connection actually fails.
+4. Address the remaining development-tool advisories without blindly force-downgrading Miniflare; inspect exact dependency/Worker compatibility and rerun validation after changes.
+5. Re-read deployed gateway metadata, stage compatible rollout/rollback, then perform user-present Pixel passkey enrollment and real ChatGPT reconnect/refresh validation. The owner will need to physically approve fingerprint/PIN verification at that point. Do not paste or request the owner key in chat; it already exists protected on the provisioning machine.
+
+The gateway-only milestone can serve already-paired installations without a new APK once live rollout is validated. No-copy pairing is a separate Android milestone, not a prerequisite for keeping existing device identities valid.
+
+## Workspaces and operational notes
 
 - Primary implementation worktree: `/home/ritorhymes/techstuff/NewPipe-ai-passkeys-20261109`.
 - Secondary implementation worktree: `/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109`.
-- Original primary `custom/dev` and secondary older cloud-sync worktree were left intact, including their pre-existing uncommitted spec copies. Do not reset/overwrite them to synchronize this feature; use the dedicated implementation branch.
-- Local instructions/logs are in each machine's `~/.local/state/newpipe-passkeys-20261109/`. On the secondary, `phase-b-instructions.md` holds the bounded implementation assignment.
-- Secondary Phase B Claude session: `b5ab15b1-f406-45ee-8ef7-e74226aa5824` (Opus 5.5). It exited with a usage-limit error after source reads; no background coding continues. The primary no-tools availability check hit the same usage limit. The service reported reset at **17:40 America/New_York**; this is an external availability message, not a promise of automatic resumption.
-- Existing Phase A coding session: `869bc2a0-18b5-4a95-84aa-2c78778c5a45`; source/test result is already committed. Prefer a focused follow-up rather than repeating all provider discovery.
-- Read `ai-passkeys-preflight-20261109.md` for Windows ADB **port 5042**, explicit Pixel Tailscale transport and scrcpy command details. Use primary only for phone/browser/emulator/UI; secondary is CLI/build-only.
+- Both use the same feature branch; synchronize only these dedicated worktrees. The original primary `custom/dev` and secondary older cloud-sync checkout remain intact, including their pre-existing uncommitted spec copies.
+- The primary remote fetch refspec is narrow. Use `git fetch origin refs/heads/feature/ai-passkeys-20261109:refs/remotes/origin/feature/ai-passkeys-20261109`, then `git merge --ff-only origin/feature/ai-passkeys-20261109`, and **verify the exact commit** before treating test results as current. Do not reset or force-push.
+- Logs/instructions are in each machine's `~/.local/state/newpipe-passkeys-20261109/`. Final evidence filenames/hashes are recorded in the acceptance document. Keep only compact source/evidence in Git, not raw test tokens, transient certificates or verbose runner events.
+- Read [preflight](ai-passkeys-preflight-20261109.md) for Windows ADB **port5042**, explicit Pixel Tailscale transport and scrcpy details. The phone-facing machine is primary only.
+- Claude's previous service-limit checkpoint is historical. This continuation was authored by the main assistant with Astra **review only**; no Claude job or coding-agent resumption is needed.
+- All temporary browser-QA servers/profiles and synthetic credentials from this continuation were cleaned up. Reviews and test jobs completed. No implementation is continuing asynchronously after this saved checkpoint.
 
-No production secrets were displayed or rotated, no Cloud & Sync data was changed, and no new Android APK was installed in this work session. The production owner-key experience is therefore unchanged.
+No production secrets were read/displayed/rotated, no production gateway was deployed, no Cloud & Sync state changed, and no Android APK was installed during this continuation. The user's Library, playlists, tags, existing paired device and live ChatGPT connection were not modified.

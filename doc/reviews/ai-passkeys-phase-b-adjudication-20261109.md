@@ -40,4 +40,6 @@ Do not use `npm audit fix --force`: its proposed Miniflare downgrade changes the
 
 ## Pending acceptance
 
-Round-2 independent review of the fixes, fresh primary install/test run, actual Chromium UI approval/denial, real Pixel credential-manager/biometric validation and live ChatGPT reauthorization are not established by this record yet. One-tap Android pairing is still Phase C, not part of this candidate.
+[Round 3](ai-passkeys-phase-b-astra-max-r3-20261109.md) approved the corrected source candidate `44711d025` in its focused follow-up, with R2 resolved and no new blocking findings. The exact candidate separately passed **130/130 tests on each workstation** and **11/11 primary Chromium/virtual-authenticator checks**, including approval and authenticated/anonymous denial under CSP. See the [acceptance record](../validation/ai-passkeys-phase-b-20261109.md).
+
+Real Pixel credential-manager/biometric validation, browser restart/platform-specific checks, live ChatGPT reauthorization and deployment remain pending. One-tap Android pairing is still Phase C, not part of this candidate. Four pre-existing development-tool advisories remain an explicit rollout issue; source approval is not a declaration that all release gates are satisfied.

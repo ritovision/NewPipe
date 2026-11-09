@@ -81,7 +81,7 @@ No existing test was modified.
 - Real passage of 90 days or 1 year, since all lifetimes were simulated as described above.
 - Any phone, Android app, browser, passkey or deployment step.
 
-## Independent review and remaining acceptance work (2026-11-09)
+## Original independent review and remaining acceptance work (historical checkpoint)
 
 [Astra Extra High review](../reviews/ai-passkeys-phase-a-astra-xhigh-20261109.md) found no blocking error in the lifetime configuration, but identified two material P2 coverage/wording gaps. README wording is corrected; test additions remain outstanding because the local coding service reached its usage limit. **This checkpoint is not deployment acceptance.**
 
@@ -91,3 +91,9 @@ No existing test was modified.
 Additional useful coverage: renewal of a grant originally created more than 90 days ago; denied capability checks on a narrowed access token; actual provider logical-versus-physical DCR expiration behavior. DCR renewal is best effort.
 
 The primary machine independently ran `npm test` at source `c4e8b8e39`: TypeScript and dry-run passed, **68/68 tests across 7 files passed**. No source/test changes were made after that run in this documentation correction. No live authorization lifetime has been changed.
+
+## Follow-up completion (2026-11-09 continuation)
+
+The review coverage gaps above are now addressed in the **11-test** lifetime suite, exercised as part of the exact-source `44711d025` **130/130** gateway runs on both machines. The new tests repeatedly reuse the previous token while aging expiry before each retry; snapshot relevant grant/token/client raw records, expirations and KV metadata for early validation rejection; exercise a >400-day-old sliding grant and denied action with narrowed scope; and inject a failure after grant rotation but before access-token storage, then prove retry recovery. This does **not** establish transactional atomicity or real-world refresh cadence.
+
+See [Phase B/source acceptance](ai-passkeys-phase-b-20261109.md) for current evidence, independent review follow-ups and remaining live-release gates. The earlier service-limit note is historical; it is not the current blocker. The gateway has still not been deployed.
