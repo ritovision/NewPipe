@@ -1,8 +1,8 @@
 # AI Control durable authorization — Phase A acceptance (2026-11-09)
 
-**Branch:** `feature/ai-passkeys-20261109` (uncommitted working-tree changes for independent review)
+**Branch:** `feature/ai-passkeys-20261109`; source checkpoint `c4e8b8e39`. The test record was originally captured before commit; independent-review follow-ups are recorded below.
 **Scope:** Phase A of [ai-control-passkeys-durable-auth.md](../specs/ai-control-passkeys-durable-auth.md): gateway OAuth token lifetimes only. No passkey, Android, Cloud & Sync or deployment work.
-**Machine:** NotCodex-2, headless CLI only. All runs are local and synthetic (Wrangler **dry-run** plus Vitest/Miniflare with ephemeral KV/Durable Objects). **Not deployed. No production requests, credentials or KV were read or touched.**
+**Machine:** NotCodex-2, headless CLI only. All runs are local and synthetic (Wrangler **dry-run** plus Vitest/Miniflare with ephemeral KV/Durable Objects). **Not deployed. These tests made no production authorization/data-plane requests and did not read production credentials or KV.** Operator preflight separately read deployment metadata; see [preflight](ai-passkeys-preflight-20261109.md).
 
 ## Change
 
@@ -49,11 +49,11 @@ No existing test was modified.
 
 1. A new grant expires 90 days after code exchange (gateway `/admin/grants` and KV expiration agree); access tokens are `expires_in: 600` and stored for 600 s.
 2. A successful refresh moves expiry to `now + 90 days` (KV expiration too) and keeps scope and 600 s access. Ordinary MCP calls (`tools/list`, `list_devices`) do **not** move expiry.
-3. Idle expiry: with less than 60 s left, or already elapsed, both current and retry-window refresh tokens get `invalid_grant`. The failed attempt writes nothing (record and KV expiration byte-identical), and a deleted record stays `invalid_grant` and unlisted.
-4. Rotation: one lost-response retry with the previous token succeeds and slides; the superseded token, a two-generation-old token, and another client's use of the token all get `invalid_grant`, with no write on failure.
-5. Scope: requesting extra scopes on refresh returns only consented scopes, and delete tools stay `PERMISSION_DENIED`. Requesting only unconsented scopes gets `invalid_scope` with no write. A narrowed refresh does not shrink the stored grant.
+3. Idle expiry: with less than 60 s left, or already elapsed, both current and retry-window refresh tokens get `invalid_grant`. Those validation rejections leave the sampled parsed grant JSON and KV expiration unchanged; this does not prove that no storage write occurred. A deleted record stays `invalid_grant` and unlisted.
+4. Rotation: the tested previous-token retry succeeds; the superseded response token, a two-generation-old token, and another client's use are rejected. Only the superseded-response-token case has its own unchanged-grant snapshot. The original retry-expiry assertion is too close in time to prove a second extension; see review follow-ups.
+5. Scope: requesting extra scopes on refresh returns only consented scopes, and delete tools stay `PERMISSION_DENIED`. Requesting only unconsented scopes gets `invalid_scope` with sampled grant JSON and expiration unchanged. A narrowed refresh does not shrink the stored grant.
 6. Existing seven-day grant (see below): untouched by ordinary use; the next successful refresh adopts the 90-day idle expiry with id, client, scope, createdAt, encrypted props, metadata, resource and redirect unchanged.
-7. Existing seven-day grant already lapsed: `invalid_grant`, not revived, no write.
+7. Existing seven-day grant already lapsed: `invalid_grant`, not revived; sampled grant JSON and expiration unchanged.
 8. DCR: `registrationExpiresAt − registrationDate = 31536000`, with KV expiration matching. A young registration is not rewritten; a failed token request does not renew. A successful refresh past half-life renews to `now + 1 year` with the same `registrationDate`. A lapsed registration makes even a live grant fail with `invalid_client`. Also asserts `TTL/2 (182.5 d) > idle window (90 d)`.
 9. Revocation after sliding: `/admin/revoke-grant` and client RFC 7009 refresh-token revocation each kill the access token (401) and both current and retry-window refresh tokens.
 
@@ -80,3 +80,14 @@ No existing test was modified.
 - Production Worker, production OAuth KV contents, the age and expiry of currently live grants, and Cloudflare KV global consistency or real TTL eviction.
 - Real passage of 90 days or 1 year, since all lifetimes were simulated as described above.
 - Any phone, Android app, browser, passkey or deployment step.
+
+## Independent review and remaining acceptance work (2026-11-09)
+
+[Astra Extra High review](../reviews/ai-passkeys-phase-a-astra-xhigh-20261109.md) found no blocking error in the lifetime configuration, but identified two material P2 coverage/wording gaps. README wording is corrected; test additions remain outstanding because the local coding service reached its usage limit. **This checkpoint is not deployment acceptance.**
+
+1. The previous token is not limited to one retry: repeated use of the same presented token can continue until a different token is used, or expiry/revocation. Add repeated-reuse coverage and age the grant before asserting that a previous-token retry moves expiry.
+2. The provider stores grant renewal/rotation before writing the access token. A later storage failure may leave a renewed grant despite a failed HTTP response. Add fault-injection and recovery coverage; restrict unchanged-state claims to observed validation rejections. Add snapshots for wrong-client/old-token failures and preserve/check KV metadata, not just parsed grant JSON and expiration.
+
+Additional useful coverage: renewal of a grant originally created more than 90 days ago; denied capability checks on a narrowed access token; actual provider logical-versus-physical DCR expiration behavior. DCR renewal is best effort.
+
+The primary machine independently ran `npm test` at source `c4e8b8e39`: TypeScript and dry-run passed, **68/68 tests across 7 files passed**. No source/test changes were made after that run in this documentation correction. No live authorization lifetime has been changed.

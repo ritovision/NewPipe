@@ -1,7 +1,7 @@
 # NewPipe AI Control — Passkeys, Passwordless Pairing, and Durable Authorization
 
 **Decision date:** 2026-11-08  
-**Status:** Approved product/engineering specification; **not implemented**. This document is a new work item, not a description of deployed behavior.  
+**Status:** Approved product/engineering specification; **partially implemented in source, not deployed**. See the [saved execution checkpoint](../validation/ai-passkeys-progress-20261109.md) for remaining review gates and the coding-service blocker. This document describes target behavior, not deployed completion.
 **Implementation note (2026-11-09):** Phase A (§5 token lifetimes) is implemented in gateway source on branch `feature/ai-passkeys-20261109` with local synthetic tests only; **not deployed** and not validated against real ChatGPT. Phases B–D remain unimplemented. Evidence and existing-grant migration behavior: [Phase A acceptance](../validation/ai-passkeys-phase-a-20261109.md). The decision record below is unchanged.
 **Scope:** Existing private NewPipe AI Control Android client and its separate Cloudflare MCP/OAuth gateway. **Do not change Cloud & Sync, its account, D1/R2, or its credential model.**  
 **Related:** [AI Control v1](ai-control-v1.md), [Cloud & Sync v1](cloud-sync-v1.md), [gateway documentation](../../gateway/README.md).
