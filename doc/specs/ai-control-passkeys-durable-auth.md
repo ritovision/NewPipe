@@ -5,6 +5,8 @@
 **Scope:** Existing private NewPipe AI Control Android client and its separate Cloudflare MCP/OAuth gateway. **Do not change Cloud & Sync, its account, D1/R2, or its credential model.**  
 **Related:** [AI Control v1](ai-control-v1.md), [Cloud & Sync v1](cloud-sync-v1.md), [gateway documentation](../../gateway/README.md).
 
+**Implementation security requirements (2026-11-09):** Read the [independent design review and adjudication](../reviews/ai-passkeys-design-adjudication-20261109.md) before implementation. It clarifies authoritative session revocation, action-bound verification, single-use consent and pairing commit behavior without changing the approved user-visible goals.
+
 ## 1. Goal and accepted user experience
 
 The user must never have to remember or carry a long owner setup key for normal AI Control use. Keep the underlying ownership and device-security boundaries, but replace the repeated manual-secret and manual-pairing workflow.
