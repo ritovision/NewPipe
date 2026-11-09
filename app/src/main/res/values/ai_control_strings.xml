@@ -9,7 +9,7 @@
     <string name="rv_ai_loading">Loading device state…</string>
     <string name="rv_ai_status">Connection: %1$s</string>
     <string name="rv_ai_paired">This device is paired.</string>
-    <string name="rv_ai_unpaired">Not paired. Enter a gateway and its one-time pairing code below.</string>
+    <string name="rv_ai_unpaired">Not connected. Choose Connect to AI to approve this device in your browser. No pairing code to copy.</string>
     <string name="rv_ai_start">Start AI Control</string>
     <string name="rv_ai_stop">Stop AI Control</string>
     <string name="rv_ai_pairing_heading">Device setup</string>
