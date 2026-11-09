@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-09",
+  "pairing_logic_commit": "f7c33bcdcc0d2b06eebe325b258daad1613e2c16",
+  "pixel_ui_candidate_commit": "c1af0c0ac1297e0ef820cdbfd6ca7f4745703b17",
+  "gateway": {"primary": {"passed": 162, "files": 9}, "secondary": {"passed": 162, "files": 9}},
+  "native_host": {"primary": {"passed": 116, "suites": 8}, "secondary": {"passed": 116, "suites": 8}},
+  "browser": {"machine": "NotCodex", "passed": 16, "authenticator": "disposable virtual CTAP2", "gateway": "ephemeral loopback HTTPS"},
+  "pixel": {"model": "Pixel 7", "android_api": 37, "passed": 10, "native_runtime_cases": 9, "virtual_display_ui_cases": 1, "display_id": 8, "pairing_transport": "injected synthetic client", "real_keystore_and_atomicfile": true, "real_biometrics_tested": false},
+  "review": {"model": "gpt-6-astra", "reasoning_effort": "max", "rounds": 2, "mode": "read-only", "r1_actionable_findings": 3, "r2_remaining_source_blockers": 0},
+  "qa_apks": [
+    {"package": "org.schabi.newpipe.debug.featureaipasskeys20261109", "sha256": "82844797fe1b0d18aa94f7a95c09917bfd8e07a70b0407f3065eef881eea41a1", "bytes": 41563561},
+    {"package": "org.schabi.newpipe.debug.featureaipasskeys20261109.test", "sha256": "294f64eb9ab275b8eaba0ac8389bccdd5a99d8cf63d8d651cabf2286b15e3f2a", "bytes": 2815006}
+  ],
+  "qa_signer_sha256": "934d9e21083080b4d409074d68afe64fed6e34d66bb18db7378b2c0a587b12a2",
+  "cleanup": {"qa_packages_removed": true, "scrcpy_exit_code": 0, "virtual_display_closed": true, "windows_apk_copies_removed": true, "temporary_recordings_removed": true, "protected_packages_present": ["org.schabi.newpipe", "org.schabi.newpipe.ritoprod"]},
+  "production_deployed": false,
+  "production_gateway_contacted_by_pixel_qa": false,
+  "live_gateway_to_android_end_to_end_accepted": false,
+  "live_chatgpt_reauthorization_accepted": false,
+  "existing_high_development_tool_advisories_pending": 4,
+  "evidence_sha256": {
+    "secondary/phase-c-gateway-r3.log": "052f0c9dcdf14390ce2d9bb31f97c363adba3a39c4788c4cf1b3df2360929ad0",
+    "secondary/phase-c-native-tests-r5.log": "8c1baa6b637933dd90a28610c25581d80256ece82bc83e591cf71cc7b81d9fb9",
+    "primary/phase-c-primary-tests.log": "4cb1be628c45909fa688327c8f7a5fcf1ffcc5da3e9fff0cdd585a9b252cd2e0",
+    "primary/phase-c-primary-native-build.log": "37f9057dc3f7350eb5b69c1bc7945f30598c93bcd1d08aa8e8824b0fe536a1c1",
+    "primary/phase-c-primary-ui-build.log": "d9897993d1159004be0ce8af3943cde89c5930f6bfaebb4786b5980ef1195f28",
+    "primary/phase-c-browser-result.json": "c856e974d4d150a3fcbae1f23a7ef19bdfe70839321ed79374e8710b6c4993ab",
+    "primary/phase-c-pixel-final-instrumentation.log": "346b12ada6227512c067c8bc607ad1ca3cb721077f1743a2bd8cad8f912ff18c",
+    "primary/phase-c-pixel-ui-result.json": "6147de45cf681f84aef7d62187fcac5fed65d3af2548df2218e71b5b4a6076e7",
+    "primary/phase-c-ui-connect.png": "01a4222fc70c62a1034e5b517847c24517a5db86b5947411a115b11fe5919469",
+    "primary/phase-c-cleanup.json": "78bb25e844266d31cc87b8321b16bf22895514dc960e7160e0b279cb31ccac0c",
+    "secondary/phase-c-review-r1.md": "7f40c72a44b3a63740e5c3fe43e57910128754d82f89a6436b6e1ccda5730ebb",
+    "secondary/phase-c-review-r2.md": "9863042835daec7abde19f9ab0d10d67cb4ef6e6e1aa90d98fd00389c8db6d0f"
+  }
+}

@@ -1,0 +1,12 @@
+**Source verdict: approve. No concrete remaining blockers found** in the requested Phase C scope relative to `128d33b03`. The reviewed changes were committed during review as `f7c33bcdc`; the working tree is now clean.
+
+- **R1/1–2 resolved:** [browser-pairing.ts](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/gateway/src/browser-pairing.ts:110) bounds anonymous pending and cancelled records together. Eviction atomically rotates the persisted admission generation, rejecting evicted signed-begin replays while preserving retained requests and their original deadlines. This addresses replay itself.
+- **R1/3 resolved:** [AiBrowserPairing.kt](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/app/src/main/java/org/schabi/newpipe/custom/aicontrol/AiBrowserPairing.kt:201) classifies transient HTTP statuses before reading the body; successful responses remain strictly validated.
+- **Native admission and cancellation:** [AiControlRuntime.kt](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/app/src/main/java/org/schabi/newpipe/custom/aicontrol/AiControlRuntime.kt:286) checks the captured admission, persists the nonce before signed begin, and rebinds admission only during nonce preflight. Completion uses policy-lock → pairing-commit-lock order; cancellation and tombstone handling fence stale completion.
+- **Server authorization:** [browser-pairing.ts](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/gateway/src/browser-pairing.ts:180) commits enrollment authorization durably before cross-object registration. Committed recovery after logout is intentional; fresh approval after logout and recovery after revocation remain rejected.
+
+I inspected the added churn/replay, HTTP, queued-cancellation, lost-registration-response, and revoke-interleaving regression cases. **I did not execute them.**
+
+Real-world acceptance still requires separately recorded current-candidate test/build/browser results, physical fingerprint/PIN validation, and deployed ChatGPT E2E. Those remain acceptance gates without blocking this source approval.
+
+No files changed. `git diff --check 128d33b03` passed; no tests, browser, emulator, installs, or deployment were run.

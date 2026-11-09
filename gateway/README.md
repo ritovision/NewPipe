@@ -4,7 +4,7 @@ Private, single-owner Cloudflare MCP gateway for independently paired NewPipe An
 
 ## Passkey source candidate (2026-11-09; not deployed)
 
-The feature branch implements passkey-first owner login, one-time owner-key bootstrap/emergency recovery, revocable one-hour owner browser sessions, and explicit OAuth consent. The production gateway has **not** been replaced by this work. See [Phase B adjudication](../doc/reviews/ai-passkeys-phase-b-adjudication-20261109.md) and the [progress record](../doc/validation/ai-passkeys-progress-20261109.md) for remaining acceptance gates. Android no-copy pairing remains a separate unfinished milestone.
+The feature branch implements passkey-first owner login, one-time owner-key bootstrap/emergency recovery, revocable one-hour owner browser sessions, and explicit OAuth consent. The production gateway has **not** been replaced by this work. See [Phase B adjudication](../doc/reviews/ai-passkeys-phase-b-adjudication-20261109.md) and the [progress record](../doc/validation/ai-passkeys-progress-20261109.md) for remaining acceptance gates. Android no-copy pairing is now implemented in the same source candidate, with separate native/browser acceptance and live rollout gates. See the [pairing architecture](../doc/architecture/ai-control-browser-pairing.md).
 
 After rollout, open `/setup`, use **First setup or emergency recovery** once with the protected existing owner key, and add a passkey. Returning owners use **Sign in with passkey**; an authenticated browser can review a new client's OAuth permissions without retyping the key. Passkeys authenticate the owner; successful login does not automatically approve any OAuth client. The browser/device handles fingerprint, PIN or supported unlock; no biometric data reaches this gateway.
 
@@ -35,6 +35,12 @@ The script uses the existing Wrangler login, reads the owner-only file `~/.local
 In the legacy deployment, initial owner setup and client OAuth consent use that owner key. In this passkey source candidate it is reserved for first enrollment and emergency recovery; ordinary consent requires an authenticated owner session. The setup page can issue an expiring one-time pairing code, show authorized grants, revoke a device/client, and remove an emergency client block. This setup is separate from individual AI actions: once granted, catalog deletions execute directly without an extra approval page.
 
 QA live integration and independent source reviews have been performed; see `../doc/validation/ai-control-v1-release-readiness-2026-10-17.md` for current evidence and limitations.
+
+## Browser-mediated pairing source candidate
+
+After compatible gateway and Android rollout, open **AI Control > Connect to AI**, review the device-local permissions, compare the displayed code with the browser, authenticate by passkey and explicitly approve. Return to NewPipe to complete the key-bound enrollment, then choose **Start AI Control**. Nothing is copied or typed as a pairing secret. Existing paired devices do not need to enroll again. Manual code entry remains an Advanced fallback.
+
+The signed begin/status/finish exchange has a bounded public nonce preflight and independent owner/browser approval. Cancellation leaves active configuration intact; a lost response after a durable enrollment can be recovered without creating a new authorization. See [protocol and failure boundaries](../doc/architecture/ai-control-browser-pairing.md). The production service has not been changed by these source commits.
 
 ## Android enrollment and ChatGPT connection
 
