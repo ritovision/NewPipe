@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import signal
 import subprocess
 import tempfile
 import time
@@ -34,7 +35,7 @@ def main()->None:
             check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         log=(directory/'server.log').open('w')
         server=subprocess.Popen(['node',str(ROOT/'scripts/qa-passkeys-server.mjs')],cwd=ROOT,
-            env={**os.environ,'NEWPIPE_QA_DIRECTORY':tmp},stdout=log,stderr=subprocess.STDOUT)
+            env={**os.environ,'NEWPIPE_QA_DIRECTORY':tmp},stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
         try:
             for _ in range(200):
                 if (directory/'ready.json').exists():break
@@ -87,18 +88,19 @@ def main()->None:
                 page.get_by_role('button',name='Add passkey',exact=True).click()
                 expect(page.locator('#auth-status')).to_contain_text('cancelled',timeout=15000)
                 passed('cancelled enrollment returns a usable page without issuing a credential')
-                def switch_authenticator(_source):
-                    cdp.send('WebAuthn.removeVirtualAuthenticator',{'authenticatorId':authenticator})
-                    cdp.send('WebAuthn.addVirtualAuthenticator',{'options':{'protocol':'ctap2','ctap2Version':'ctap2_1',
-                        'transport':'internal','hasResidentKey':True,'hasUserVerification':True,'isUserVerified':True,
-                        'automaticPresenceSimulation':True}})
-                page.expose_binding('switchSyntheticAuthenticator',switch_authenticator)
-                page.evaluate("""() => {const original=navigator.credentials.create.bind(navigator.credentials);
-                    navigator.credentials.create=async (...args)=>{navigator.credentials.create=original;
-                        await window.switchSyntheticAuthenticator();return original(...args);};}""")
+                # Switch virtual devices between browser operations. Sending CDP
+                # commands inside a synchronous page binding deadlocks this runner.
+                # Fresh recovery proof authorizes this second-device registration;
+                # existing-passkey step-up was exercised by the cancelled attempt.
+                cdp.send('WebAuthn.removeVirtualAuthenticator',{'authenticatorId':authenticator})
+                cdp.send('WebAuthn.addVirtualAuthenticator',{'options':{'protocol':'ctap2','ctap2Version':'ctap2_1',
+                    'transport':'internal','hasResidentKey':True,'hasUserVerification':True,'isUserVerified':True,
+                    'automaticPresenceSimulation':True}})
+                page.get_by_text('Recovery and owner-session reset',exact=True).click()
+                page.get_by_label('Recovery key for the next sensitive action',exact=True).fill(owner_key)
                 page.get_by_role('button',name='Add passkey',exact=True).click()
                 expect(page.get_by_text('QA secondary passkey',exact=True)).to_be_visible(timeout=15000)
-                passed('additional enrollment requires fresh verification and succeeds after cancellation')
+                passed('additional device enrollment succeeds with fresh recovery verification after cancellation')
                 # Start an OAuth connection while signed out, preserving original
                 # transaction cookies through passkey login and explicit approval.
                 page.get_by_role('button',name='Sign out',exact=True).click()
@@ -132,6 +134,22 @@ def main()->None:
                 page.goto(origin+'/setup')
                 expect(page.get_by_text('QA primary passkey',exact=True)).to_be_visible()
                 passed('cross-site return reuses the owner browser session')
+                # Both authenticated and anonymous denial must reach the callback
+                # under the same CSP rules; neither should issue an OAuth code.
+                page.goto(origin+'/authorize?'+query)
+                expect(page.get_by_role('button',name='Deny',exact=True)).to_be_visible()
+                page.get_by_role('button',name='Deny',exact=True).click()
+                page.wait_for_url('https://example.com/callback*',timeout=15000)
+                denied=parse_qs(urlparse(page.url).query)
+                assert denied.get('error')==['access_denied'] and 'code' not in denied
+                passed('authenticated denial reaches the external callback under CSP')
+                page.goto(origin+'/setup');page.get_by_role('button',name='Sign out',exact=True).click()
+                page.goto(origin+'/authorize?'+query)
+                page.get_by_role('button',name='Deny connection',exact=True).click()
+                page.wait_for_url('https://example.com/callback*',timeout=15000)
+                denied=parse_qs(urlparse(page.url).query)
+                assert denied.get('error')==['access_denied'] and 'code' not in denied
+                passed('anonymous denial reaches the external callback without owner authentication')
                 assert not errors,errors
                 passed('no uncaught browser JavaScript errors')
                 context.close();browser.close()
@@ -139,9 +157,9 @@ def main()->None:
                     'real_biometrics_tested':False,'production_gateway_contacted':False,'phone_modified':False}
             (STATE/'phase-b-browser-result.json').write_text(json.dumps(output,indent=2)+'\n')
         finally:
-            server.terminate()
+            if server.poll() is None:os.killpg(server.pid,signal.SIGTERM)
             try:server.wait(timeout=8)
-            except subprocess.TimeoutExpired:server.kill();server.wait()
+            except subprocess.TimeoutExpired:os.killpg(server.pid,signal.SIGKILL);server.wait()
             log.close()
 
 if __name__=='__main__':main()
