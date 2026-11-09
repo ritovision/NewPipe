@@ -56,6 +56,10 @@ internal class AiDeviceKeys {
         )
     }
 
+    fun delete(device: String) {
+        keys().deleteEntry(alias(device))
+    }
+
     fun deleteOwnedKeys() {
         val store = keys()
         store.aliases().toList().filter { it.startsWith(PREFIX) }.forEach(store::deleteEntry)

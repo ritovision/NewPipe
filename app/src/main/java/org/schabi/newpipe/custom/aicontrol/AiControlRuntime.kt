@@ -33,11 +33,17 @@ internal data class AiUiSnapshot(
     val error: String? = null,
     val lastOperation: String? = null,
     val lastOutcome: String? = null,
-    val lastOperationAtMs: Long = 0
+    val lastOperationAtMs: Long = 0,
+    val pendingPairing: AiBrowserPairingPending? = null,
+    val pairingBusy: Boolean = false,
+    val pairingError: String? = null
 )
 
 /** One process owner. IO/configuration never blocks the UI; every old connection is generation-fenced. */
-internal class AiControlRuntime private constructor(context: Context) : AiRelayTransport.Listener {
+internal class AiControlRuntime private constructor(
+    context: Context,
+    private val browserPairingClient: AiBrowserPairingClient = AiBrowserPairingTransport
+) : AiRelayTransport.Listener {
     private val app = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
     private val control = Executors.newSingleThreadScheduledExecutor { task -> Thread(task, "NewPipe-AI-control").apply { isDaemon = true } }
@@ -55,6 +61,7 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
     private val access = AiAccessController()
     private val keys = AiDeviceKeys()
     private val store by lazy { AiLocalStateStore(app) }
+    private val pendingPairStore by lazy { AiBrowserPairingStore(app) }
     private val db get() = NewPipeDatabase.getInstance(app)
     private val catalog by lazy { AiCatalogExecutor(db, access, urlResolver = AiNativeUrlResolver()) }
     private val playback by lazy { AiPlaybackExecutor(access, AiAndroidPlaybackPort(app)) }
@@ -65,6 +72,15 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
     internal val restoreAdmissionBlocked: Boolean get() = restoring.get() || restoreQuiescing.get()
     private val generation = AtomicLong()
     private val pairingCall = java.util.concurrent.atomic.AtomicReference<okhttp3.Call?>()
+    private val browserPairCall = java.util.concurrent.atomic.AtomicReference<okhttp3.Call?>()
+    private val browserPairGeneration = AtomicLong()
+    private val browserPairCommitLock = Any()
+    private var pendingPair: AiBrowserPairingPending? = null
+    private var browserPairAdmission: AiBrowserPairingAdmission? = null
+    private var browserPairBusy = false
+    private var browserPairTerminal = false
+    private var browserPairRetryAt = 0L
+    private var browserPairFailures = 0
 
     @Volatile private var relay: AiRelayTransport? = null
 
@@ -82,7 +98,22 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
                 var value = store.read()
                 if (value.paired && !validKey(value)) value = store.update { it.copy(enabled = false, paired = false, clients = emptyMap()) }
                 policy.commit(version, value.enabled) {
-                    publish { it.copy(state = value, connection = if (value.enabled) "STOPPED" else "DISABLED") }
+                    val recovered = try {
+                        pendingPairStore.read()?.takeIf { pending ->
+                            AiBrowserPairingPolicy.matches(pending, value, System.currentTimeMillis()) &&
+                                keys.exists(pending.proposed.deviceId) && keys.publicKey(pending.proposed.deviceId) == pending.publicKey
+                        }
+                    } catch (_: Exception) {
+                        null
+                    }
+                    pendingPair = recovered
+                    browserPairAdmission = recovered?.let { AiBrowserPairingAdmission(it.requestId, browserPairGeneration.get(), version) }
+                    if (recovered == null) {
+                        try {
+                            pendingPairStore.clear()
+                        } catch (_: Exception) { /* Never damage active pairing for stale staging cleanup. */ }
+                    }
+                    publish { it.copy(state = value, connection = if (value.enabled) "STOPPED" else "DISABLED", pendingPairing = recovered) }
                 }
             } catch (_: Exception) {
                 policy.invalidate()
@@ -182,6 +213,237 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
         }
     }
 
+    /** Starts an enrollment without rewriting or disabling an existing active identity. */
+    fun beginBrowserPairing(origin: String, name: String, permissions: Set<String>, done: (String?) -> Unit) {
+        if (restoreAdmissionBlocked) {
+            complete(done, "APP_RESTART_REQUIRED")
+            return
+        }
+        control.execute {
+            val version = policy.version
+            try {
+                if (pendingPair != null) throw AiFailure("PAIRING_ALREADY_PENDING")
+                val base = store.read()
+                if (base.paired || base.enabled) throw AiFailure("ALREADY_PAIRED")
+                val publicKey = keys.create(base.deviceId)
+                val pending = AiBrowserPairingPolicy.create(base, origin, name, permissions, publicKey, System.currentTimeMillis())
+                if (!policy.commit(version, false) {
+                        if (restoreAdmissionBlocked) throw AiFailure("APP_RESTART_REQUIRED")
+                        pendingPairStore.write(pending)
+                        pendingPair = pending
+                        browserPairAdmission = AiBrowserPairingAdmission(pending.requestId, browserPairGeneration.incrementAndGet(), version)
+                        browserPairTerminal = false
+                        browserPairFailures = 0
+                        browserPairRetryAt = 0
+                        publish { it.copy(pendingPairing = pending, pairingBusy = false, pairingError = null) }
+                    }
+                ) {
+                    throw AiFailure("CANCELLED")
+                }
+                requestBrowserPairing("nonce", pending, done)
+            } catch (error: Exception) {
+                complete(done, (error as? AiFailure)?.code ?: "PAIRING_LOCAL_STATE_FAILED")
+            }
+        }
+    }
+
+    /** Called only by the visible AI Control screen. No periodic task survives onStop. */
+    fun pollBrowserPairing() {
+        control.execute {
+            val previous = pendingPair ?: return@execute
+            if (browserPairBusy || browserPairTerminal || restoreAdmissionBlocked || SystemClock.elapsedRealtime() < browserPairRetryAt) return@execute
+            if (previous.serverStatus in setOf("denied", "cancelled")) return@execute
+            try {
+                if (!AiBrowserPairingPolicy.matches(previous, store.read(), System.currentTimeMillis())) throw AiFailure("PAIRING_EXPIRED_OR_CHANGED")
+                var pending = previous
+                val operation = when {
+                    !pending.nonceReady -> "nonce"
+                    pending.ownerId.isEmpty() -> "begin"
+                    pending.finishSubmitted || pending.serverStatus in setOf("approved", "committed") -> "finish"
+                    else -> "status"
+                }
+                if (operation == "finish" && !pending.finishSubmitted) {
+                    pending = pending.copy(finishSubmitted = true)
+                    val version = policy.version
+                    if (!policy.commit(version, false) {
+                            if (restoreAdmissionBlocked) throw AiFailure("APP_RESTART_REQUIRED")
+                            pendingPairStore.write(pending)
+                            pendingPair = pending
+                            publish { it.copy(pendingPairing = pending) }
+                        }
+                    ) {
+                        throw AiFailure("CANCELLED")
+                    }
+                }
+                requestBrowserPairing(operation, pending) {}
+            } catch (error: Exception) {
+                browserPairTerminal = true
+                publish { it.copy(pairingBusy = false, pairingError = (error as? AiFailure)?.code ?: "PAIRING_LOCAL_STATE_FAILED") }
+            }
+        }
+    }
+
+    private fun requestBrowserPairing(operation: String, pending: AiBrowserPairingPending, done: (String?) -> Unit) {
+        val admission = browserPairAdmission
+        if (admission == null || !admission.matches(pendingPair, browserPairGeneration.get(), policy.version) ||
+            admission.requestId != pending.requestId || restoreAdmissionBlocked
+        ) {
+            complete(done, "CANCELLED")
+            return
+        }
+        val token = admission.generation
+        val version = admission.policyVersion
+        browserPairBusy = true
+        publish { it.copy(pairingBusy = true, pairingError = null) }
+        fun checkCurrent() {
+            if (!admission.matches(snapshot.pendingPairing, browserPairGeneration.get(), policy.version) || restoreAdmissionBlocked) throw AiFailure("CANCELLED")
+        }
+        network.execute {
+            try {
+                val result = browserPairingClient.request(
+                    operation,
+                    pending,
+                    keys,
+                    ::checkCurrent,
+                    registered = {
+                        browserPairCall.set(it)
+                        checkCurrent()
+                    },
+                    released = { browserPairCall.compareAndSet(it, null) }
+                )
+                control.execute commitResult@{
+                    if (token != browserPairGeneration.get() || version != policy.version || restoreAdmissionBlocked) {
+                        complete(done, "CANCELLED")
+                        return@commitResult
+                    }
+                    try {
+                        val committed = policy.commit(version, false) {
+                            synchronized(browserPairCommitLock) {
+                                checkCurrent()
+                                if (!AiBrowserPairingPolicy.matches(result, store.read(), System.currentTimeMillis())) throw AiFailure("PAIRING_EXPIRED_OR_CHANGED")
+                                if (operation == "nonce") {
+                                    if (result != pending.copy(clientNonce = result.clientNonce, nonceReady = true)) throw AiFailure("PAIRING_RESPONSE_MISMATCH")
+                                } else if (result.requestId != pending.requestId) {
+                                    throw AiFailure("PAIRING_RESPONSE_MISMATCH")
+                                }
+                                if (result.serverStatus == "complete") {
+                                    val paired = store.replace(AiBrowserPairingPolicy.completedState(result))
+                                    pendingPair = null
+                                    browserPairAdmission = null
+                                    // Active state committed first. A leftover staging file cannot pass
+                                    // baseline validation on process restart and cannot unpair the device.
+                                    try {
+                                        pendingPairStore.clear()
+                                    } catch (_: Exception) { /* Safe stale file. */ }
+                                    publish { it.copy(state = paired, connection = "DISABLED", pendingPairing = null, pairingBusy = false, pairingError = null, error = null) }
+                                } else {
+                                    pendingPairStore.write(result)
+                                    pendingPair = result
+                                    if (operation == "nonce") browserPairAdmission = admission.copy(requestId = result.requestId)
+                                    publish { it.copy(pendingPairing = result, pairingBusy = false, pairingError = null) }
+                                }
+                                browserPairBusy = false
+                                browserPairFailures = 0
+                                browserPairRetryAt = SystemClock.elapsedRealtime() + 2000
+                            }
+                        }
+                        if (committed && operation == "nonce") {
+                            requestBrowserPairing("begin", result, done)
+                        } else {
+                            complete(done, if (committed) null else "CANCELLED")
+                        }
+                    } catch (error: Exception) {
+                        browserPairFailure(error, token, done)
+                    }
+                }
+            } catch (error: Exception) {
+                control.execute {
+                    if (token == browserPairGeneration.get() && version == policy.version && !restoreAdmissionBlocked) {
+                        browserPairFailure(error, token, done)
+                    } else {
+                        complete(done, "CANCELLED")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun browserPairFailure(error: Exception, token: Long, done: (String?) -> Unit) {
+        if (token != browserPairGeneration.get()) {
+            complete(done, "CANCELLED")
+            return
+        }
+        browserPairBusy = false
+        val code = (error as? AiFailure)?.code ?: if (error is java.io.IOException) "NETWORK_UNAVAILABLE" else "PAIRING_LOCAL_STATE_FAILED"
+        browserPairTerminal = code !in setOf("NETWORK_UNAVAILABLE", "GATEWAY_UNAVAILABLE", "RATE_LIMITED")
+        browserPairFailures = (browserPairFailures + 1).coerceAtMost(4)
+        browserPairRetryAt = SystemClock.elapsedRealtime() + (1L shl browserPairFailures) * 1000
+        publish { it.copy(pairingBusy = false, pairingError = code) }
+        complete(done, code)
+    }
+
+    /** Closing setup never revokes an already-committed server enrollment or resets active state. */
+    fun cancelBrowserPairing(done: (String?) -> Unit) {
+        val token = synchronized(browserPairCommitLock) {
+            browserPairGeneration.incrementAndGet().also { browserPairCall.getAndSet(null)?.cancel() }
+        }
+        control.execute {
+            val pending = pendingPair
+            try {
+                if (token != browserPairGeneration.get()) throw AiFailure("CANCELLED")
+                if (pending != null) pendingPairStore.write(pending.copy(cancelledLocally = true))
+                pendingPairStore.clear()
+                pendingPair = null
+                browserPairAdmission = null
+                browserPairBusy = false
+                browserPairTerminal = false
+                publish { it.copy(pendingPairing = null, pairingBusy = false, pairingError = null) }
+                complete(done)
+                if (pending != null && pending.ownerId.isNotEmpty()) {
+                    network.execute {
+                        try {
+                            browserPairingClient.request("cancel", pending, keys, {}, {}, {})
+                        } catch (_: Exception) { /* Best effort; the UI explains an approval may already have committed. */ }
+                    }
+                }
+            } catch (_: Exception) {
+                browserPairBusy = false
+                browserPairTerminal = true
+                publish { it.copy(pairingBusy = false, pairingError = "PAIRING_LOCAL_STATE_FAILED") }
+                complete(done, "PAIRING_LOCAL_STATE_FAILED")
+            }
+        }
+    }
+
+    /** Immediate generation fence; cleanup is ordered on the same lane as all configuration IO. */
+    private fun invalidateBrowserPairing() {
+        val token = synchronized(browserPairCommitLock) {
+            browserPairGeneration.incrementAndGet().also { browserPairCall.getAndSet(null)?.cancel() }
+        }
+        control.execute {
+            if (token == browserPairGeneration.get()) {
+                val old = pendingPair
+                try {
+                    if (old != null) pendingPairStore.write(old.copy(cancelledLocally = true))
+                    pendingPairStore.clear()
+                } catch (_: Exception) {
+                    // A staging write failure must not resurrect an unpaired transaction on
+                    // restart. Remove only that pending device's key, not other identities.
+                    if (old != null) {
+                        try {
+                            keys.delete(old.proposed.deviceId)
+                        } catch (_: Exception) { /* This process remains fenced. */ }
+                    }
+                }
+                pendingPair = null
+                browserPairAdmission = null
+                browserPairBusy = false
+                browserPairTerminal = false
+                publish { it.copy(pendingPairing = null, pairingBusy = false, pairingError = null) }
+            }
+        }
+    }
+
     fun configure(name: String, permissions: Set<String>, done: (String?) -> Unit) = change(done) {
         it.copy(deviceName = name.trim(), permissions = permissions)
     }
@@ -277,6 +539,7 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
     }
 
     private fun stopConnection() {
+        invalidateBrowserPairing()
         generation.incrementAndGet()
         AiExtractionNetwork.cancelActive()
         pairingCall.getAndSet(null)?.cancel()
@@ -562,7 +825,7 @@ internal class AiControlRuntime private constructor(context: Context) : AiRelayT
     }
 
     companion object {
-        internal fun isolatedForTest(context: Context): AiControlRuntime = AiControlRuntime(context)
+        internal fun isolatedForTest(context: Context, pairingClient: AiBrowserPairingClient = AiBrowserPairingTransport): AiControlRuntime = AiControlRuntime(context, pairingClient)
 
         @Volatile private var instance: AiControlRuntime? = null
         fun get(context: Context): AiControlRuntime = instance ?: synchronized(this) {

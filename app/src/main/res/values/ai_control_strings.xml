@@ -38,4 +38,18 @@
     <string name="rv_ai_notification_state">Remote control: %1$s</string>
     <string name="rv_ai_notifications_needed">Enable notifications for this NewPipe installation before starting AI Control, so its connection and Stop action stay visible.</string>
     <string name="rv_ai_start_visible">Open AI Control and tap Start while the app is visible.</string>
+    <string name="rv_ai_connect_browser">Connect to AI</string>
+    <string name="rv_ai_connect_explanation">Approve this device in your browser using your gateway passkey. No owner key or pairing code to copy. Then authorize ChatGPT separately and start AI Control here.</string>
+    <string name="rv_ai_open_pairing_browser">Open browser</string>
+    <string name="rv_ai_advanced_pairing">Advanced: pair with a code</string>
+    <string name="rv_ai_close_pairing">Close setup</string>
+    <string name="rv_ai_close_pairing_explanation">Close this setup on this phone? An approval already submitted may have completed. Closing does not revoke a device already enrolled in the owner portal, and does not start AI Control.</string>
+    <string name="rv_ai_pairing_comparison">Compare this code: %1$s</string>
+    <string name="rv_ai_pairing_preparing">Preparing secure setup…</string>
+    <string name="rv_ai_pairing_waiting">Approve only if the browser shows this same code. Return here after approval to finish connecting.</string>
+    <string name="rv_ai_pairing_completing">Finishing enrollment… AI Control will remain off until you start it.</string>
+    <string name="rv_ai_pairing_denied">Setup was denied or cancelled. Close setup to try again.</string>
+    <string name="rv_ai_pairing_problem">Setup status: %1$s. Network failures retry while this screen is open. For an expired or rejected request, close setup and start again.</string>
+    <string name="rv_ai_pairing_browser_prompt">Your comparison code is %1$s. Approve only if the browser shows the same code. Nothing to type or copy. After approval, return to NewPipe to finish connecting.</string>
+    <string name="rv_ai_browser_unavailable">No browser is available. Install or enable a browser, then open this setup again.</string>
 </resources>

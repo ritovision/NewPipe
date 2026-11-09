@@ -1,4 +1,5 @@
 import { OwnerAuth } from './owner-state';
+import { BrowserPairings, pairingResult } from './browser-pairing';
 import { DurableObject } from 'cloudflare:workers';
 import { assert, body, CLIENT, ControlError, device, digest, Env, failure, randomToken, response, UUID, verifyDevice, DeviceRegistration, cleanLabel } from './shared';
 
@@ -26,6 +27,28 @@ export class ControlAccount extends DurableObject<Env> {
       const input = await body(request, path.startsWith('/owner/') ? 65_536 : 16_384);
       if (path.startsWith('/owner/')) {
         return response(await this.gate(() => new OwnerAuth(this.ctx.storage, this.env).handle(path.slice(6), input)));
+      }
+      if (path.startsWith('/browser-pair/')) {
+        const operation = path.slice('/browser-pair/'.length);
+        const pairs = () => new BrowserPairings(this.ctx.storage, this.env);
+        if (operation === 'nonce') return response(await this.gate(() => pairs().nonce()));
+        if (operation === 'begin') return response(await this.gate(() => pairs().begin(input)));
+        if (operation === 'status') return response(await this.gate(() => pairs().status(input)));
+        if (operation === 'cancel') return response(await this.gate(() => pairs().cancel(input)));
+        if (operation === 'view') return response(await this.gate(() => pairs().view(input)));
+        if (operation === 'decide') return response(await this.gate(() => pairs().decide(input)));
+        if (operation === 'finish') {
+          const prepared = await this.gate(() => pairs().prepareFinish(input));
+          if (prepared.done) return response(await pairingResult(prepared.pair));
+          // Durable authorization committed above. Never wait on DeviceRoom under the
+          // account gate; signed retries recover this same registration after interruption.
+          const registered = await device(this.env, prepared.registration.deviceId).fetch(new Request('https://internal/register', {
+            method: 'POST', body: JSON.stringify(prepared.registration)
+          }));
+          if (!registered.ok) throw new ControlError('PAIRING_REGISTRATION_PENDING', 503);
+          return response(await this.gate(() => pairs().complete(prepared.pair.id)));
+        }
+        throw new ControlError('NOT_FOUND', 404);
       }
       if (path === '/pairing') {
         const code = randomToken(18), expiresAt = Date.now() + 300_000;
@@ -135,7 +158,8 @@ export class ControlAccount extends DurableObject<Env> {
         const expired = [...pairs].filter(([, p]) => p.expiresAt <= Date.now()).map(([key]) => key);
         for (let n = 0; n < expired.length; n += 128) await this.ctx.storage.delete(expired.slice(n, n + 128));
         const authPending = await new OwnerAuth(this.ctx.storage, this.env).prune();
-        if (pairs.size > expired.length || authPending) await this.ctx.storage.setAlarm(Date.now() + 360_000);
+        const browserPairPending = await new BrowserPairings(this.ctx.storage, this.env).prune();
+        if (pairs.size > expired.length || authPending || browserPairPending) await this.ctx.storage.setAlarm(Date.now() + 360_000);
       });
     } catch { await this.ctx.storage.setAlarm(Date.now() + 60_000); }
   }

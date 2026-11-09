@@ -1,4 +1,5 @@
 import { ownerRoutes } from './owner-web';
+import { pairingPage } from './pairing-web';
 import { OAuthProvider } from '@cloudflare/workers-oauth-provider';
 import { administration, authorize } from './auth';
 import { mcpFetch } from './mcp';
@@ -9,6 +10,13 @@ export { DeviceRoom } from './device';
 async function publicRoutes(request:Request,env:Env):Promise<Response> {
   const url=new URL(request.url);
   if(url.pathname.startsWith('/auth/')) return ownerRoutes(request,env);
+  if(url.pathname==='/pair/device') return pairingPage(request,env);
+  if(url.pathname==='/device/pairing/nonce' && request.method==='GET') return account(env).fetch(new Request('https://internal/browser-pair/nonce',{method:'POST',body:'{}'}));
+  const pairingOperation = /^\/device\/pairing\/(begin|status|cancel|finish)$/.exec(url.pathname)?.[1];
+  if(pairingOperation) {
+    if(request.method!=='POST') throw new ControlError('METHOD_NOT_ALLOWED',405);
+    return account(env).fetch(new Request('https://internal/browser-pair/'+pairingOperation,{method:'POST',body:await boundedText(request,4096)}));
+  }
   if(url.pathname==='/authorize' || url.pathname==='/authorize/continue') return authorize(request,env);
   if(url.pathname==='/setup' || url.pathname.startsWith('/admin/')) return administration(request,env);
   if(url.pathname==='/device/pair' && request.method==='POST') {

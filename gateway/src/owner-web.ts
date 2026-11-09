@@ -81,8 +81,8 @@ export function html(content: string, headers = new Headers(), status = 200, val
   headers.set('Permissions-Policy', 'publickey-credentials-get=(self), publickey-credentials-create=(self)');
   return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NewPipe AI Control</title><script src="/auth/passkeys.js" defer></script><style>body{font:16px system-ui;max-width:700px;margin:40px auto;padding:0 20px;line-height:1.55;color-scheme:light dark}input,button{font:inherit;padding:10px;margin:6px 0;max-width:95%}input[type=password],input[type=text]{width:95%}button{cursor:pointer}code{overflow-wrap:anywhere}label{display:block}fieldset,section,details{margin:20px 0}#auth-status{white-space:pre-line}li{margin:12px 0}</style></head><body>${content}</body></html>`, {status, headers});
 }
-export function loginPanel(browser: BrowserContext, flow = ''): string {
-  return `<section data-auth-root data-browser-csrf="${esc(browser.csrf)}" data-flow="${esc(flow)}"><h2>Sign in</h2><p>Use a passkey with your fingerprint, device PIN or supported device unlock. This signs you into your private gateway, not into ChatGPT.</p><button type="button" data-login>Sign in with passkey</button><p id="auth-status" role="status" aria-live="polite"></p><details><summary>First setup or emergency recovery</summary><p>Use your existing owner setup key once to register a passkey, or to recover access after losing your passkeys. Do not paste it into chat.</p><form method="post" action="/setup"><input type="hidden" name="browser_csrf" value="${esc(browser.csrf)}"><input type="hidden" name="flow" value="${esc(flow)}"><label>Owner setup key<input name="owner_key" type="password" required autocomplete="current-password" maxlength="200"></label><button>Recover access / first setup</button></form></details><noscript>Passkeys require JavaScript. Enable JavaScript for this gateway, or use emergency recovery.</noscript></section>`;
+export function loginPanel(browser: BrowserContext, flow = '', pairing = ''): string {
+  return `<section data-auth-root data-browser-csrf="${esc(browser.csrf)}" data-flow="${esc(flow)}" data-pairing="${esc(pairing)}"><h2>Sign in</h2><p>Use a passkey with your fingerprint, device PIN or supported device unlock. This signs you into your private gateway, not into ChatGPT.</p><button type="button" data-login>Sign in with passkey</button><p id="auth-status" role="status" aria-live="polite"></p><details><summary>First setup or emergency recovery</summary><p>Use your existing owner setup key once to register a passkey, or to recover access after losing your passkeys. Do not paste it into chat.</p><form method="post" action="/setup"><input type="hidden" name="browser_csrf" value="${esc(browser.csrf)}"><input type="hidden" name="flow" value="${esc(flow)}"><input type="hidden" name="pairing" value="${esc(pairing)}"><label>Owner setup key<input name="owner_key" type="password" required autocomplete="current-password" maxlength="200"></label><button>Recover access / first setup</button></form></details><noscript>Passkeys require JavaScript. Enable JavaScript for this gateway, or use emergency recovery.</noscript></section>`;
 }
 export async function managementPanel(env: Env, session: OwnerSession): Promise<string> {
   const {credentials} = await ownerCall<{credentials: {id: string; label: string; createdAt: number; lastUsedAt: number; backedUp: boolean}[]}>(env, '/credentials', {sessionHash: session.hash, browserHash: session.browserHash});
@@ -97,9 +97,11 @@ export async function recover(request: Request, env: Env, values: URLSearchParam
   if (!await verifyOwner(values.get('owner_key') ?? '', env)) throw new ControlError('NOT_AUTHORIZED', 401);
   const flow = values.get('flow') ?? '';
   assert(flow === '' || TOKEN.test(flow), 'INVALID_CONSENT');
+  const pairing = values.get('pairing') ?? '';
+  assert(pairing === '' || (flow === '' && /^[0-9a-f]{64}$/.test(pairing)), 'INVALID_PAIRING_REQUEST');
   const result = await ownerCall<{token: string}>(env, '/recover', {browserHash: browser.hash, recoveryVerified: true});
   return new Response(null, {status: 303, headers: {'Set-Cookie': sessionCookie(result.token),
-    Location: flow ? '/authorize/continue?flow=' + encodeURIComponent(flow) : '/setup', 'Cache-Control': 'no-store'}});
+    Location: flow ? '/authorize/continue?flow=' + encodeURIComponent(flow) : pairing ? '/pair/device?request=' + pairing : '/setup', 'Cache-Control': 'no-store'}});
 }
 export async function ownerRoutes(request: Request, env: Env): Promise<Response> {
   try {

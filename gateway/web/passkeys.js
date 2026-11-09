@@ -63,7 +63,8 @@ if (root) {
     const request = await post('/login/options', {});
     const response = await ceremony(request, 'authenticate', true);
     await post('/login/finish', {challengeId: request.challengeId, response});
-    location.assign(root.dataset.flow ? '/authorize/continue?flow=' + encodeURIComponent(root.dataset.flow) : '/setup');
+    location.assign(root.dataset.flow ? '/authorize/continue?flow=' + encodeURIComponent(root.dataset.flow)
+      : /^[0-9a-f]{64}$/.test(root.dataset.pairing ?? '') ? '/pair/device?request=' + root.dataset.pairing : '/setup');
   }));
   root.querySelector('[data-register]')?.addEventListener('click', () => run(async () => {
     const label = root.querySelector('#passkey-label').value.trim() || 'My passkey';

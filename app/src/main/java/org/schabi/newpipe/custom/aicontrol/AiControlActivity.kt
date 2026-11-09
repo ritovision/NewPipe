@@ -4,11 +4,15 @@
 package org.schabi.newpipe.custom.aicontrol
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.view.View
 import android.widget.Button
@@ -19,6 +23,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.app.NotificationManagerCompat
@@ -41,6 +46,20 @@ class AiControlActivity : AppCompatActivity() {
     private lateinit var start: Button
     private lateinit var pair: Button
     private lateinit var save: Button
+    private lateinit var connectBrowser: Button
+    private lateinit var pendingStatus: TextView
+    private lateinit var openBrowser: Button
+    private lateinit var cancelSetup: Button
+    private var advancedPairing = false
+    private var wasPending = false
+    private val pollingHandler = Handler(Looper.getMainLooper())
+    private val pairingPoll = object : Runnable {
+        override fun run() {
+            if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return
+            runtime.pollBrowserPairing()
+            pollingHandler.postDelayed(this, 2000)
+        }
+    }
     private lateinit var clients: LinearLayout
     private val scopes = linkedMapOf<AiScope, CheckBox>()
     private var observation: AutoCloseable? = null
@@ -117,6 +136,27 @@ class AiControlActivity : AppCompatActivity() {
             content.addView(check)
         }
         text(getString(R.string.rv_ai_permissions_explanation))
+        text(getString(R.string.rv_ai_connect_explanation))
+        connectBrowser = button(content, getString(R.string.rv_ai_connect_browser)) {
+            operation { done ->
+                runtime.beginBrowserPairing(gateway.text.toString(), name.text.toString(), permissions()) { error ->
+                    done(error)
+                    if (error == null && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) showPairingBrowserPrompt()
+                }
+            }
+        }
+        pendingStatus = text("").apply { setTextIsSelectable(true) }
+        openBrowser = button(content, getString(R.string.rv_ai_open_pairing_browser)) { showPairingBrowserPrompt() }
+        cancelSetup = button(content, getString(R.string.rv_ai_close_pairing)) {
+            AlertDialog.Builder(this).setTitle(R.string.rv_ai_close_pairing)
+                .setMessage(R.string.rv_ai_close_pairing_explanation)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.rv_ai_close_pairing) { _, _ -> operation { done -> runtime.cancelBrowserPairing(done) } }.show()
+        }
+        button(content, getString(R.string.rv_ai_advanced_pairing)) {
+            advancedPairing = !advancedPairing
+            render(runtime.snapshot)
+        }
         pair = button(content, getString(R.string.rv_ai_pair)) {
             operation { done ->
                 runtime.pair(gateway.text.toString(), name.text.toString(), code.text.toString(), permissions()) { error ->
@@ -151,14 +191,17 @@ class AiControlActivity : AppCompatActivity() {
             }
         }
         text(getString(R.string.rv_ai_background_explanation))
+        render(runtime.snapshot)
     }
 
     override fun onStart() {
         super.onStart()
         observation = runtime.observe(::render)
+        pollingHandler.post(pairingPoll)
     }
 
     override fun onStop() {
+        pollingHandler.removeCallbacks(pairingPoll)
         observation?.close()
         observation = null
         super.onStop()
@@ -167,10 +210,14 @@ class AiControlActivity : AppCompatActivity() {
     private fun render(snapshot: AiUiSnapshot) {
         if (isFinishing || isDestroyed) return
         val state = snapshot.state
+        val pending = snapshot.pendingPairing
+        if (wasPending && pending == null && state?.paired == true) populated = false
+        wasPending = pending != null
         if (state != null && !populated) {
-            name.setText(state.deviceName)
-            gateway.setText(state.gatewayOrigin.ifEmpty { getString(R.string.rv_ai_default_gateway) })
-            scopes.forEach { (scope, check) -> check.isChecked = scope.wireName in state.permissions }
+            val shown = pending?.proposed ?: state
+            name.setText(shown.deviceName)
+            gateway.setText(shown.gatewayOrigin.ifEmpty { getString(R.string.rv_ai_default_gateway) })
+            scopes.forEach { (scope, check) -> check.isChecked = scope.wireName in shown.permissions }
             populated = true
         }
         status.text = buildString {
@@ -187,8 +234,30 @@ class AiControlActivity : AppCompatActivity() {
         }
         start.text = getString(if (state?.enabled == true && snapshot.connection != "STOPPED") R.string.rv_ai_stop else R.string.rv_ai_start)
         start.isEnabled = !busy && state?.paired == true
-        pair.isEnabled = !busy && state != null
-        save.isEnabled = !busy && state != null
+        connectBrowser.visibility = if (state?.paired == true) View.GONE else View.VISIBLE
+        connectBrowser.isEnabled = !busy && state != null && pending == null
+        pendingStatus.visibility = if (pending == null) View.GONE else View.VISIBLE
+        pendingStatus.text = pending?.let {
+            val label = when (it.serverStatus) {
+                "approved", "committed", "complete" -> R.string.rv_ai_pairing_completing
+                "denied", "cancelled" -> R.string.rv_ai_pairing_denied
+                "local" -> R.string.rv_ai_pairing_preparing
+                else -> R.string.rv_ai_pairing_waiting
+            }
+            (if (it.serverStatus == "local") "" else getString(R.string.rv_ai_pairing_comparison, it.comparisonCode) + "\n") + getString(label) +
+                (snapshot.pairingError?.let { error -> "\n" + getString(R.string.rv_ai_pairing_problem, error) } ?: "")
+        } ?: ""
+        openBrowser.visibility = if (pending != null && pending.serverStatus == "pending") View.VISIBLE else View.GONE
+        openBrowser.isEnabled = !busy && pending != null && System.currentTimeMillis() < pending.expiresAtMs
+        cancelSetup.visibility = if (pending == null) View.GONE else View.VISIBLE
+        cancelSetup.isEnabled = !busy
+        code.visibility = if (advancedPairing && pending == null) View.VISIBLE else View.GONE
+        pair.visibility = code.visibility
+        pair.isEnabled = !busy && state != null && pending == null
+        save.isEnabled = !busy && state != null && pending == null
+        name.isEnabled = !busy && pending == null
+        gateway.isEnabled = !busy && pending == null
+        scopes.values.forEach { it.isEnabled = !busy && pending == null }
         clients.removeAllViews()
         if (state?.clients.isNullOrEmpty()) {
             clients.addView(TextView(this).apply { text = getString(R.string.rv_ai_no_clients) })
@@ -204,6 +273,26 @@ class AiControlActivity : AppCompatActivity() {
                 button(clients, getString(R.string.rv_ai_revoke_client)) { operation { done -> runtime.revokeClient(id, done) } }
             }
         }
+    }
+
+    private fun showPairingBrowserPrompt() {
+        val pending = runtime.snapshot.pendingPairing ?: return
+        if (pending.serverStatus != "pending" || System.currentTimeMillis() >= pending.expiresAtMs) return
+        AlertDialog.Builder(this).setTitle(R.string.rv_ai_connect_browser)
+            .setMessage(getString(R.string.rv_ai_pairing_browser_prompt, pending.comparisonCode))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.rv_ai_open_pairing_browser) { _, _ ->
+                val current = runtime.snapshot.pendingPairing
+                if (current?.requestId == pending.requestId && current.serverStatus == "pending" &&
+                    System.currentTimeMillis() < current.expiresAtMs
+                ) {
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(current.approvalUrl)).addCategory(Intent.CATEGORY_BROWSABLE))
+                    } catch (_: ActivityNotFoundException) {
+                        message(getString(R.string.rv_ai_browser_unavailable))
+                    }
+                }
+            }.show()
     }
 
     private fun enableAndStart() {

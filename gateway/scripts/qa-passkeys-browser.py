@@ -16,6 +16,7 @@ import signal
 import subprocess
 import tempfile
 import time
+import uuid
 from urllib.parse import urlencode, urlparse, parse_qs
 from playwright.sync_api import sync_playwright, expect
 
@@ -26,6 +27,33 @@ checks:list[str]=[]
 def passed(label:str)->None:
     checks.append(label)
     print('PASS '+label,flush=True)
+
+class SyntheticPairing:
+    """Disposable P-256 device, exercising real browser approval with signed HTTP calls."""
+    def __init__(self, context, origin: str, directory: Path):
+        self.context=context;self.origin=origin
+        device=str(uuid.uuid4());self.key=directory/(device+'.pem')
+        subprocess.run(['openssl','genpkey','-algorithm','EC','-pkeyopt','ec_paramgen_curve:P-256','-out',str(self.key)],
+            check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        public=subprocess.check_output(['openssl','pkey','-in',str(self.key),'-pubout','-outform','DER'],stderr=subprocess.DEVNULL)
+        nonce=context.request.get(origin+'/device/pairing/nonce');assert nonce.status==200,nonce.text()
+        self.details={'pairing_version':1,'device_id':device,'public_key':self.b64(public),'client_nonce':nonce.json()['client_nonce'],
+            'issued_at_ms':int(time.time()*1000),'name':'Browser QA phone','permissions':['library.read','playback.control']}
+        self.id=hashlib.sha256(self.message('begin').encode()).hexdigest()
+        self.url=origin+'/pair/device?request='+self.id
+        self.code=self.id[:4].upper()+'-'+self.id[4:8].upper()
+        result=self.call('begin');assert result.status==200,result.text()
+    @staticmethod
+    def b64(value: bytes)->str:return base64.urlsafe_b64encode(value).decode().rstrip('=')
+    def message(self, operation: str)->str:
+        d=self.details
+        return '\n'.join(['newpipe-pairing-v1',operation,self.origin,d['device_id'],d['public_key'],d['client_nonce'],
+            str(d['issued_at_ms']),d['name'],','.join(d['permissions']),'' if operation=='begin' else self.id])
+    def call(self, operation: str):
+        signature=subprocess.check_output(['openssl','dgst','-sha256','-sign',str(self.key)],input=self.message(operation).encode(),stderr=subprocess.DEVNULL)
+        payload={**self.details,'signature':self.b64(signature)}
+        if operation!='begin':payload['request_id']=self.id
+        return self.context.request.post(self.origin+'/device/pairing/'+operation,data=payload)
 
 def main()->None:
     with tempfile.TemporaryDirectory(prefix='browser-qa-',dir=STATE) as tmp:
@@ -150,12 +178,50 @@ def main()->None:
                 denied=parse_qs(urlparse(page.url).query)
                 assert denied.get('error')==['access_denied'] and 'code' not in denied
                 passed('anonymous denial reaches the external callback without owner authentication')
+                # Browser-mediated enrollment: possession of a URL never authorizes a phone.
+                phone=SyntheticPairing(context,origin,directory)
+                page.goto(phone.url)
+                expect(page.get_by_role('button',name='Sign in with passkey')).to_be_visible()
+                page.get_by_role('button',name='Sign in with passkey').click()
+                expect(page.get_by_role('heading',name='Approve this NewPipe device?',exact=True)).to_be_visible(timeout=15000)
+                expect(page.get_by_text(phone.code,exact=True)).to_be_visible()
+                expect(page.locator('input[name="owner_key"]')).to_have_count(0)
+                passed('device enrollment returns from passkey sign-in to the exact signed request and comparison code')
+                comparison=page.get_by_label('I started setup in NewPipe and its code matches.',exact=True)
+                assert not comparison.is_checked()
+                page.get_by_role('button',name='Approve this device',exact=True).click()
+                assert phone.call('status').json()['status']=='pending'
+                passed('browser requires explicit code comparison; sign-in and unchecked approval do not pair')
+                comparison.check();page.get_by_role('button',name='Approve this device',exact=True).click()
+                expect(page.get_by_role('heading',name='Device approved',exact=True)).to_be_visible()
+                assert phone.call('status').json()['status']=='approved'
+                finished=phone.call('finish');assert finished.status==200,finished.text()
+                assert finished.json()['paired'] and finished.json()['device_id']==phone.details['device_id']
+                assert phone.call('finish').json()['status']=='complete'
+                passed('explicit browser approval completes only through the same device key and retries are idempotent')
+                denied_phone=SyntheticPairing(context,origin,directory)
+                page.goto(denied_phone.url)
+                expect(page.get_by_role('button',name='Approve this device',exact=True)).to_be_visible()
+                page.get_by_role('button',name='Deny',exact=True).click()
+                expect(page.get_by_role('heading',name='Device not approved',exact=True)).to_be_visible()
+                assert denied_phone.call('status').json()['status']=='denied'
+                assert denied_phone.call('finish').status==401
+                passed('returning owner can deny pairing without checking the comparison box')
+                revoked_phone=SyntheticPairing(context,origin,directory)
+                page.goto(revoked_phone.url)
+                page.get_by_label('I started setup in NewPipe and its code matches.',exact=True).check()
+                page.get_by_role('button',name='Approve this device',exact=True).click()
+                expect(page.get_by_role('heading',name='Device approved',exact=True)).to_be_visible()
+                page.goto(origin+'/setup');page.get_by_role('button',name='Sign out',exact=True).click()
+                expect(page.get_by_role('button',name='Sign in with passkey')).to_be_visible()
+                assert revoked_phone.call('finish').status==401
+                passed('browser logout after approval prevents a not-yet-committed device enrollment')
                 assert not errors,errors
                 passed('no uncaught browser JavaScript errors')
                 context.close();browser.close()
             output={'status':'passed','checks':checks,'environment':'primary Chromium + virtual CTAP2 + ephemeral loopback HTTPS Miniflare',
                     'real_biometrics_tested':False,'production_gateway_contacted':False,'phone_modified':False}
-            (STATE/'phase-b-browser-result.json').write_text(json.dumps(output,indent=2)+'\n')
+            (STATE/'phase-c-browser-result.json').write_text(json.dumps(output,indent=2)+'\n')
         finally:
             if server.poll() is None:os.killpg(server.pid,signal.SIGTERM)
             try:server.wait(timeout=8)
