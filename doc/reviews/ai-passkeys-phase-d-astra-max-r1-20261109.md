@@ -1,0 +1,36 @@
+**Verdict: no blocking defect found in the forward migration or matched dependency update at `8e470232e`. Production readiness remains conditional: the README needs explicit rollback restrictions, and physical/live acceptance is still outstanding.**
+
+I compared against `5b545c26b`, read the acceptance records and adjudications, and inspected source, installed dependency code, and the existing Worker bundle. I did not run tests, modify files, access credentials/staging, or operate a browser/device.
+
+The **release-blocking documentation gap** is the absence of a state-aware rollback procedure in [gateway/README.md](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/gateway/README.md:15). Returning to the old Worker is storage-compatible for completed registrations and grants, but it is an authentication/protocol downgrade with these concrete consequences:
+
+1. **Unexpired legacy admin cookies become valid again.**  
+   Sequence: obtain an old signed admin cookie → deploy the candidate, which rejects it → reset owner sessions → restore `5b545c26b` with the retained `SESSION_SECRET` → replay the old cookie and its CSRF nonce before its original one-hour expiry.  
+   The candidate rejects the legacy format in [owner-web.ts:38](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/gateway/src/owner-web.ts:38), and reset updates only the new durable state in [owner-state.ts:376](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/gateway/src/owner-state.ts:376). The old revision’s `gateway/src/auth.ts`, lines 15–20 and 74–78, validates only HMAC, expiry and nonce; it never reads that epoch. Conversely, old-version logout does not revoke retained new-format sessions, which can become usable again on roll-forward while unexpired.
+
+2. **Rollback can strand an authorized browser pairing.**  
+   Sequence: approve pairing → signed finish commits the account registration → DeviceRoom registration fails or its response is lost → restore the old Worker → Android retries finish.  
+   The durable commit occurs in [browser-pairing.ts:180](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/gateway/src/browser-pairing.ts:180), before the cross-object operation in [account.ts:40](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/gateway/src/account.ts:40). The old revision lacks `/device/pairing/*`, so retry returns 404. Android maps this to `PAIRING_NOT_SUPPORTED` in [AiBrowserPairing.kt:225](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/app/src/main/java/org/schabi/newpipe/custom/aicontrol/AiBrowserPairing.kt:225) and stops automatic retries. The committed registration remains; rollback neither cancels nor reconciles it.
+
+The README should designate a fallback that understands `owner-auth:v1`, `browser-pairing:v1` and its admission epoch—application source at `a80426b90` has those implementations. Downgrade to `5b545c26b` needs an explicit authentication-downgrade decision and handling for unfinished/committed enrollment. Preserve credential records, revocation tombstones and grants; avoid mixed old/new authentication versions. Cloudflare rollback does not restore connected storage to its previous contents. [Cloudflare rollback documentation](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/)
+
+The forward-migration conclusions are:
+
+| Concern | Source finding |
+|---|---|
+| Existing pairings | Preserved with the same Worker, `PUBLIC_ORIGIN`, `OWNER_ID`, actual ACCOUNT/DEVICES namespaces and migration history. Wrangler configuration, device registration/authentication and MCP authorization code are unchanged from the supplied baseline. |
+| Existing grants | Same OAuth provider **1.2.3**, record format and KV binding. Retain `OAUTH_KV`; no bulk rewrite occurs. Valid old grants adopt the new expiry on refresh. Expired grants require reauthorization, without device re-pairing. |
+| Browser invalidation | Intentional: legacy signed cookies fail the new opaque-token format. Existing device connections and OAuth refresh do not require a passkey or owner browser session. |
+| Local permissions | Preserved. Native active-state storage and access-controller code are unchanged. Browser enrollment rejects already-paired/enabled state and completion leaves the service disabled. |
+| Refresh idle limit | Access remains 600 seconds; accepted refresh extends the grant by 90 days. MCP activity does not extend it. Refresh fails within the provider’s final 60-second window. This measures refresh activity, not human activity. |
+| OAuth after rollback | Already-extended grants retain their stored expiry. The old configuration stops sliding that expiry; it does **not** shorten existing grants to seven days. Newly exchanged grants use the old seven-day policy. |
+
+These conclusions follow from [identity lookup](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/gateway/src/shared.ts:84), [device authentication](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/gateway/src/device.ts:37), [MCP authorization](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/gateway/src/mcp.ts:17), and [native enrollment admission](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/app/src/main/java/org/schabi/newpipe/custom/aicontrol/AiControlRuntime.kt:225). I found no migration or require-passkey check that automatically disables an already-paired device.
+
+**Public boundaries and dependencies passed source inspection.** Browser mutations require session/browser binding, exact Origin and CSRF; native finish requires the signed transcript and committed owner approval. Public owner routes whitelist fields rather than trusting submitted `recoveryVerified` or authority fields. The retained owner-key bearer administration path is deliberate authenticated compatibility.
+
+The existing bundle’s source map matches all current production inputs. It contains no test-fixture modules, `/__test/` routes or fault-injection hooks. All 66 changed lockfile package entries are development dependencies; production dependency entries are unchanged. Wrangler also changes its bundler from esbuild 0.28.1 to 0.28.2 and local workerd to 1.20261104.1. I found no concrete API/bundle regression. Keeping `compatibility_date: 2026-08-25` is valid and matches the harness; it selects compatibility behavior rather than freezing the runtime binary. [Cloudflare compatibility dates](https://developers.cloudflare.com/workers/configuration/compatibility-dates/)
+
+Minor documentation corrections remain: [README:63](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/gateway/README.md:63) incorrectly says partial-storage-failure coverage is absent, and [progress:21](/home/rito/techstuff/ritoverse/newpipe-ai-passkeys-20261109/doc/validation/ai-passkeys-progress-20261109.md:21) still reports four advisories. I accepted your updated test/audit results as supplied evidence, without rerunning them.
+
+**Outstanding acceptance—not source defects:** physical credential-manager enrollment/sign-in, fingerprint/PIN, actual Android ↔ staged TLS gateway handoff and interruption recovery, real ChatGPT authorization/refresh, and verification of production bindings/version before rollout. Deploying the isolated QA Worker enables those checks; it does not establish their completion.
