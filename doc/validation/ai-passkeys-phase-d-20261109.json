@@ -1,0 +1,120 @@
+{
+  "date": "2026-11-09",
+  "production_source_commit": "8e470232e9b02904dba3378268f026ababf1b1f4",
+  "production_changed": false,
+  "production_version": "75645ddd-3e81-4c9e-b4d0-a04f517a9b4c",
+  "stage": {
+    "worker": "np-passkeys-qa-20261109-a3d8",
+    "version": "89bd1b11-b734-4518-9171-0db7b651dd3d",
+    "retained_for_followup": true
+  },
+  "results": {
+    "full_audit_vulnerabilities_primary": 0,
+    "full_audit_vulnerabilities_secondary": 0,
+    "gateway_tests_primary": 162,
+    "gateway_tests_secondary": 162,
+    "local_browser_checks": 16,
+    "live_browser_virtual_passkey_registration": true,
+    "live_browser_virtual_passkey_signin": true,
+    "live_oauth_pkce": true,
+    "live_oauth_refresh_rotation": true,
+    "physical_biometrics": false,
+    "actual_chatgpt": false,
+    "live_pixel_successful_invocations": 4,
+    "live_pixel_distinct_modes": [
+      "begin",
+      "denied",
+      "cancel"
+    ],
+    "live_pixel_final_approval_completion": false,
+    "live_pixel_interrupted_recovery": false,
+    "live_pixel_relay": false,
+    "blocked_final_operation_executed": false
+  },
+  "cleanup": {
+    "qa_packages_removed": [
+      "org.schabi.newpipe.debug.featureaipasskeys20261109.test",
+      "org.schabi.newpipe.debug.featureaipasskeys20261109"
+    ],
+    "canonical_packages_preserved": [
+      "org.schabi.newpipe",
+      "org.schabi.newpipe.ritoprod"
+    ],
+    "virtual_display_id": 9,
+    "display_job_exited": true,
+    "temporary_recording_removed": true,
+    "blocked_approval_executed": false,
+    "real_biometrics_tested": false,
+    "production_gateway_changed": false
+  },
+  "primary_local_evidence": {
+    "phase-d-primary-audit.json": {
+      "bytes": 367,
+      "sha256": "cb955ececd3a9c4ff1f3dcbe164583af0fce855926c93f60c3ee96fdb7aff24c"
+    },
+    "phase-d-primary-gateway-tests.log": {
+      "bytes": 18439,
+      "sha256": "6be5e598418decee36891c3777e3ae2294f26276f5e754133a157801db04ccf9"
+    },
+    "phase-d-primary-local-browser.log": {
+      "bytes": 1273,
+      "sha256": "e800d8349cc059c9d351fb24432e8f1865c5dcf46d0802ff217853b5d595280a"
+    },
+    "phase-d-primary-live-build.log": {
+      "bytes": 8899,
+      "sha256": "8af5b9963c1674b2468637fe56c716098631e33feb999b9185b1d98014b64d94"
+    },
+    "phase-d-apk-identity.json": {
+      "bytes": 576,
+      "sha256": "5525b0ab5146946128e82fe584731cfcc9026505253ed06096f828c15a4b0f5a"
+    },
+    "phase-d-pixel-begin.log": {
+      "bytes": 96,
+      "sha256": "e3fd928f97cf4dd731f85fd1a1554375cc42725c23a82808fb4b845ca22bd770"
+    },
+    "phase-d-pixel-denied.log": {
+      "bytes": 96,
+      "sha256": "68aac83c29b2c672e3e7c00da2719df1dd42ee68fd39c4411bd4b0a376ba0d8c"
+    },
+    "phase-d-pixel-cancel.log": {
+      "bytes": 96,
+      "sha256": "55f8195a6b9b0c4ca5571b67466d0840825382e9644eb29d5236a8584a63c2db"
+    },
+    "phase-d-scrcpy.log": {
+      "bytes": 1405,
+      "sha256": "3b4fb12fbce669422ea3a3f8a445a5bad278a2b3574929d6b54e32cda966e8c5"
+    },
+    "phase-d-cleanup.json": {
+      "bytes": 464,
+      "sha256": "01d25d7f0b3cf58d3cab81212490203a283182eea6f43b9d5a3f42682e7b1092"
+    }
+  },
+  "secondary_local_evidence": {
+    "phase-d-audit-after.json": {
+      "sha256": "cb955ececd3a9c4ff1f3dcbe164583af0fce855926c93f60c3ee96fdb7aff24c"
+    },
+    "phase-d-secondary-gateway-tests.log": {
+      "sha256": "bd6c26138622e7b3a448d9f8596bbc568f5be92d83d3ee7b46477ff2c60db9a9"
+    },
+    "phase-d-review-r1.md": {
+      "sha256": "020b1f478ceaa53917934acd7b642dfdeb12def7cc19d8b509992629fa1a606e"
+    }
+  },
+  "qa_source": {
+    "app/src/androidTest/java/org/schabi/newpipe/custom/aicontrol/AiBrowserPairingLiveAndroidTest.kt": {
+      "bytes": 10059,
+      "sha256": "d061dd05e57cb637d7d2a106649082c77f8c7b5630cab07dc63cb2b3ef3b2404"
+    },
+    "gateway/scripts/qa-passkeys-live-browser.py": {
+      "bytes": 9193,
+      "sha256": "0bb12af8d8c8d738e19458a05872165cccca5a49471c5249fb8a45da15f27919"
+    }
+  },
+  "limitations": [
+    "Virtual authenticator, not physical owner verification.",
+    "Synthetic OAuth client, not ChatGPT.",
+    "Final remote QA approval was tool-blocked before execution; explicit user authorization needed.",
+    "Live begin was invoked twice; its compact log contains the second invocation.",
+    "Hosted QA resource remains; no ongoing coding/test job."
+  ]
+}
