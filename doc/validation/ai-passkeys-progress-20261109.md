@@ -1,7 +1,7 @@
 # AI Control passkeys / durable authorization — execution checkpoint
 
-**Updated:** 2026-11-09, Phase D fresh approved QA rerun. See [atomic-marker and revocation rerun](ai-passkeys-phase-d-revocation-rerun-20261109.md) and [previous live follow-up](ai-passkeys-phase-d-live-followup-20261109.md).
-**Branch:** `feature/ai-passkeys-20261109`. Production-source/toolchain candidate: `8e470232e`. Pairing implementation remains `f7c33bcdc` plus native UI follow-up `c1af0c0ac`. **An isolated QA Worker is deployed; production is not upgraded.**
+**Updated:** 2026-11-09, production AI gateway deployed and public HTTP acceptance passed. See [production deployment evidence](ai-passkeys-production-gateway-deployment-20261109.md), [atomic-marker and revocation rerun](ai-passkeys-phase-d-revocation-rerun-20261109.md), and [previous live follow-up](ai-passkeys-phase-d-live-followup-20261109.md).
+**Branch:** `feature/ai-passkeys-20261109`. Deployed source/validation checkpoint: `06992e64e` (gateway runtime source originally integrated at `8e470232e`). Pairing implementation remains `f7c33bcdc` plus native UI follow-up `c1af0c0ac`. **Production AI gateway version `b0367d23` is serving 100%; staging remains separate. The canonical Android app has not been upgraded in this checkpoint.**
 
 ## Actual status
 
@@ -19,23 +19,23 @@
 | Deployed QA WebAuthn/OAuth | Public attestation verified, actual browser passkey sign-in, explicit consent/PKCE exchange and live rotating refresh passed. Disposable virtual authenticator and synthetic OAuth client, **not** physical user/ChatGPT acceptance. |
 | Final live pairing and relay | **Two genuine isolated staging approvals:** Pixel restart/recovery, real read-only relay and permission-denial checks, portal revocation and post-revocation `DEVICE_NOT_AUTHORIZED`. A fresh rerun **passed Android `relay` with the corrected atomic host marker**. Revocation on that fresh run occurred **after** relay stopped; the earlier follow-up demonstrated live revocation while relay was running, but its Android test failed on the old marker race. See the two evidence records. |
 | Release review | Astra MAX found no forward-migration/dependency blocker; rollback documentation finding accepted. README/runbook now require state-aware fallback and prohibit blind legacy auth downgrade. |
-| Production | **Unchanged**, still version `75645ddd-3e81-4c9e-b4d0-a04f517a9b4c` at the final read-only inventory. No original owner-secret, production grant/device-state, canonical APK, Library or Cloud & Sync change. |
+| Production | **AI gateway upgraded:** version `b0367d23-7723-42e7-bfd2-988dc1e693ee` at 100%. Verified all nine binding names/types/identities preserved, both existing secret bindings present, public health/setup/OAuth discovery 200. No owner key rotation, KV/DO reset, Cloud & Sync deployment or canonical APK installation. Production physical passkey is a distinct pending enrollment. |
 | Phone cleanup | Both temporary QA packages uninstalled again; **owned virtual display 11** closed and recording removed. QA relay disabled and both QA devices revoked. Canonical NewPipe packages remain installed and untouched. |
 
-Evidence: [Phase D corrected relay and revocation rerun](ai-passkeys-phase-d-revocation-rerun-20261109.md), [Phase D authorized live follow-up](ai-passkeys-phase-d-live-followup-20261109.md), [Phase D acceptance](ai-passkeys-phase-d-20261109.md), [manifest](ai-passkeys-phase-d-20261109.json), [review adjudication](../reviews/ai-passkeys-phase-d-adjudication-20261109.md), [state-aware rollout](../architecture/ai-control-passkey-rollout.md), [Phase C baseline](ai-passkeys-phase-c-20261109.md), [pairing architecture](../architecture/ai-control-browser-pairing.md).
+Evidence: [Production gateway deployment](ai-passkeys-production-gateway-deployment-20261109.md), [Phase D corrected relay and revocation rerun](ai-passkeys-phase-d-revocation-rerun-20261109.md), [Phase D authorized live follow-up](ai-passkeys-phase-d-live-followup-20261109.md), [Phase D acceptance](ai-passkeys-phase-d-20261109.md), [manifest](ai-passkeys-phase-d-20261109.json), [review adjudication](../reviews/ai-passkeys-phase-d-adjudication-20261109.md), [state-aware rollout](../architecture/ai-control-passkey-rollout.md), [Phase C baseline](ai-passkeys-phase-c-20261109.md), [pairing architecture](../architecture/ai-control-browser-pairing.md).
 
-## Next execution checkpoint — physical user presence required
+## Next execution checkpoint — production owner passkey and Android signer-safe rollout
 
 With new explicit user approval, a second temporary staging QA device paired successfully, its interrupted completion recovered, and a fresh **Android relay test passed with an atomic completion marker**. The device was then explicitly revoked through the owner portal using its exact device ID; two OAuth catalog/status calls returned `DEVICE_NOT_AUTHORIZED`. The device was revoked **after** the relay closed in this run. Previous separate execution covers revocation while relay was active. Both temporary QA devices are revoked, packages removed, display closed, and production unchanged.
 
-The next mandatory user-present release gate is **actual Pixel credential-manager/passkey enrollment and authentication**, followed by real ChatGPT OAuth reconnect/refresh. Neither has been passed using the user's actual biometric/PIN or real ChatGPT account.
+The user has since confirmed **real Pixel passkey enrollment and sign-in on the isolated staging hostname**; the separate staging ChatGPT connector also succeeded repeatedly beyond the 10-minute access-token lifetime, without direct visibility into token rotation. Those user-present results do **not** create a production passkey. The next physical interaction is **production-hostname** passkey enrollment with the existing production owner key, then connection compatibility verification without unnecessary plugin replacement.
 
 ## Remaining release work
 
-1. Perform **physical Pixel credential-manager/passkey verification** and real ChatGPT reconnect/refresh. Virtual WebAuthn plus a synthetic OAuth client do not establish these.
-2. Recheck production bindings/version immediately before rollout; prepare a state-aware fallback or explicit controlled fix-forward plan. Legacy code is not a drop-in rollback after new owner/pairing state exists.
-3. Only after acceptance and separate approval, do compatible gateway and canonical APK rollout, preserving app identity/signer/data, existing pairings and grants. Record exact deployed versions and remove the disposable stage when no longer needed.
-4. If the independent release review specifically requires a **single-run** relay-active revocation plus atomic marker result, obtain fresh authorization for another disposable QA device rather than treating two separate runs as one.
+1. Enroll and verify a **separate production-hostname passkey** using physical Pixel verification and the protected production owner credential. Staging RP credentials do not transfer to production.
+2. Preserve the existing production ChatGPT connector; reauthorize only if its actual token/scope behavior requires it. The user explicitly asked to stop calling the old plugin during this deployment; do not use it as a health probe.
+3. Complete Android **`org.schabi.newpipe.ritoprod`** versionCode-increasing release build, verify exact installed production signer and source/data compatibility, sign with matching protected production key, and only then consider in-place `adb install -r` without data clearing. The gateway upgrade alone did not update the Android app.
+4. Keep the state-aware fix-forward/fallback plan; never blindly roll back to the legacy gateway after new auth state exists. Remove the isolated staging resources after production acceptance, and treat any desired single-run active-relay revocation retest as an independently authorized optional QA gate.
 
 ## Retained staging resource
 
@@ -60,4 +60,4 @@ The next mandatory user-present release gate is **actual Pixel credential-manage
 - New instrumentation `AiBrowserPairingLiveAndroidTest` is opt-in and strict QA-host/package/display-guarded. `complete` and two independent `relay` runs passed live, including the corrected atomic marker in the latest run. The earlier post-revocation relay run failed on a premature marker read. Revocation after this latest relay passed; see both records for ordering.
 - Owned Pixel helper and compact evidence remain outside Git in `~/.local/state/newpipe-passkeys-20261109/`; no whole browser profile or raw credential belongs in source.
 
-**Saved execution state:** fresh staged QA pairing, Android relay and post-revocation denial passed, and test jobs/QA packages/virtual display were cleaned up. The private host test runner's atomic-marker correction **was verified in a passing real Pixel relay**. No task continues asynchronously. Next steps require real physical biometric/ChatGPT acceptance and separate production rollout approval.
+**Saved state:** staging QA pairing/relay/revocation tests and cleanup are complete. **Production AI gateway is now live**, at the exact recorded version; existing secrets/bindings and separate Cloud & Sync were preserved. Android production APK build, signing validation and installation are tracked separately, not yet claimed complete. Staging test resources are retained. No NewPipe ChatGPT plugin call was made after the user's explicit stop instruction.
